@@ -10,10 +10,6 @@ from rlx.frontend import Graph, Node, Edge
 from rlx.extern.expr.MathLang import MathLang
 from rlx.extern.expr.PropLang import PropLang
 
-from rlx.extern.expr.math_utils import define_rewrite_rules as math_rewrite_rules
-
-from rlx.extern.expr.prop_utils import define_rewrite_rules as prop_rewrite_rules
-
 from rlx.extern.expr.lib import Language, EGraph
 
 
@@ -135,6 +131,13 @@ def callback_reward_function(graph: Graph, terminated: bool,
     return reward
 
 
+def out(node, attr=None):
+    node.outputs = []
+    out_edge = expr_edge(-1, attr, None, node)
+    node.outputs.append(out_edge)
+    return out_edge
+
+
 #########################################
 ################ utility ################
 #########################################
@@ -153,59 +156,6 @@ def cnt_op(expr):
 
     dfs(expr)
     return cnt
-
-
-def rlxGraph2Expr(ops, edges: list[Edge]):
-    # find outputs
-    outputs = []
-    for e in edges:
-        if len(e.uses) == 0:
-            outputs.append(e)
-
-    assert len(outputs) == 1, f"expect 1 output, got {len(outputs)}"
-    output = outputs[0]
-
-    def lookup(node_type):
-        for op in ops:
-            if op.__name__ == node_type.name:
-                return op
-        raise RuntimeError(f"Unsupport node type {node_type.name}")
-
-    # build expr
-    built = {}  # obj -> expr obj
-
-    def dfs(obj):
-        if obj in built:
-            return built[obj]
-
-        if isinstance(obj, Node):
-            inputs = []
-            for inp in obj.inputs:
-                out = dfs(inp)
-                inputs.append(out)
-
-            op = lookup(obj.get_type())
-            node = op(*inputs)
-            built[obj] = node
-            return node
-
-        if isinstance(obj, Edge):
-            if obj.trace is None:
-                # input (must be const)
-                assert obj.attr is not None, f"expect int, got None {obj.idx}"
-                assert isinstance(
-                    obj.attr,
-                    int), f"expect int, got {type(obj.attr)} {obj.idx}"
-                built[obj] = obj.attr
-                return obj.attr
-            else:
-                node = dfs(obj.trace)
-                built[obj] = node
-                return node
-
-        raise RuntimeError("unreachable")
-
-    return dfs(output)
 
 
 step_info = namedtuple("StepInfo", [
@@ -256,7 +206,7 @@ def add_df_meta(df: pd.DataFrame,
 def get_lang(name: str) -> Language:
     return {
         "MATH": MathLang,
-        "MathLang": MathLang,
+        "math": MathLang,
         "prop": PropLang,
         "PROP": PropLang,
     }[name]

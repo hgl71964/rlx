@@ -1,17 +1,17 @@
-import ast
-import inspect
-import textwrap
-
 from abc import ABC, abstractmethod
 from typing import Optional, Any, Union
 
 # global vars
 _pattern_id = 0
 PATTERN_ID_MAP = {}
-INPUTS_MAP = {}
-REVERSE_INPUTS_MAP = {}
-OUTPUTS_MAP = {}
-REVERSE_OUTPUTS_MAP = {}
+
+
+def _id(pattern):
+    global _pattern_id
+    local = _pattern_id
+    PATTERN_ID_MAP[local] = pattern
+    _pattern_id += 1
+    return local
 
 
 class NodePattern:  # for type annotation
@@ -33,10 +33,7 @@ class EdgePattern:
             assert trace_idx is not None
             self.trace_idx = trace_idx
 
-        global _pattern_id
-        self.pattern_id = _pattern_id
-        PATTERN_ID_MAP[_pattern_id] = self
-        _pattern_id += 1
+        _id(self)
 
 
 class NodePattern:
@@ -54,55 +51,34 @@ class NodePattern:
                 out_const = False
 
         # build output
-        if hasattr(output_attr, "__iter__"):
+        if output_attr is None:
+            self.outputs = [
+                EdgePattern(out_const, self, i, output_attr)
+                for i in range(n_outputs)
+            ]
+        else:
             assert len(output_attr
                        ) == n_outputs, f"{n_outputs}, but {len(output_attr)}"
             self.outputs = [
                 EdgePattern(out_const, self, i, output_attr[i])
                 for i in range(n_outputs)
             ]
-        else:
-            self.outputs = [
-                EdgePattern(out_const, self, i, output_attr)
-                for i in range(n_outputs)
-            ]
 
         for idx, inp in enumerate(self.inputs):
             inp.uses.append((self, idx))
 
-        global _pattern_id
-        self.pattern_id = _pattern_id
-        PATTERN_ID_MAP[_pattern_id] = self
-        _pattern_id += 1
+        _id(self)
 
 
 ###########################################
 #### User facing API for rewrite rules ####
 ###########################################
 def const_pattern(attr=None):
-    """
-    Return a pair of pattern:
-        where the first must be used in source pattern,
-        the second for target pattern
-    """
-    source = EdgePattern(True, None, None, attr)
-    target = EdgePattern(True, None, None, attr)
-    INPUTS_MAP[source] = target
-    REVERSE_INPUTS_MAP[target] = source
-    return source, target
+    return EdgePattern(True, None, None, attr)
 
 
 def symbol_pattern(attr=None):
-    """
-    Return a pair of pattern:
-        where the first must be used in source pattern,
-        the second for target pattern
-    """
-    source = EdgePattern(False, None, None, attr)
-    target = EdgePattern(False, None, None, attr)
-    INPUTS_MAP[source] = target
-    REVERSE_INPUTS_MAP[target] = source
-    return source, target
+    return EdgePattern(False, None, None, attr)
 
 
 def node_pattern(node_type,
@@ -123,21 +99,6 @@ class RewriteRule(ABC):
 
     @abstractmethod
     def target_pattern(self) -> list[EdgePattern]:
-        pass
-
-    def register_deps(self):
-        """
-        interface to declare dependencies among inputs
-
-        e.g. assume source pattern has self.a and self.b,
-            To declare dependencies among self.a and self.b: 
-            1. self.a.attr == self.b.attr
-            2. self.a.attr[0] < self.b.attr[0]
-            3. self.a.attr[1] != 0
-        """
-        pass
-
-    def dump(self):
         pass
 
     def initialise(self):
@@ -163,77 +124,3 @@ class RewriteRule(ABC):
             assert isinstance(o, EdgePattern)
         for o in self.target_output:
             assert isinstance(o, EdgePattern)
-
-        # add to OUTPUTS_MAP
-        for k, v in zip(self.source_output, self.target_output):
-            OUTPUTS_MAP[k] = v
-            REVERSE_OUTPUTS_MAP[v] = k
-
-        # populate deps
-        self.deps = _resolve_deps(self.register_deps)
-
-
-def _resolve_deps(func):
-    src = inspect.getsource(func)
-    src = textwrap.dedent(src)
-    tree = ast.parse(src)
-    func_bodies = tree.body[0].body
-    deps = []
-    for i, func_body in enumerate(func_bodies):
-        if isinstance(func_body, ast.Expr):
-            func_body = func_body.value
-            if isinstance(func_body, ast.Compare):
-                dep = _resolve_compare(func_body)
-                deps.append(dep)
-    return deps
-
-
-def _resolve_compare(cmp: ast.Compare):
-    assert len(cmp.ops) == 1, "Compare should only have one operator"
-    assert len(cmp.comparators) == 1, "Compare should only have one comparator"
-    left, right, op = cmp.left, cmp.comparators[0], cmp.ops[0]
-    left = tuple(_dfs(left))
-    right = tuple(_dfs(right))
-    return (left, right, op)
-
-
-def _dfs(node: ast.AST) -> list:
-    """
-    Recursively traverses the abstract syntax tree (AST) and extracts constant values.
-
-    Args:
-        node (ast.AST): The root node of the AST.
-
-    Returns:
-        list: A list of constant values extracted from the AST.
-
-    Raises:
-        RuntimeError: If the given node type is not supported.
-
-    Examples:
-        >>> node = ast.Constant(5)
-        >>> _dfs(node)
-        [5]
-
-        >>> node = ast.Attribute(value=ast.Name(id='obj', ctx=ast.Load()), attr='attr', ctx=ast.Load())
-        >>> _dfs(node)
-        ['attr']
-
-        >>> node = ast.Subscript(value=ast.Name(id='var', ctx=ast.Load()), slice=ast.Index(value=ast.Constant('value')))
-        >>> _dfs(node)
-        ['var', 'value']
-    """
-    if isinstance(node, ast.Constant):
-        return [node.value]  # const value
-
-    if isinstance(node, ast.Attribute):
-        assert node.attr == "attr"
-        return [node.value.attr]
-
-    if isinstance(node, ast.Subscript):
-        const = node.slice.value
-        ret = _dfs(node.value)  # can be arbitrarily deep
-        ret.append(const)
-        return ret
-
-    raise RuntimeError(f"{node} is not supported")

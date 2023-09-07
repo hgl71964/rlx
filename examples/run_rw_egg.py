@@ -14,13 +14,13 @@ from rlx.extern.expr.expr_utils import (callback_reward_function, expr_graph,
                                         get_lang, load_expr, rlxGraph2Expr,
                                         cnt_op)
 
-from rlx.extern.expr.math_utils import define_rewrite_rules as math_rewrite_rules
-from rlx.extern.expr.math_utils import verify as math_verify
-from rlx.extern.expr.math_utils import define_node_type as define_math_node_type
+from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
+from rlx.extern.expr.math_def import verify as math_verify
+from rlx.extern.expr.math_def import define_node_type as define_math_node_type
 
-from rlx.extern.expr.prop_utils import define_rewrite_rules as prop_rewrite_rules
-from rlx.extern.expr.prop_utils import verify as prop_verify
-from rlx.extern.expr.prop_utils import define_node_type as define_prop_node_type
+from rlx.extern.expr.prop_def import define_rewrite_rules as prop_rewrite_rules
+from rlx.extern.expr.prop_def import verify as prop_verify
+from rlx.extern.expr.prop_def import define_node_type as define_prop_node_type
 
 from absl import app
 from absl import flags
