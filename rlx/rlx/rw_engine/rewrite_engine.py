@@ -27,8 +27,8 @@ class RewriteEngine:
     def __init__(self, graph, rewrite_rules, callback_reward_function, config):
         self.graph = graph
         self.callback_reward_function = callback_reward_function
-        for rw in rewrite_rules:
-            rw.initialise()
+        for rule in rewrite_rules:
+            rule.initialise()
         self.rewrite_rules = rewrite_rules
         self.config = config
 

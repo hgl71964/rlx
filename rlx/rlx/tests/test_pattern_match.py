@@ -5,11 +5,16 @@ from rlx.frontend.registry import register_node_type, get_node_type, clear_node_
 from rlx.rw_engine.parser import Parser
 from rlx.rw_engine.environment.pattern_match import PatternMatch
 
-# from rlx.extern.expr.expr_utils import (define_node_types,
-#                                         define_rewrite_rules, get_lang,
-#                                         load_expr, expr_graph)
+from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
-import torch
+from rlx.extern.expr.math_def import (r1,
+                                      r2,
+                                      r3,
+                                      r4,
+                                      r11,)  # yapf: disable
+
+
+
 
 from absl import app
 from absl import flags
@@ -20,57 +25,6 @@ FLAGS = flags.FLAGS
 ###############
 #### Test 1
 ###############
-class expr_node(Node):
-    def __init__(self, idx, attr, node_type, inputs):
-        self.idx = idx
-        self.attr = attr
-        self.node_type = node_type
-        self.inputs = inputs
-        self.outputs = []
-
-        for inp in inputs:
-            inp.uses.append(self)
-
-    def get_type(self):
-        return self.node_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_inputs(self):
-        return self.inputs
-
-    def get_outputs(self):
-        return self.outputs
-
-    def out(self, attr=None):
-        # utility to auto-generate output; edge_type will be inferred
-        o = expr_edge(-1, attr=attr, edge_type=None, trace=self)
-        self.outputs = [o]
-        return o
-
-
-class expr_edge(Edge):
-    def __init__(self, idx, attr, edge_type, trace):
-        self.idx = idx
-        self.attr = attr
-        self.edge_type = edge_type
-        self.uses = []
-        self.trace = trace
-
-    def get_type(self):
-        return self.edge_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_uses(self):
-        return self.uses
-
-    def get_trace(self):
-        return self.trace
-
-
 class G1(Graph):
     def __init__(self, node_types):
         self.nodes = []
@@ -95,28 +49,12 @@ class G1(Graph):
 
 
 def rw1(node_types):
-    class r1(RewriteRule):
-        def __init__(self):
-            self.name = "(+ a x) => (+ x a)"
-            self.a, self.ta = const_pattern()
-            self.x, self.tx = symbol_pattern()
-
-        def source_pattern(self):
-            self.out = node_pattern(node_types["Add"], [self.a, self.x],
-                                    n_outputs=1)
-            return [self.out]
-
-        def target_pattern(self):
-            # NOTE: if use self.x and self.a, this create new uses
-            self.tout = node_pattern(node_types["Add"], [self.tx, self.ta],
-                                     n_outputs=1)
-            return [self.tout]
-
-    return [r1()]
+    return [r1(node_types)]
 
 
 class G2(Graph):
     def __init__(self, node_types):
+        # ((t + tw) * x + b * x) + more
         self.nodes = []
         self.edges = []
         # input
@@ -125,14 +63,14 @@ class G2(Graph):
 
         # a = expr_edge(0, None, node_types["Const"], None)
         b = expr_edge(0, None, node_types["Const"], None)
-        x = expr_edge(0, None, node_types["Var"], None)
+        x = expr_edge(0, None, node_types["Const"], None)
         more = expr_edge(0, None, node_types["Const"], None)
 
-        # gen a
+        # a = t + tw
         a_node = expr_node(0, None, node_types["Add"], [t, tw])
         a = a_node.out()
 
-        # x*a
+        # x
         m1 = expr_node(0, None, node_types["Mul"], [a, x])
         m1_out = m1.out()
         # x*b
@@ -157,28 +95,7 @@ class G2(Graph):
 
 
 def rw2(node_types):
-    class r1(RewriteRule):
-        def __init__(self):
-            self.name = "x*a + x*b => x*(a+b)"
-            self.a, self.ta = const_pattern()
-            self.b, self.tb = const_pattern()
-            self.x, self.tx = symbol_pattern()
-
-        def source_pattern(self):
-            mul1 = node_pattern(node_types["Mul"], [self.a, self.x],
-                                n_outputs=1)
-            mul2 = node_pattern(node_types["Mul"], [self.b, self.x],
-                                n_outputs=1)
-            out = node_pattern(node_types["Add"], [mul1, mul2], n_outputs=1)
-            return [out]
-
-        def target_pattern(self):
-            add1 = node_pattern(node_types["Add"], [self.ta, self.tb],
-                                n_outputs=1)
-            out = node_pattern(node_types["Mul"], [add1, self.tx], n_outputs=1)
-            return [out]
-
-    return [r1()]
+    return [r11(node_types)]
 
 
 class G3(Graph):
@@ -413,11 +330,13 @@ def rw5(node_types):
     return [r_eq(), r_paritial_eq1(), r_paritial_eq2(), r_const()]
 
 
-def print_test(g, r, verbose=True):
+def print_test(g, r, test_name="test1", verbose=True, viz=False):
     for _r in r:
         _r.initialise()
     parser = Parser(g)
     parser._build_mapping()
+    if viz:
+        parser.viz(parser.edges, test_name, check=False)
     pattern_map = PatternMatch().build(parser.edges, r)
     for rule_id, pmaps in pattern_map.items():
         locs = len(pmaps)
@@ -504,7 +423,8 @@ def test_expr():
 
     pattern_map = PatternMatch().build(parser.edges, r1)
     for rule_id, pmaps in pattern_map.items():
-        print(f"rule ID: {rule_id}")
+        locs = len(pmaps)
+        print(f"++rule ID: {rule_id};; n_match: {locs}++")
         for loc_id, pmap in enumerate(pmaps):
             print(f"loc ID: {loc_id}")
             for k, v in pmap.items():
@@ -525,39 +445,39 @@ def test_expr():
     print("Test2: ")
     g = G2(node_types)
     r = rw2(node_types)
-    print_test(g, r)
+    print_test(g, r, "test2", viz=False)
 
     # Test3:
-    print("Test3: ")
-    g = G3(node_types)
-    r = rw3(node_types)
-    print_test(g, r)
+    # print("Test3: ")
+    # g = G3(node_types)
+    # r = rw3(node_types)
+    # print_test(g, r)
 
-    # Test4: data-dependent; (+ ?a 0) => ?a
-    print("Test4: ")
-    g = G4(node_types)
-    r = rw4(node_types)
-    print_test(g, r)
+    # # Test4: data-dependent; (+ ?a 0) => ?a
+    # print("Test4: ")
+    # g = G4(node_types)
+    # r = rw4(node_types)
+    # print_test(g, r)
 
-    print("Test4-alternative: ")
-    g = G4_alter(node_types)
-    r = rw4(node_types)
-    print_test(g, r)
+    # print("Test4-alternative: ")
+    # g = G4_alter(node_types)
+    # r = rw4(node_types)
+    # print_test(g, r)
 
-    # cancel-sub; a - a = 0
-    print("Test4-cancel-sub: ")
-    g = G4_cancel_sub(node_types)
-    r = rw4(node_types)
-    print_test(g, r)
+    # # cancel-sub; a - a = 0
+    # print("Test4-cancel-sub: ")
+    # g = G4_cancel_sub(node_types)
+    # r = rw4(node_types)
+    # print_test(g, r)
 
-    print("Test5: input dependencies test")
-    g = G5_eq(node_types)
-    r = rw5(node_types)
-    print_test(g, r)
+    # print("Test5: input dependencies test")
+    # g = G5_eq(node_types)
+    # r = rw5(node_types)
+    # print_test(g, r)
 
-    g = G5_partial_eq(node_types)
-    r = rw5(node_types)
-    print_test(g, r)
+    # g = G5_partial_eq(node_types)
+    # r = rw5(node_types)
+    # print_test(g, r)
 
     # print("Test: full expr")
     # clear_node_type()
@@ -577,159 +497,8 @@ def test_expr():
 ###############
 #### Test 1
 ###############
-class dfg_node(Node):
-    def __init__(self, idx, attr, node_type, inputs):
-        self.idx = idx
-        self.attr = attr
-        self.node_type = node_type
-        self.inputs = inputs
-        self.outputs = []
-
-        for inp in inputs:
-            inp.uses.append(self)
-
-    def get_type(self):
-        return self.node_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_inputs(self):
-        return self.inputs
-
-    def get_outputs(self):
-        return self.outputs
-
-
-class dfg_edge(Edge):
-    def __init__(self, idx, attr, edge_type, trace):
-        self.idx = idx
-        self.attr = attr
-        self.edge_type = edge_type
-        self.uses = []
-        self.trace = trace
-
-        if trace is not None:
-            self.trace.outputs.append(self)
-
-    def get_type(self):
-        return self.edge_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_uses(self):
-        return self.uses
-
-    def get_trace(self):
-        return self.trace
-
-
-class DG1(Graph):
-    def __init__(self, node_types):
-        data = dfg_edge(0, None, node_types["Var"], None)
-        K = dfg_edge(1, None, node_types["Const"], None)
-        Q = dfg_edge(2, None, node_types["Const"], None)
-        m1 = dfg_node(3, None, node_types["Matmul"], [data, K])
-        m2 = dfg_node(4, None, node_types["Matmul"], [data, Q])
-        out1 = dfg_edge(5, None, node_types["Matmul"], trace=m1)
-        out2 = dfg_edge(6, None, node_types["Matmul"], trace=m2)
-
-        self.nodes = []
-        self.edges = []
-        self.edges.append(data)
-        self.edges.append(K)
-        self.edges.append(Q)
-        self.edges.append(out1)
-        self.edges.append(out2)
-        self.nodes.append(m1)
-        self.nodes.append(m2)
-
-    def get_nodes(self):
-        return self.nodes
-
-    def get_edges(self):
-        return self.edges
-
-
-def drw1(node_types):
-    class r1(RewriteRule):
-        def __init__(self):
-            self.name = "matmul(x, c1)|matmul(x, c2) ==> matmul(x, concat(c1, c2)) followed by split"
-            self.d, self.td = symbol_pattern()
-            self.k, self.tk = const_pattern()
-            self.q, self.tq = const_pattern()
-
-        def source_pattern(self):
-            self.m1 = node_pattern(node_types["Matmul"], [self.d, self.k],
-                                   n_outputs=1)
-            self.m2 = node_pattern(node_types["Matmul"], [self.d, self.q],
-                                   n_outputs=1)
-            return [self.m1, self.m2]
-
-        def target_pattern(self):
-            concat = node_pattern(node_types["Concat"], [self.tk, self.tq],
-                                  n_outputs=1)
-            matmul = node_pattern(node_types["Matmul"], [self.td, concat],
-                                  n_outputs=1)
-            self.split = node_pattern(node_types["Split"], [matmul],
-                                      n_outputs=2)
-            return self.split
-
-    return [
-        r1(),
-    ]
-
-
-def test_dataflow():
-    print("=======")
-    print("test dataflow")
-    print("=======")
-    node_types = [
-        "Matmul",
-        "Concat",
-        "Split",
-
-        # leaf;
-        "Var",
-        "Const",
-    ]
-    clear_node_type()
-    register_node_type(node_types)
-    node_types, _, _ = get_node_type()
-
-    # Test1:
-    g1 = DG1(node_types)
-    r1 = drw1(node_types)
-    for r in r1:
-        r.initialise()
-
-    # parser + pattern match
-    parser = Parser(g1)
-    parser._build_mapping()
-    pattern_map = PatternMatch().build(parser.edges, r1)
-    for rule_id, pmaps in pattern_map.items():
-        print(f"rule ID: {rule_id}")
-        for loc_id, pmap in enumerate(pmaps):
-            print(f"loc ID: {loc_id}")
-            for k, v in pmap.items():
-                if v[0] == 0:
-                    vid = v[1]
-                    v = parser.edge_map[vid]
-                    k = PATTERN_ID_MAP[k]
-                    print("edge id", vid, v.get_type(), k.is_const)
-                elif v[0] == 1:
-                    vid = v[1]
-                    v = parser.node_map[vid]
-                    k = PATTERN_ID_MAP[k]
-                    print("node", vid, v.get_type(), k.node_type)
-                else:
-                    raise
-
-
 def main(_):
     test_expr()
-    test_dataflow()
 
 
 if __name__ == "__main__":

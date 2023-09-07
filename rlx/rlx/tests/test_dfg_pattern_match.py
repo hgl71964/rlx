@@ -15,11 +15,13 @@ from rlx.extern.hidet.hidet_def import *
 FLAGS = flags.FLAGS
 
 
-def print_test(g, r, verbose=True):
+def print_test(g, r, test_name="test1", verbose=True, viz=False):
     for _r in r:
         _r.initialise()
     parser = Parser(g)
     parser._build_mapping()
+    if viz:
+        parser.viz(parser.edges, test_name, check=False)
     pattern_map = PatternMatch().build(parser.edges, r)
     for rule_id, pmaps in pattern_map.items():
         locs = len(pmaps)
@@ -43,25 +45,41 @@ def print_test(g, r, verbose=True):
     print()
 
 
+def out(op, attr=None):
+    # utility to auto-generate output; edge_type will be inferred
+    o = DFG_Edge(-1, attr=attr, edge_type=None, trace=op)
+    op.outputs.append(o)
+    return o
+
+
 class DG1(Graph):
     def __init__(self, node_types):
-        data = DFG_Edge(0, None, node_types["Var"], None)
-        K = DFG_Edge(1, None, node_types["Const"], None)
-        Q = DFG_Edge(2, None, node_types["Const"], None)
-        m1 = DFG_Op(3, None, node_types["Matmul"], [data, K])
-        m2 = DFG_Op(4, None, node_types["Matmul"], [data, Q])
-        out1 = DFG_Edge(5, None, node_types["Matmul"], trace=m1)
-        out2 = DFG_Edge(6, None, node_types["Matmul"], trace=m2)
+        v1 = DFG_Edge(0, None, node_types["Var"], None)
+        c1 = DFG_Edge(0, None, node_types["Const"], None)
+        conv1 = DFG_Op(0, None, node_types["conv2d"], [v1, c1])
+        conv1_out = out(conv1)
 
-        self.nodes = []
-        self.edges = []
-        self.edges.append(data)
-        self.edges.append(K)
-        self.edges.append(Q)
-        self.edges.append(out1)
-        self.edges.append(out2)
-        self.nodes.append(m1)
-        self.nodes.append(m2)
+        c2 = DFG_Edge(0, None, node_types["Const"], None)
+        add1 = DFG_Op(1, None, node_types["add"], [conv1_out, c2])
+        add1_out = out(add1)
+
+        v4 = DFG_Edge(0, None, node_types["Var"], None)
+        c4 = DFG_Edge(0, None, node_types["Const"], None)
+        conv2 = DFG_Op(0, None, node_types["conv2d"], [v4, c4])
+        conv2_out = out(conv2)
+
+        c5 = DFG_Edge(0, None, node_types["Const"], None)
+        add2 = DFG_Op(1, None, node_types["add"], [conv2_out, c5])
+        add2_out = out(add2)
+
+        last_add = DFG_Op(-1, None, node_types["add"], [add1_out, add2_out])
+        last_add_out = out(last_add)
+
+        self.nodes = [conv1, add1, conv2, add2, last_add]
+        self.edges = [
+            v1, c1, conv1_out, conv2_out, c2, add1_out, v4, c4, c5, add2_out,
+            last_add_out
+        ]
 
     def get_nodes(self):
         return self.nodes
@@ -72,7 +90,11 @@ class DG1(Graph):
 
 def drw1(node_types):
     return [
+        # NOTE: how ar1 and ar5 demonstrate asymmetric, when consider var pattern
+        ar1(node_types),
         ar5(node_types),
+        ar6(node_types),
+        ar7(node_types),
     ]
 
 
@@ -85,30 +107,7 @@ def test_dataflow():
     # Test1:
     g1 = DG1(node_types)
     r1 = drw1(node_types)
-    for r in r1:
-        r.initialise()
-
-    # parser + pattern match
-    parser = Parser(g1)
-    parser._build_mapping()
-    pattern_map = PatternMatch().build(parser.edges, r1)
-    for rule_id, pmaps in pattern_map.items():
-        print(f"rule ID: {rule_id}")
-        for loc_id, pmap in enumerate(pmaps):
-            print(f"loc ID: {loc_id}")
-            for k, v in pmap.items():
-                if v[0] == 0:
-                    vid = v[1]
-                    v = parser.edge_map[vid]
-                    k = PATTERN_ID_MAP[k]
-                    print("edge id", vid, v.get_type(), k.is_const)
-                elif v[0] == 1:
-                    vid = v[1]
-                    v = parser.node_map[vid]
-                    k = PATTERN_ID_MAP[k]
-                    print("node", vid, v.get_type(), k.node_type)
-                else:
-                    raise
+    print_test(g1, r1, test_name="test1", verbose=True, viz=False)
 
 
 def main(_):

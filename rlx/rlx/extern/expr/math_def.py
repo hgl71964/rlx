@@ -4,7 +4,7 @@ from rlx.frontend.registry import get_node_type
 from rlx.frontend.registry import register_node_type
 from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern
 
-from rlx.extern.expr.expr_utils import expr_edge, expr_node, out
+from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
 NODE_TYPES = [
     "Diff",
@@ -176,7 +176,7 @@ class r1(RewriteRule):
                         attr=None,
                         node_type=self.node_types["Add"],
                         inputs=[b, a])
-        out = out(new)
+        out = new.out()
         return [out]
 
 
@@ -197,7 +197,7 @@ class r2(RewriteRule):
                         attr=None,
                         node_type=self.node_types["Mul"],
                         inputs=[b, a])
-        out = out(new)
+        out = new.out()
         return [out]
 
 
@@ -338,23 +338,37 @@ class r10(RewriteRule):
 
 
 class r11(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # [ "factor", op.add(op.mul(a, b), op.mul(a, c)), op.mul(a, op.add(b, c)) ],
         self.name = "factor"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        mul1 = node_pattern(node_types["Mul"], [self.a, self.b], 1)
-        mul2 = node_pattern(node_types["Mul"], [self.a, self.c], 1)
-        add = node_pattern(node_types["Add"], [mul1, mul2], 1)
+        mul1 = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
+        mul2 = node_pattern(self.node_types["Mul"], [self.a, self.c], 1)
+        add = node_pattern(self.node_types["Add"], [mul1, mul2], 1)
         return [add]
 
-    def target_pattern(self):
-        add = node_pattern(node_types["Add"], [self.tb, self.tc], 1)
-        mul = node_pattern(node_types["Mul"], [self.ta, add], 1)
-        return [mul]
+    def target_pattern(self, matched):
+        a, b, c = [matched[idx] for idx in [self.a, self.b, self.c]]
+        new = expr_node(
+            -1,
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[b, c],
+        )
+        out = new.out()
+        new = expr_node(
+            -1,
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, out],
+        )
+        out = new.out()
+        return [out]
 
 
 class r12(RewriteRule):
@@ -617,7 +631,7 @@ def define_rewrite_rules(node_types):
         # r8(node_types),
         # r9(node_types),
         # r10(node_types),
-        # r11(node_types),
+        r11(node_types),
         # r12(node_types),
         # r13(node_types),
         # r14(node_types),

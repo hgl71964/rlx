@@ -60,6 +60,12 @@ class expr_node(Node):
     def get_outputs(self):
         return self.outputs
 
+    def out(self, attr=None):
+        # utility to auto-generate output; edge_type will be inferred
+        o = expr_edge(-1, attr=attr, edge_type=None, trace=self)
+        self.outputs = [o]
+        return o
+
 
 class expr_graph(Graph):
     def __init__(self, expr, node_types):
@@ -129,13 +135,6 @@ def callback_reward_function(graph: Graph, terminated: bool,
     # print()
 
     return reward
-
-
-def out(node, attr=None):
-    node.outputs = []
-    out_edge = expr_edge(-1, attr, None, node)
-    node.outputs.append(out_edge)
-    return out_edge
 
 
 #########################################

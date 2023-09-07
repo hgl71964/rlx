@@ -10,6 +10,7 @@ def _id(pattern):
     global _pattern_id
     local = _pattern_id
     PATTERN_ID_MAP[local] = pattern
+    pattern.pattern_id = local
     _pattern_id += 1
     return local
 
@@ -108,19 +109,18 @@ class RewriteRule(ABC):
         to initialise the patterns
         """
         self.source_output = self.source_pattern()
-        self.target_output = self.target_pattern()
 
         # check
         assert isinstance(self.source_output,
                           list), "Pattern expects a list of source output"
-        assert isinstance(self.target_output,
-                          list), "Pattern expects a list of target output"
+        # assert isinstance(self.target_output,
+        #                   list), "Pattern expects a list of target output"
         assert hasattr(self, "name"), "Pattern must have a name"
 
         # src and tgt output must be 1-to-1 correspondence
-        assert len(self.target_output) == len(
-            self.source_output), "Pattern n_outputs should be equal"
-        for o in self.source_output:
-            assert isinstance(o, EdgePattern)
-        for o in self.target_output:
-            assert isinstance(o, EdgePattern)
+        # assert len(self.target_output) == len(
+        #     self.source_output), "Pattern n_outputs should be equal"
+        # for o in self.source_output:
+        #     assert isinstance(o, EdgePattern)
+        # for o in self.target_output:
+        #     assert isinstance(o, EdgePattern)
