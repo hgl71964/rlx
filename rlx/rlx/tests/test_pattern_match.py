@@ -59,29 +59,29 @@ class G2(Graph):
         self.edges = []
         # input
         t = expr_edge(0, None, node_types["Const"], None)
-        tw = expr_edge(0, None, node_types["Const"], None)
+        tw = expr_edge(1, None, node_types["Const"], None)
 
         # a = expr_edge(0, None, node_types["Const"], None)
-        b = expr_edge(0, None, node_types["Const"], None)
-        x = expr_edge(0, None, node_types["Const"], None)
-        more = expr_edge(0, None, node_types["Const"], None)
+        b = expr_edge(2, None, node_types["Const"], None)
+        x = expr_edge(3, None, node_types["Const"], None)
+        more = expr_edge(4, None, node_types["Const"], None)
 
         # a = t + tw
-        a_node = expr_node(0, None, node_types["Add"], [t, tw])
-        a = a_node.out()
+        a_node = expr_node(5, None, node_types["Add"], [t, tw])
+        a = a_node.out(6)
 
         # x
-        m1 = expr_node(0, None, node_types["Mul"], [a, x])
-        m1_out = m1.out()
+        m1 = expr_node(7, None, node_types["Mul"], [a, x])
+        m1_out = m1.out(8)
         # x*b
-        m2 = expr_node(0, None, node_types["Mul"], [b, x])
-        m2_out = m2.out()
+        m2 = expr_node(9, None, node_types["Mul"], [b, x])
+        m2_out = m2.out(10)
 
-        add = expr_node(0, None, node_types["Add"], [m1_out, m2_out])
-        add_out = add.out()
+        add = expr_node(11, None, node_types["Add"], [m1_out, m2_out])
+        add_out = add.out(12)
 
-        more_node = expr_node(0, None, node_types["Add"], [add_out, more])
-        more_out = more_node.out()
+        more_node = expr_node(13, None, node_types["Add"], [add_out, more])
+        more_out = more_node.out(14)
 
         self.edges.extend(
             [t, tw, b, x, more, a, m1_out, m2_out, add_out, more_out])
@@ -95,6 +95,8 @@ class G2(Graph):
 
 
 def rw2(node_types):
+    # XXX think about if the asymmetric reduce opportunities?
+    # asysmetric
     return [r11(node_types)]
 
 
@@ -104,21 +106,21 @@ class G3(Graph):
         self.edges = []
         # input
         a = expr_edge(0, None, node_types["Const"], None)
-        b = expr_edge(0, None, node_types["Const"], None)
-        x = expr_edge(0, None, node_types["Var"], None)
-        more = expr_edge(0, None, node_types["Var"], None)
+        b = expr_edge(1, None, node_types["Const"], None)
+        x = expr_edge(2, None, node_types["Var"], None)
+        more = expr_edge(3, None, node_types["Var"], None)
         # pow1
-        p1 = expr_node(0, None, node_types["Pow"], [x, a])
-        p1_out = p1.out()
+        p1 = expr_node(4, None, node_types["Pow"], [x, a])
+        p1_out = p1.out(5)
         # pow2
-        p2 = expr_node(0, None, node_types["Pow"], [x, b])
-        p2_out = p2.out()
+        p2 = expr_node(6, None, node_types["Pow"], [x, b])
+        p2_out = p2.out(7)
 
-        add_node = expr_node(0, None, node_types["Add"], [p1_out, p2_out])
-        add_out = add_node.out()
+        add_node = expr_node(8, None, node_types["Add"], [p1_out, p2_out])
+        add_out = add_node.out(9)
 
-        more_node = expr_node(0, None, node_types["Add"], [add_out, more])
-        more_out = more_node.out()
+        more_node = expr_node(10, None, node_types["Add"], [add_out, more])
+        more_out = more_node.out(11)
 
         self.edges.extend([a, b, x, more, p1_out, p2_out, add_out, more_out])
         self.nodes.extend([p1, p2, add_node, more_node])
@@ -445,7 +447,7 @@ def test_expr():
     print("Test2: ")
     g = G2(node_types)
     r = rw2(node_types)
-    print_test(g, r, "test2", viz=False)
+    print_test(g, r, "test2", viz=True)
 
     # Test3:
     # print("Test3: ")

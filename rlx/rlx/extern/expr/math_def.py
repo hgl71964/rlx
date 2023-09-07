@@ -347,8 +347,8 @@ class r11(RewriteRule):
         self.node_types = node_types
 
     def source_pattern(self):
-        mul1 = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
-        mul2 = node_pattern(self.node_types["Mul"], [self.a, self.c], 1)
+        mul1 = node_pattern(self.node_types["Mul"], [self.b, self.a], 1)
+        mul2 = node_pattern(self.node_types["Mul"], [self.c, self.a], 1)
         add = node_pattern(self.node_types["Add"], [mul1, mul2], 1)
         return [add]
 

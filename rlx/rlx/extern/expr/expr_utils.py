@@ -24,11 +24,20 @@ class expr_edge(Edge):
         self.uses = []
         self.trace = trace
 
+    def get_idx(self):
+        return self.idx
+
     def get_type(self):
         return self.edge_type
 
+    def set_type(self, edge_type):
+        self.edge_type = edge_type
+
     def get_attr(self):
         return self.attr
+
+    def set_attr(self, attr):
+        self.attr = attr
 
     def get_uses(self):
         return self.uses
@@ -48,8 +57,17 @@ class expr_node(Node):
         for inp in inputs:
             inp.uses.append(self)
 
+    def get_idx(self):
+        return self.idx
+
     def get_type(self):
         return self.node_type
+
+    def set_type(self, node_type):
+        self.node_type = node_type
+
+    def set_attr(self, attr):
+        self.attr = attr
 
     def get_attr(self):
         return self.attr
@@ -60,9 +78,9 @@ class expr_node(Node):
     def get_outputs(self):
         return self.outputs
 
-    def out(self, attr=None):
+    def out(self, idx=-1, attr=None):
         # utility to auto-generate output; edge_type will be inferred
-        o = expr_edge(-1, attr=attr, edge_type=None, trace=self)
+        o = expr_edge(idx, attr=attr, edge_type=None, trace=self)
         self.outputs = [o]
         return o
 

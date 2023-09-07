@@ -1,12 +1,10 @@
-import ast
-from copy import deepcopy
 from typing import Dict
+
+from rlx.frontend.graph import Node, Edge
 
 from rlx.utils.common import get_logger
 from rlx.frontend.registry import get_node_type
 from rlx.frontend.rewrite_rule import EdgePattern, NodePattern, RewriteRule
-
-from rlx.rw_engine.parser import rlx_Edge, rlx_Node
 
 # graph mining or graph pattern-matching is an established area
 # see if there's existing works to use
@@ -26,7 +24,7 @@ class PatternMatch:
         _, self.const_edge_type, self.var_edge_type = get_node_type(
         )  # enum; Const type
 
-    def build(self, edges: list[rlx_Edge],
+    def build(self, edges: list[Edge],
               rewrite_rules: list[RewriteRule]) -> dict[int, list[MatchDict]]:
         """
         Returns:
@@ -37,7 +35,7 @@ class PatternMatch:
             matches = []  # list[dict]
             visited = set()
 
-            # try to match each rlx_Edge
+            # try to match each Edge
             for i, edge in enumerate(edges):
                 # print("start ", i)
                 # assume subgraphs are connected;
@@ -61,10 +59,10 @@ class PatternMatch:
     def _obj2idx(self) -> MatchDict:
         matched = {}
         for k, v in self.matched.items():
-            if isinstance(v, rlx_Edge):
-                matched[k.pattern_id] = (0, v.idx)
-            elif isinstance(v, rlx_Node):
-                matched[k.pattern_id] = (1, v.idx)
+            if isinstance(v, Edge):
+                matched[k.pattern_id] = (0, v.get_idx())
+            elif isinstance(v, Node):
+                matched[k.pattern_id] = (1, v.get_idx())
             else:
                 raise RuntimeError(f"type error {type(v)}")
         return matched
@@ -72,11 +70,11 @@ class PatternMatch:
     def _is_identical_subgraph(self, visited: set[tuple[int, ...]]) -> bool:
         # sorted matched ids to avoid same subgraph matches
         ids = []
-        for k, v in self.matched.items():
-            if isinstance(v, rlx_Edge):
-                ids.append(v.idx)
-            elif isinstance(v, rlx_Node):
-                ids.append(v.idx)
+        for _, v in self.matched.items():
+            if isinstance(v, Edge):
+                ids.append(v.get_idx())
+            elif isinstance(v, Node):
+                ids.append(v.get_idx())
             else:
                 raise RuntimeError(f"type error {type(v)}")
         sorted_ids = tuple(sorted(ids))
@@ -95,7 +93,7 @@ class PatternMatch:
         subgraph_inputs = []
         subgraph_outputs = []
         for pattern, actual in self.matched.items():
-            if not isinstance(actual, rlx_Edge):
+            if not isinstance(actual, Edge):
                 continue
             elif pattern.trace is None:
                 # input
@@ -108,18 +106,18 @@ class PatternMatch:
 
         matched_nodes = {
             v
-            for v in self.matched.values() if isinstance(v, rlx_Node)
+            for v in self.matched.values() if isinstance(v, Node)
         }
 
         # if input edges are not allowed to be used by external graph
         # e.g. r14
         for inp in subgraph_inputs:
-            inp_use = len(inp.uses)
+            inp_use = len(inp.get_uses())
             pat_use = len(self.reverse_matched[inp].uses)
             if inp_use != pat_use:
                 #logger.warning(f"[PatternMatch][input] {inp_use} | {pat_use}; {rule_id}")
                 return True
-            for use in inp.uses:
+            for use in inp.get_uses():
                 if use not in matched_nodes:
                     #logger.warning(
                     #    f"[PatternMatch][input] use incomplete; {rule_id}")
@@ -154,14 +152,14 @@ class PatternMatch:
 
         # check inner edges
         for inner_e in inner_edges:
-            inp_use = len(inner_e.uses)
+            inp_use = len(inner_e.get_uses())
             pat_use = len(self.reverse_matched[inner_e].uses)
             if inp_use != pat_use:
                 logger.warning(
                     f"[PatternMatch][inner] {inp_use} | {pat_use}; rule_id: {rule_id}"
                 )
                 return True
-            for use in inner_e.uses:
+            for use in inner_e.get_uses():
                 if use not in matched_nodes:
                     # logger.warning(
                     #     f"[PatternMatch] find incomplete subgraphs with {rule_id}, {rw.name}"
@@ -190,16 +188,14 @@ class PatternMatch:
 
         # dispatch
         if isinstance(source, NodePattern):
-            assert isinstance(target, rlx_Node)
             return self.match_node(source, target)
 
         if isinstance(source, EdgePattern):
-            assert isinstance(target, rlx_Edge)
             return self.match_edge(source, target)
 
         raise RuntimeError()
 
-    def match_node(self, source: NodePattern, target: rlx_Node) -> bool:
+    def match_node(self, source: NodePattern, target: Node) -> bool:
         if source.node_type != target.node_type:
             return False
 
@@ -226,36 +222,35 @@ class PatternMatch:
         # pass all
         return True
 
-    def match_edge(self, source: EdgePattern, target: rlx_Edge) -> bool:
+    def match_edge(self, source: EdgePattern, target: Edge) -> bool:
         if source.is_const:
             # const_pattern (can only match Const); NOTE: assume 'Const' must exist
-            if target.edge_type != self.const_edge_type:
+            if target.get_type() != self.const_edge_type:
                 return False
 
         else:
             # symbolic (TODO can match both Const and Symbol?)
-            # if target.edge_type != self.var_edge_type:
-            #     return False
-            pass
+            if target.get_type() != self.var_edge_type:
+                return False
 
         if not _check_attr(source, target):
             return False
 
         # check trace
         if source.trace is not None:
-            if target.trace is None:
+            if target.get_trace() is None:
                 return False
 
             # TODO check uses index too?
             # this will likely filter out identical subgraphs, but with different match order
             # i.e. multi-output subgraphs, but we can also filter by sorting
 
-            if not self.match(source.trace, target.trace):
+            if not self.match(source.trace, target.get_trace()):
                 return False
 
         # check uses
         desire_uses = source.uses
-        actual_uses = target.uses
+        actual_uses = target.get_uses()
         for desire_use in desire_uses:
             desire_node, _ = desire_use
             if desire_node in self.matched:
@@ -271,7 +266,7 @@ class PatternMatch:
                     # this actual operator has been matched
                     continue
 
-                if actual_node.node_type != desire_node.node_type:
+                if actual_node.get_type() != desire_node.node_type:
                     # print(
                     #     f"[PatternMatch][XXX] {actual_node.node_type} | {desire_node.node_type}"
                     # )
@@ -303,9 +298,9 @@ def _check_attr(src, tgt) -> bool:
     if src.attr is None:  # this means pattern can match anything
         return True
 
-    if src.attr is not None and tgt.attr is not None:
+    if src.attr is not None and tgt.get_attr() is not None:
         # when both are not None, only True when both are equal
-        if src.attr == tgt.attr:
+        if src.attr == tgt.get_attr():
             return True
 
     return False

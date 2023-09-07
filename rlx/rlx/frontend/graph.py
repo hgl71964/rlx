@@ -9,11 +9,23 @@ class Node:  # for type annotation
 
 class Edge(ABC):
     @abstractmethod
+    def get_idx(self):
+        pass
+
+    @abstractmethod
     def get_type(self):
         pass
 
     @abstractmethod
+    def set_type(self, type):
+        pass
+
+    @abstractmethod
     def get_attr(self):
+        pass
+
+    @abstractmethod
+    def set_attr(self, attr):
         pass
 
     @abstractmethod
@@ -27,11 +39,23 @@ class Edge(ABC):
 
 class Node(ABC):
     @abstractmethod
+    def get_idx(self):
+        pass
+
+    @abstractmethod
     def get_type(self):
         pass
 
     @abstractmethod
+    def set_type(self, type):
+        pass
+
+    @abstractmethod
     def get_attr(self):
+        pass
+
+    @abstractmethod
+    def set_attr(self, attr):
         pass
 
     @abstractmethod

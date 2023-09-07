@@ -70,62 +70,15 @@ class rlx_Graph(Graph):
 
 class Parser:
     def __init__(self, graph: Graph):
-        edges = graph.get_edges()
-        nodes = graph.get_nodes()
+        self.edges = graph.get_edges()
+        self.nodes = graph.get_nodes()
 
-        # build internal graph
-        edge_map = {}
-        for i, e in enumerate(edges):
-            ee = rlx_Edge(i, e.get_attr(), e.get_type(), None)
-            edge_map[e] = ee
-
-        node_map = {}
-        for i, n in enumerate(nodes):
-            nn = rlx_Node(i, n.get_attr(), n.get_type(), None)
-            node_map[n] = nn
-
-        # add connection
-        self.edges = []
-        for i, e in enumerate(edges):
-            ee = edge_map[e]
-            e_trace = e.get_trace()
-            if e_trace is not None:
-                assert e_trace in node_map, "Graph may be broken, are all NODEs added?"
-                ee_trace = node_map[e_trace]
-                ee.trace = ee_trace
-
-            # TODO add idx too? so that it helps
-            # if a edge is input twice to a node? (a - a = 0)
-            e_uses = e.get_uses()
-            for e_use in e_uses:
-                assert e_use in node_map, "Graph may be broken, are all NODEs added?"
-                ee_use = node_map[e_use]
-                ee.uses.append(ee_use)
-
-            self.edges.append(ee)  # add to self
-
-        self.nodes = []
-        for i, n in enumerate(nodes):
-            nn = node_map[n]
-            nn.inputs = []
-
-            for inp in n.get_inputs():
-                assert inp in edge_map, "Graph may be broken, are all EDGES added?"
-                ee = edge_map[inp]
-                nn.inputs.append(ee)
-
-            for out in n.get_outputs():
-                assert out in edge_map, "Graph may be broken, are all EDGES added?"
-                ee = edge_map[out]
-                nn.outputs.append(ee)
-
-            self.nodes.append(nn)
-
-        self._detect_circle([e for e in self.edges if len(e.uses) == 0])
+        # run some checks
+        self._detect_circle([e for e in self.edges if len(e.get_uses()) == 0])
         self._check_uses(self.edges)
         self._infer_edge_type()
 
-    def _detect_circle(self, output_edges: list[rlx_Edge]):
+    def _detect_circle(self, output_edges: list[Edge]):
         visited, path = set(), set()
         stack = []
         node_cnt, edge_cnt = 0, 0
@@ -135,30 +88,30 @@ class Parser:
             if obj is None or obj in visited:
                 return
 
-            if isinstance(obj, rlx_Node):
+            if isinstance(obj, Node):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.idx}")
+                    logger.critical(f"circle detected! {obj.get_idx()}")
                     logger.critical(node_cnt, edge_cnt)
                     logger.critical(stack)
                     raise RuntimeError("circle detected")
                 path.add(obj)
-                stack.append(obj.idx)
-                for inp in obj.inputs:
+                stack.append(obj.get_idx())
+                for inp in obj.get_inputs():
                     dfs(inp)
                 node_cnt += 1
                 visited.add(obj)
                 path.remove(obj)
                 stack.pop()
 
-            if isinstance(obj, rlx_Edge):
+            if isinstance(obj, Edge):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.idx}")
+                    logger.critical(f"circle detected! {obj.get_idx()}")
                     logger.critical(node_cnt, edge_cnt)
                     logger.critical(stack)
                     raise RuntimeError("circle detected")
                 path.add(obj)
-                stack.append(obj.idx)
-                dfs(obj.trace)
+                stack.append(obj.get_idx())
+                dfs(obj.get_trace())
                 edge_cnt += 1
                 visited.add(obj)
                 path.remove(obj)
@@ -174,8 +127,8 @@ class Parser:
     def _check_uses(self, edges):
         sinks = []
         for e in edges:
-            if len(e.uses) == 0:
-                sinks.append(e.idx)
+            if len(e.get_uses()) == 0:
+                sinks.append(e.get_idx())
         logger.info(f"graph sinks: {sinks}")
 
     def _infer_edge_type(self):
@@ -188,31 +141,31 @@ class Parser:
             if obj is None or obj in visited:
                 return
 
-            if isinstance(obj, rlx_Node):
-                for inp in obj.inputs:
+            if isinstance(obj, Node):
+                for inp in obj.get_inputs():
                     dfs(inp)
 
                 var = False
-                for inp in obj.inputs:
-                    if inp.edge_type is None:
+                for inp in obj.get_inputs():
+                    if inp.get_type() is None:
                         raise RuntimeError(
                             "forget to set leaf node? initial edge type inference fails"
                         )
 
-                    if inp.edge_type == var_type:
+                    if inp.get_type() == var_type:
                         var = True
 
                 out_type = var_type if var else const_type
-                for out in obj.outputs:
-                    out.edge_type = out_type
+                for out in obj.get_outputs():
+                    out.set_type(out_type)
 
                 visited.add(obj)
 
-            if isinstance(obj, rlx_Edge):
-                dfs(obj.trace)
+            if isinstance(obj, Edge):
+                dfs(obj.get_trace())
                 visited.add(obj)
 
-        # need to dfs from topological order!
+        # need to dfs from topological order
         output_edge = []
         for e in self.edges:
             if len(e.uses) == 0:
@@ -225,42 +178,41 @@ class Parser:
         self.edge_map = {}
         self.node_map = {}
         for e in self.edges:
-            self.edge_map[e.idx] = e
+            self.edge_map[e.get_idx()] = e
         for n in self.nodes:
-            self.node_map[n.idx] = n
+            self.node_map[n.get_idx()] = n
 
     def viz(self, edges, path="rlx_graph_viz", check=True):
         if check:
             self._check(edges)
 
         # plot for debugging
-        import graphviz
+        import graphviz  # type: ignore
         g = graphviz.Digraph("rlx_Graph", format="pdf", filename=f"{path}")
 
         built = set()
-        for i, e in enumerate(edges):
+        for _, e in enumerate(edges):
             assert isinstance(
-                e,
-                rlx_Edge), f"viz only works for rlx_Graph, but got {type(e)}"
-            eid = e.idx
+                e, Edge), f"viz only works for rlx_Graph, but got {type(e)}"
+            eid = e.get_idx()
             etype = e.get_type().name
-            if isinstance(e.attr, int):
-                e_label = f"Edge-{eid}_{etype}({e.attr})"
+            if isinstance(e.get_attr(), int):
+                e_label = f"Edge-{eid}_{etype}({e.get_attr()})"
             else:
                 e_label = f"Edge-{eid}_{etype}"
             g.node(e_label, e_label, **{"shape": "rectangle"})
 
-            if e.trace is not None:
-                nid = e.trace.idx
-                ntype = e.trace.get_type().name
+            if e.get_trace() is not None:
+                nid = e.get_trace().get_idx()
+                ntype = e.get_trace().get_type().name
                 label = f"Node-{nid}_{ntype}"
                 if nid not in built:
                     g.node(label, label, **{"shape": "circle"})
                     built.add(nid)
                 g.edge(label, e_label)  # trace -> edge
 
-            for n in e.uses:
-                nid = n.idx
+            for n in e.get_uses():
+                nid = n.get_idx()
                 ntype = n.get_type().name
                 label = f"Node-{nid}_{ntype}"
                 if nid not in built:
@@ -274,27 +226,29 @@ class Parser:
         for i, e in enumerate(edges):
             ok = True
             # input node
-            if e.trace is not None:
-                n = e.trace
-                if e not in n.outputs:
+            if e.get_trace() is not None:
+                n = e.get_trace()
+                if e not in n.get_outputs():
                     ok = False
                     logger.critical(
-                        f"An exception occurred: {e.idx}, {e.edge_type}")
-                    logger.critical(f"{n.idx}, {n.node_type}")
+                        f"An exception occurred: {e.get_idx()}, {e.get_type()}"
+                    )
+                    logger.critical(f"{n.get_idx()}, {n.get_type()}")
                     for out in n.outputs:
-                        logger.critical(f"{out.idx}, {out.edge_type}")
+                        logger.critical(f"{out.get_idx()}, {out.get_type()}")
 
                 ok = ok and self._check_node(n)
 
             # output node
-            for n in e.uses:
-                if e not in n.inputs:
+            for n in e.get_uses():
+                if e not in n.get_inputs():
                     ok = False
                     logger.critical(
-                        f"An exception occurred: {e.idx}, {e.edge_type}")
-                    logger.critical(f"{n.idx}, {n.node_type}")
-                    for inp in n.inputs:
-                        logger.critical(f"{inp.idx}, {inp.edge_type}")
+                        f"An exception occurred: {e.get_idx()}, {e.get_type()}"
+                    )
+                    logger.critical(f"{n.get_idx()}, {n.get_type()}")
+                    for inp in n.get_inputs():
+                        logger.critical(f"{inp.get_idx()}, {inp.get_type()}")
 
                 ok = ok and self._check_node(n)
 
@@ -303,14 +257,16 @@ class Parser:
 
     def _check_node(self, n):
         ok = True
-        if len(n.inputs) > 2 or len(n.inputs) < 1:
+        if len(n.get_inputs()) > 2 or len(n.get_inputs()) < 1:
             ok = False
-            logger.erorr(f"{n.idx}, {n.node_type}, {len(n.inputs)}")
-            for inp in n.inputs:
-                logger.critical(f"{inp.idx}, {inp.edge_type}")
-        if len(n.outputs) != 1:
+            logger.erorr(
+                f"{n.get_idx()}, {n.get_type()}, {len(n.get_inputs())}")
+            for inp in n.get_inputs():
+                logger.critical(f"{inp.get_idx()}, {inp.get_type()}")
+        if len(n.get_outputs()) != 1:
             ok = False
-            logger.error(f"{n.idx}, {n.node_type}, {len(n.outputs)}")
-            for out in n.outputs:
-                logger.critical(f"{out.idx}, {out.edge_type}")
+            logger.error(
+                f"{n.get_idx()}, {n.get_type()}, {len(n.get_outputs())}")
+            for out in n.get_outputs():
+                logger.critical(f"{out.get_idx()}, {out.get_type()}")
         return ok
