@@ -1,0 +1,3 @@
+[submodule "third_party/hidet"]
+	path = third_party/hidet
+	url = https://github.com/hidet-org/hidet.git

@@ -1,0 +1,22 @@
+pytz
+distro
+
+# python test
+pytest==7.2
+
+# formatter
+black==22.10.0
+
+# linter
+pylint==2.13.9
+
+# for models to test
+torch
+torchvision
+transformers
+sentencepiece
+sacremoses
+
+# check the correctness with onnxruntime
+onnx
+onnxruntime-gpu

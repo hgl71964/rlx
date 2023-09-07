@@ -1,0 +1,12 @@
+venv/
+.vscode/
+__pycache__/
+target/
+*.py[cod]
+*.egg-info
+data/
+python/build/
+
+*.DS_Store
+*.pdf
+*.log
