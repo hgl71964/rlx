@@ -125,6 +125,8 @@ class Env(gym.Env):
             for _, e in enumerate(self.edges):
                 uses += len(e.uses)
             self.stats["init_n_uses"] = uses
+            reward = self._call_reward_func(False)
+            self.stats["init_reward"] = reward
             # logger.info(f"init stats: {self.stats}")
 
         self.stats["n_node"] = len(self.node_map)
@@ -133,6 +135,28 @@ class Env(gym.Env):
         for _, e in enumerate(self.edges):
             uses += len(e.uses)
         self.stats["n_uses"] = uses
+
+    def _build_mapping(self):
+        # based on self.edges to build
+        self.edge_map = {}
+        self.node_map = {}
+        self.input_edge = set()
+        self.output_edge = set()
+
+        for e in self.edges:
+            self.edge_map[e._rlx_idx] = e
+
+            node = e.get_trace()
+            if node is None:
+                self.input_edge.add(e)
+            elif node is not None and node._rlx_idx not in self.node_map:
+                self.node_map[node._rlx_idx] = node
+
+            if len(e.get_uses()) == 0:
+                self.output_edge.add(e)
+            for node in e.get_uses():
+                if node._rlx_idx not in self.node_map:
+                    self.node_map[node._rlx_idx] = node
 
     def step(self, action: tuple[Tensor]):
         assert len(action) == 2, f"{len(action)}??"
@@ -288,33 +312,6 @@ class Env(gym.Env):
         # logger.warning(f"{node_cnt} nodes | {edge_cnt} edges")
         self._check(rw, matched, False)
 
-    def _call_reward_func(self, terminated: bool) -> float:
-        g = rlx_Graph([v for _, v in self.node_map.items()],
-                      [v for _, v in self.edge_map.items()])
-        return self.reward_func(g, terminated, self.stats)
-
-    def _build_mapping(self):
-        # based on self.edges to build
-        self.edge_map = {}
-        self.node_map = {}
-        self.input_edge = set()
-        self.output_edge = set()
-
-        for e in self.edges:
-            self.edge_map[e.get_idx()] = e
-
-            node = e.get_trace()
-            if node is None:
-                self.input_edge.add(e)
-            elif node is not None and node.get_idx() not in self.node_map:
-                self.node_map[node.get_idx()] = node
-
-            if len(e.get_uses()) == 0:
-                self.output_edge.add(e)
-            for node in e.get_uses():
-                if node.get_idx() not in self.node_map:
-                    self.node_map[node.get_idx()] = node
-
     def _build_state(self):
         # get mapping of each rewrite rules -> (pattern -> node/edge)
         pattern_map = PatternMatch().build(self.edges, self.rewrite_rules)
@@ -323,27 +320,24 @@ class Env(gym.Env):
         # for rule_id, pmaps in pattern_map.items():
         #     locs = len(pmaps)
         #     logger.warning(f"++rule ID: {rule_id};; n_match: {locs}++")
-
         ######################################
         #### embedding: build graph tuple ####
         ######################################
         # NOTE: Edge and embedding are NOT 1-to-1
         # e.g. an edge can be used by two nodes
         # it is 1 edge in rlx_Graph, but embedding has 2 edges
-        # also NOTE: that there are ghost nodes from input_edge/output_edge
-
-        # FIXME change idx to _rlx_idx
+        # also: that there are ghost nodes from input_edge/output_edge
         n_node = len(self.node_map) + len(self.input_edge) + len(
             self.output_edge)
-        edge_embedding_map = {}  # Edge id -> graphTuple edge id
+        edge_embedding_map = {}  # Edge _rlx_idx -> graphTuple edge id
         embed_idx, n_edge = 0, 0
-        for e in self.edges:
-            tmp = []
-            for _ in e.get_uses():
-                tmp.append(embed_idx)
+        for edge in self.edges:
+            graph_tuple_edge_idx = []
+            for _ in edge.get_uses():
+                graph_tuple_edge_idx.append(embed_idx)
                 embed_idx += 1
                 n_edge += 1
-            edge_embedding_map[e.idx] = tmp
+            edge_embedding_map[edge._rlx_idx] = graph_tuple_edge_idx
 
         n_edge += len(self.output_edge)
 
@@ -354,17 +348,26 @@ class Env(gym.Env):
         loc_mask = torch.zeros((self.n_rewrite_rules + 1, self.max_loc),
                                dtype=torch.long)
 
-        # 1. type embedding
-        for nid, n in self.node_map.items():
-            node_feat[nid, n.get_type().value] = 1.
+        # to tensor
+        edge_index = torch.tensor(edge_index,
+                                  dtype=torch.long).t().contiguous()
 
-        for eid, e in self.edge_map.items():
+        # add self edges; self edges attr = [1.]
+        edge_index, edge_feat = pyg.utils.add_self_loops(edge_index,
+                                                         edge_feat,
+                                                         fill_value=1.)
+
+        # 1. type embedding
+        for n_rlx_idx, n in self.node_map.items():
+            node_feat[n_rlx_idx, n.get_type().value] = 1.
+
+        for e_rlx_idx, e in self.edge_map.items():
             if e.get_type() == self.const_type:
-                for embed_eid in edge_embedding_map[eid]:
-                    edge_feat[embed_eid, 0] = 1
+                for embed_eid in edge_embedding_map[e_rlx_idx]:
+                    edge_feat[embed_eid, 0] = 1.
             else:
-                for embed_eid in edge_embedding_map[eid]:
-                    edge_feat[embed_eid, 1] = 1
+                for embed_eid in edge_embedding_map[e_rlx_idx]:
+                    edge_feat[embed_eid, 1] = 1.
 
         # 2. pattern-match embedding
         node_rule_start = len(self.node_types)
@@ -378,7 +381,7 @@ class Env(gym.Env):
             if n_loc > self.max_loc:
                 logger.critical(f"n_loc: {n_loc} > max loc: {self.max_loc}")
             loc_mask[rule_id, :n_loc] = 1
-            # logger.warning(f"++rule ID: {rule_id};; n_match: {n_loc}++")
+            logger.debug(f"++rule ID: {rule_id};; n_match: {n_loc}++")
             # +++fill mask+++
 
             for loc_id, pmap in enumerate(pmaps):
@@ -386,9 +389,11 @@ class Env(gym.Env):
                     # both EdgePattern and NodePattern
                     idx = v[1]
                     if v[0] == 0:  # edge
-                        edge_feat[idx, edge_rule_start + rule_id] = 1
+                        for embed_eid in edge_embedding_map[idx]:
+                            edge_feat[embed_eid,
+                                      edge_rule_start + rule_id] = 1.
                     elif v[0] == 1:  # node
-                        node_feat[idx, node_rule_start + rule_id] = 1
+                        node_feat[idx, node_rule_start + rule_id] = 1.
                     else:
                         raise RuntimeError(f"type error {v[0]}")
 
@@ -396,37 +401,29 @@ class Env(gym.Env):
         edge_index = []
         for edge in self.edges:
             if edge not in self.input_edge and edge not in self.output_edge:
-                src_id = edge.trace.idx
-                for node in edge.uses:
-                    dest_id = node.idx
+                src_id = edge.get_trace()._rlx_idx
+                for node in edge.get_uses():
+                    dest_id = node._rlx_idx
                     edge_index.append((src_id, dest_id))
 
-        # to tensor
-        edge_index = torch.tensor(edge_index,
-                                  dtype=torch.long).t().contiguous()
-
-        # add self edges; self edges attr = [0., ...]
-        edge_index, edge_feat = pyg.utils.add_self_loops(edge_index,
-                                                         edge_feat,
-                                                         fill_value=1.)
-
-        # add ghost node (ghost node feat is all 0.)
+        # add connection to ghost nodes (ghost node feat is all 0.)
         ghost_idx = []
         inp_start = len(self.node_map)
         for i, e in enumerate(self.input_edge):
-            for node in e.uses:
-                dest_id = node.idx
+            for node in e.get_uses():
+                dest_id = node._rlx_idx
                 ghost_idx.append((inp_start + i, dest_id))
 
         out_start = inp_start + len(self.input_edge)
         for i, e in enumerate(self.output_edge):
-            if e.trace is None:
+            if e.get_trace() is None:
                 # special case -> the entire graph has 1 edge
                 ghost_idx.append((0, 1))  # <- dummy feat
                 break
-            src_id = e.trace.idx
+            src_id = e.get_trace()._rlx_idx
             ghost_idx.append((src_id, i + out_start))
 
+        # concat all edges
         ghost_idx = torch.tensor(ghost_idx, dtype=torch.long).t().contiguous()
 
         edge_index = torch.cat([edge_index, ghost_idx], dim=1).contiguous()
@@ -458,13 +455,10 @@ class Env(gym.Env):
             print("+++")
             print(rw.name)
             for pattern_id, v in matched.items():
-                if v[0] == 0:
-                    # edge
+                if v[0] == 0:  # edge
                     print("e: ", v[1])
-                elif v[0] == 1:
-                    # node
+                elif v[0] == 1:  # node
                     print("n: ", v[1])
-
             print("iter: ", self.cnt)
             print(e)
             raise RuntimeError()
@@ -481,7 +475,8 @@ class Env(gym.Env):
 
             if isinstance(obj, Node):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.get_idx()}")
+                    logger.critical(
+                        f"circle detected! {obj.get_idx()} | {obj._rlx_idx}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
@@ -496,7 +491,8 @@ class Env(gym.Env):
 
             if isinstance(obj, Edge):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.get_idx()}")
+                    logger.critical(
+                        f"circle detected! {obj.get_idx()} | {obj._rlx_idx}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
@@ -527,10 +523,14 @@ class Env(gym.Env):
             nonlocal node_cnt, edge_cnt
             if obj in ban:
                 if isinstance(obj, Node):
-                    logger.error(f"ban detected! Node idx: {obj.get_idx()}")
+                    logger.error(
+                        f"ban detected! Node idx: {obj.get_idx()} | {obj._rlx_idx}"
+                    )
                     print([i.get_idx() for i in ban])
                 elif isinstance(obj, Edge):
-                    logger.error(f"ban detected! Edge idx: {obj.get_idx()}")
+                    logger.error(
+                        f"ban detected! Edge idx: {obj.get_idx()} | {obj._rlx_idx}"
+                    )
                     print([i.get_idx() for i in ban])
                 raise RuntimeError("ban detected")
 
@@ -539,7 +539,8 @@ class Env(gym.Env):
 
             if isinstance(obj, Node):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.get_idx()}")
+                    logger.critical(
+                        f"circle detected! {obj.get_idx()} | {obj._rlx_idx}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
@@ -554,7 +555,8 @@ class Env(gym.Env):
 
             if isinstance(obj, Edge):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.get_idx()}")
+                    logger.critical(
+                        f"circle detected! {obj.get_idx()} | {obj._rlx_idx}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
@@ -569,21 +571,20 @@ class Env(gym.Env):
         try:
             for out in self.output_edge:
                 if out in ban:
-                    logger.warning(f"output edge in ban! {out.get_idx()}")
+                    logger.warning(
+                        f"output edge in ban! {out.get_idx()} | {out._rlx_idx}"
+                    )
                     continue
                 dfs(out)
         except Exception as e:
             print("xxxxxxxxx")
             self.parser.viz(self.edges, f"graph_ban{self.cnt}", False)
             print(rw.name)
-            for source_pattern_id, v in matched.items():
-                if v[0] == 0:
-                    # edge
+            for pattern_id, v in matched.items():
+                if v[0] == 0:  # edge
                     print("e: ", v[1])
-                elif v[0] == 1:
-                    # node
+                elif v[0] == 1:  # node
                     print("n: ", v[1])
-
             print("iter: ", self.cnt)
             print(e)
             raise RuntimeError()
@@ -600,7 +601,8 @@ class Env(gym.Env):
                             continue
 
                         logger.critical(
-                            f"neither sink or ban? {n}, {edge.get_idx()}")
+                            f"neither sink or ban? {n}, {edge.get_idx()} | {edge._rlx_idx}"
+                        )
                         raise Exception
 
                 # e.g. r23 introduces multi-uses
@@ -623,3 +625,8 @@ class Env(gym.Env):
             print("iter: ", self.cnt)
             print(e)
             raise
+
+    def _call_reward_func(self, terminated: bool) -> float:
+        g = rlx_Graph([v for _, v in self.node_map.items()],
+                      [v for _, v in self.edge_map.items()])
+        return self.reward_func(g, terminated, self.stats)

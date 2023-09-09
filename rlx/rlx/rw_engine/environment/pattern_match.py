@@ -12,7 +12,9 @@ from rlx.frontend.rewrite_rule import EdgePattern, NodePattern, RewriteRule
 # or pygmtools: https://github.com/Thinklab-SJTU/pygmtools/blob/main/examples/numpy/plot_subgraphs_numpy.py
 # or hidet: Hidet: Task-Mapping Programming Paradigm for Deep Learning Tensor Programs
 
-MatchDict = Dict[int, tuple[int, int]]  # pattern_id -> bool, edge_id/node_id
+MatchDict = Dict[int,
+                 tuple[int,
+                       int]]  # pattern_id -> bool, edge_rlx_idx/node_rlx_idx
 
 logger = get_logger(__name__)
 
@@ -61,9 +63,9 @@ class PatternMatch:
         matched = {}
         for k, v in self.matched.items():
             if isinstance(v, Edge):
-                matched[k.pattern_id] = (0, v.get_idx())
+                matched[k.pattern_id] = (0, v._rlx_idx)
             elif isinstance(v, Node):
-                matched[k.pattern_id] = (1, v.get_idx())
+                matched[k.pattern_id] = (1, v._rlx_idx)
             else:
                 raise RuntimeError(f"type error {type(v)}")
         return matched
@@ -73,9 +75,9 @@ class PatternMatch:
         ids = []
         for _, v in self.matched.items():
             if isinstance(v, Edge):
-                ids.append(v.get_idx())
+                ids.append(v._rlx_idx)
             elif isinstance(v, Node):
-                ids.append(v.get_idx())
+                ids.append(v._rlx_idx)
             else:
                 raise RuntimeError(f"type error {type(v)}")
         sorted_ids = tuple(sorted(ids))

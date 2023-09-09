@@ -113,12 +113,20 @@ class Parser:
                 for out in obj.get_outputs():
                     out.set_type(out_type)
 
-                obj._rlx_idx = edge_cnt  # attach internal idx
-                edge_cnt += 1
+                if hasattr(obj, "_rlx_idx"):
+                    raise RuntimeError(
+                        f"user should not set {obj.get_idx()} _rlx_idx {obj._rlx_idx}"
+                    )
+                obj._rlx_idx = node_cnt  # attach internal idx
+                node_cnt += 1
                 visited.add(obj)
 
             if isinstance(obj, Edge):
                 dfs(obj.get_trace())
+                if hasattr(obj, "_rlx_idx"):
+                    raise RuntimeError(
+                        f"user should not set {obj.get_idx()} _rlx_idx {obj._rlx_idx}"
+                    )
                 obj._rlx_idx = edge_cnt  # attach internal idx
                 edge_cnt += 1
                 visited.add(obj)
