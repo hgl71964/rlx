@@ -4,6 +4,14 @@ from rlx.frontend.registry import register_node_type, get_node_type, clear_node_
 from rlx.rw_engine.parser import Parser
 from rlx.rw_engine.environment.env import make_env
 
+from rlx.extern.expr.expr_utils import expr_edge, expr_node
+
+from rlx.extern.expr.math_def import (r1,
+                                      r2,
+                                      r3,
+                                      r4,
+                                      r11,)  # yapf: disable
+
 import torch
 
 from absl import app
@@ -15,70 +23,7 @@ FLAGS = flags.FLAGS
 ###############
 #### Test 1
 ###############
-class expr_node(Node):
-    def __init__(self, idx, attr, node_type, inputs):
-        self.idx = idx
-        self.attr = attr
-        self.node_type = node_type
-        self.inputs = inputs
-        self.outputs = []
-
-        for inp in inputs:
-            inp.uses.append(self)
-
-    def get_type(self):
-        return self.node_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_inputs(self):
-        return self.inputs
-
-    def get_outputs(self):
-        return self.outputs
-
-    def out(self):
-        # utility to auto-generate ONE output; edge_type will be inferred
-        o = expr_edge(-1, attr=None, edge_type=None, trace=self)
-        self.outputs = [o]
-        return o
-
-
-class expr_edge(Edge):
-    def __init__(self, idx, attr, edge_type, trace):
-        self.idx = idx
-        self.attr = attr
-        self.edge_type = edge_type
-        self.uses = []
-        self.trace = trace
-
-    def get_type(self):
-        return self.edge_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_uses(self):
-        return self.uses
-
-    def get_trace(self):
-        return self.trace
-
-
-class G1(Graph):
-    def __init__(self, node_types):
-        self.nodes = []
-        self.edges = []
-        # input
-        a = expr_edge(-1, 1, node_types["Const"], None)
-        b = expr_edge(-1, 2, node_types["Const"], None)
-        add = expr_node(-1, None, node_types["Add"], [a, b])
-        add_out = add.out()
-
-        self.edges.extend([a, b, add_out])
-        self.nodes.extend([add])
-
+class G(Graph):
     def get_nodes(self):
         return self.nodes
 
@@ -86,25 +31,22 @@ class G1(Graph):
         return self.edges
 
 
+class G1(G):
+    def __init__(self, node_types):
+        self.nodes = []
+        self.edges = []
+        # input
+        a = expr_edge(0, 1, node_types["Const"], None)
+        b = expr_edge(1, 2, node_types["Const"], None)
+        add = expr_node(2, None, node_types["Add"], [a, b])
+        add_out = add.out(3)
+
+        self.edges.extend([a, b, add_out])
+        self.nodes.extend([add])
+
+
 def rw1(node_types):
-    class r1(RewriteRule):
-        def __init__(self):
-            self.name = "a+b => b+a"
-            # NOTE: None attr to match any Const
-            self.a, self.ta = const_pattern()
-            self.b, self.tb = const_pattern()
-
-        def source_pattern(self):
-            add = node_pattern(node_types["Add"], [self.a, self.b],
-                               n_outputs=1)
-            return [add]
-
-        def target_pattern(self):
-            out = node_pattern(node_types["Add"], [self.tb, self.ta],
-                               n_outputs=1)
-            return [out]
-
-    return [r1()]
+    return [r1(node_types)]
 
 
 class G2(Graph):

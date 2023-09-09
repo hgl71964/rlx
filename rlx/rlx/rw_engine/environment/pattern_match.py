@@ -10,6 +10,7 @@ from rlx.frontend.rewrite_rule import EdgePattern, NodePattern, RewriteRule
 # see if there's existing works to use
 # e.g. GraphPi-SC20
 # or pygmtools: https://github.com/Thinklab-SJTU/pygmtools/blob/main/examples/numpy/plot_subgraphs_numpy.py
+# or hidet: Hidet: Task-Mapping Programming Paradigm for Deep Learning Tensor Programs
 
 MatchDict = Dict[int, tuple[int, int]]  # pattern_id -> bool, edge_id/node_id
 
@@ -108,47 +109,6 @@ class PatternMatch:
             v
             for v in self.matched.values() if isinstance(v, Node)
         }
-
-        # if input edges are not allowed to be used by external graph
-        # e.g. r14
-        for inp in subgraph_inputs:
-            inp_use = len(inp.get_uses())
-            pat_use = len(self.reverse_matched[inp].uses)
-            if inp_use != pat_use:
-                #logger.warning(f"[PatternMatch][input] {inp_use} | {pat_use}; {rule_id}")
-                return True
-            for use in inp.get_uses():
-                if use not in matched_nodes:
-                    #logger.warning(
-                    #    f"[PatternMatch][input] use incomplete; {rule_id}")
-                    return True
-
-        # if allow inputs to be used by external graph
-        # for inp in subgraph_inputs:
-        #     inp_use = len(inp.uses)
-        #     pat_use = len(self.reverse_matched[inp].uses)
-        #     if inp_use != pat_use:
-        #         assert inp_use > pat_use, f"{inp_use} vs {pat_use}"
-        #         diff = inp_use - pat_use
-        #         cnt = 0
-        #         for use in inp.uses:
-        #             if use not in matched_nodes:
-        #                 cnt += 1
-        #         if cnt == diff:
-        #             # all use by external graph
-        #             logger.warning(f"OK {inp_use} vs {pat_use}; {rule_id}")
-        #         else:
-        #             logger.warning(
-        #                 f"[PatternMatch]] reject {inp_use} vs {pat_use}; {cnt}; - {rule_id}"
-        #             )
-        #             return True
-        #     else:
-        #         for use in inp.uses:
-        #             if use not in matched_nodes:
-        #                 logger.critical(
-        #                     f"[PatternMatch][XXX] {inp_use} vs {pat_use}; - {rule_id}"
-        #                 )
-        #                 return True
 
         # check inner edges
         for inner_e in inner_edges:

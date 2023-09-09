@@ -7,55 +7,6 @@ from rlx.frontend.registry import get_node_type
 logger = get_logger(__name__)
 
 
-class rlx_Edge(Edge):
-    def __init__(self, idx, attr, edge_type, trace):
-        self.idx = idx
-        self.attr = attr
-        # can be only Const type or Symbol type
-        self.edge_type = edge_type
-        self.uses = []
-        self.trace = trace
-
-    def get_type(self):
-        return self.edge_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_uses(self):
-        return self.uses
-
-    def get_trace(self):
-        return self.trace
-
-
-class rlx_Node(Node):
-    def __init__(self, idx, attr, node_type, inputs):
-        self.idx = idx
-        self.attr = attr
-        self.node_type = node_type
-        self.inputs = inputs
-        self.outputs = []
-
-        if inputs is not None:
-            assert isinstance(inputs, list), f"{type(inputs)}??"
-            for inp in inputs:
-                assert isinstance(inp, rlx_Edge)
-                inp.uses.append(self)
-
-    def get_type(self):
-        return self.node_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_inputs(self):
-        return self.inputs
-
-    def get_outputs(self):
-        return self.outputs
-
-
 class rlx_Graph(Graph):
     def __init__(self, nodes, edges):
         self.nodes = nodes
@@ -74,9 +25,10 @@ class Parser:
         self.nodes = graph.get_nodes()
 
         # run some checks
-        self._detect_circle([e for e in self.edges if len(e.get_uses()) == 0])
+        output_edges = [e for e in self.edges if len(e.get_uses()) == 0]
+        self._detect_circle(output_edges)
         self._check_uses(self.edges)
-        self._infer_edge_type()
+        self._infer_edge_type(output_edges)
 
     def _detect_circle(self, output_edges: list[Edge]):
         visited, path = set(), set()
@@ -131,13 +83,15 @@ class Parser:
                 sinks.append(e.get_idx())
         logger.info(f"graph sinks: {sinks}")
 
-    def _infer_edge_type(self):
+    def _infer_edge_type(self, output_edges: list[Edge]):
         # A rlx_Edge should be either Const or Var
         # but constant folding is supposed to be done by users
         visited = set()
         _, const_type, var_type = get_node_type()
+        node_cnt, edge_cnt = 0, 0
 
         def dfs(obj):
+            nonlocal node_cnt, edge_cnt
             if obj is None or obj in visited:
                 return
 
@@ -159,19 +113,18 @@ class Parser:
                 for out in obj.get_outputs():
                     out.set_type(out_type)
 
+                obj._rlx_idx = edge_cnt  # attach internal idx
+                edge_cnt += 1
                 visited.add(obj)
 
             if isinstance(obj, Edge):
                 dfs(obj.get_trace())
+                obj._rlx_idx = edge_cnt  # attach internal idx
+                edge_cnt += 1
                 visited.add(obj)
 
         # need to dfs from topological order
-        output_edge = []
-        for e in self.edges:
-            if len(e.uses) == 0:
-                output_edge.append(e)
-
-        for e in output_edge:
+        for e in output_edges:
             dfs(e)
 
     def _build_mapping(self):

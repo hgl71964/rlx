@@ -447,7 +447,7 @@ def test_expr():
     print("Test2: ")
     g = G2(node_types)
     r = rw2(node_types)
-    print_test(g, r, "test2", viz=True)
+    print_test(g, r, "test2", viz=False)
 
     # Test3:
     # print("Test3: ")

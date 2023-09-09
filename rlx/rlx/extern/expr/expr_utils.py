@@ -42,6 +42,9 @@ class expr_edge(Edge):
     def get_uses(self):
         return self.uses
 
+    def set_uses(self, uses):
+        self.uses = uses
+
     def get_trace(self):
         return self.trace
 

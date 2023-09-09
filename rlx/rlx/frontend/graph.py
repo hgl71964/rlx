@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from typing import Optional
+from typing import Optional, Any
 
 
 class Node:  # for type annotation
@@ -9,7 +9,7 @@ class Node:  # for type annotation
 
 class Edge(ABC):
     @abstractmethod
-    def get_idx(self):
+    def get_idx(self) -> int:
         pass
 
     @abstractmethod
@@ -21,7 +21,7 @@ class Edge(ABC):
         pass
 
     @abstractmethod
-    def get_attr(self):
+    def get_attr(self) -> Any:
         pass
 
     @abstractmethod
@@ -33,13 +33,17 @@ class Edge(ABC):
         pass
 
     @abstractmethod
+    def set_uses(self, uses):
+        pass
+
+    @abstractmethod
     def get_trace(self) -> Optional[Node]:
         pass
 
 
 class Node(ABC):
     @abstractmethod
-    def get_idx(self):
+    def get_idx(self) -> int:
         pass
 
     @abstractmethod
@@ -51,7 +55,7 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def get_attr(self):
+    def get_attr(self) -> Any:
         pass
 
     @abstractmethod

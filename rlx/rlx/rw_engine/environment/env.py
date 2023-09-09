@@ -10,15 +10,13 @@ import torch
 from torch import Tensor
 import torch_geometric as pyg
 
-from rlx.utils.common import get_logger
 from rlx.frontend.registry import get_node_type
-from rlx.frontend.rewrite_rule import (NodePattern, EdgePattern,
-                                       PATTERN_ID_MAP, OUTPUTS_MAP,
-                                       REVERSE_OUTPUTS_MAP, INPUTS_MAP,
-                                       REVERSE_INPUTS_MAP)
+from rlx.frontend.graph import Graph, Node, Edge
+from rlx.frontend.rewrite_rule import NodePattern, EdgePattern, PATTERN_ID_MAP
+from rlx.utils.common import get_logger
+from rlx.rw_engine.parser import rlx_Graph
 
 from rlx.rw_engine.environment.pattern_match import PatternMatch, MatchDict
-from rlx.rw_engine.parser import rlx_Node, rlx_Edge, rlx_Graph
 
 logger = get_logger(__name__)
 
@@ -124,7 +122,7 @@ class Env(gym.Env):
                 "init_n_edge": len(self.edge_map),
             }
             uses = 0
-            for i, e in enumerate(self.edges):
+            for _, e in enumerate(self.edges):
                 uses += len(e.uses)
             self.stats["init_n_uses"] = uses
             # logger.info(f"init stats: {self.stats}")
@@ -132,7 +130,7 @@ class Env(gym.Env):
         self.stats["n_node"] = len(self.node_map)
         self.stats["n_edge"] = len(self.edge_map)
         uses = 0
-        for i, e in enumerate(self.edges):
+        for _, e in enumerate(self.edges):
             uses += len(e.uses)
         self.stats["n_uses"] = uses
 
@@ -161,7 +159,7 @@ class Env(gym.Env):
             next_state = None
         else:
             next_state = self._build_state()
-        self._add_stats(False)
+        self._add_stats(init=False)
         self.cnt += 1
         return next_state, reward, terminated, truncated, info
 
@@ -175,174 +173,72 @@ class Env(gym.Env):
         self._detect_uses(rw, matched)
         self._detect_circle()
         ############################################
-        # build the target subgraph;
-        # Main idea: respect subgraph inputs/outputs
+        # apply graph transformation
         ############################################
-        built_obj = {}
-        subgraph_input = {}  # target rlx obj -> source rlx obj
-        subgraph_output = {}  # target rlx obj -> source rlx obj
+        matched_mapping = {}  # pattern -> Node/Edge
+        old_subgraph_outputs = []
+        old_subgraph_inputs = []
+        old_objs = set()
 
-        def dfs(obj):
-            if obj in built_obj:
-                return built_obj[obj]
-
-            if isinstance(obj, NodePattern):
-                children = []
-                for inp in obj.inputs:
-                    child = dfs(inp)
-                    children.append(child)
-
-                n = rlx_Node(-1, obj.attr, obj.node_type, children)
-                # type will be infered; attr will be set
-                outputs = [
-                    rlx_Edge(-1, None, None, n) for _ in range(obj.n_outputs)
-                ]
-                n.outputs = outputs
-                built_obj[obj] = outputs
-                return outputs
-
-            if isinstance(obj, EdgePattern):
-                # Special case: the subgraph is collapsed into one edge;
-                if obj.trace is None and len(obj.uses) == 0:
-                    # subgraph input
-                    src_pattern = REVERSE_INPUTS_MAP[obj]
-                    if src_pattern.pattern_id in matched:
-                        # the src_pattern present
-                        edge_id = matched[src_pattern.pattern_id][1]
-                        orig_edge = self.edge_map[edge_id]
-                        e = rlx_Edge(-1, orig_edge.attr, orig_edge.edge_type,
-                                     None)
-                    else:
-                        # the src_pattern is absent; so we build from pattern
-                        edge_type = self.const_type if obj.is_const else self.var_type
-                        e = rlx_Edge(-1, obj.attr, edge_type, None)
-                    subgraph_input[orig_edge] = e
-
-                    # subgraph output
-                    src_pattern = REVERSE_OUTPUTS_MAP[obj]
-                    assert src_pattern.pattern_id in matched, f"{src_pattern.pattern_id}"
-                    edge_id = matched[src_pattern.pattern_id][1]
-                    orig_edge = self.edge_map[edge_id]
-                    self._resolve_attr(e, orig_edge)
-                    subgraph_output[orig_edge] = e
-                    built_obj[obj] = e
-                    return e
-                # input to subgraph
-                elif obj.trace is None:
-                    ## infer type (because Var can match both types) and get attr
-                    src_pattern = REVERSE_INPUTS_MAP[obj]
-                    if src_pattern.pattern_id in matched:
-                        # the src_pattern present
-                        edge_id = matched[src_pattern.pattern_id][1]
-                        orig_edge = self.edge_map[edge_id]
-                        if orig_edge in subgraph_input:
-                            e = subgraph_input[orig_edge]
-                        else:
-                            e = rlx_Edge(-1, orig_edge.attr,
-                                         orig_edge.edge_type, None)
-                            subgraph_input[orig_edge] = e
-                    else:
-                        # the src_pattern is absent; so we build from pattern
-                        edge_type = self.const_type if obj.is_const else self.var_type
-                        e = rlx_Edge(-1, obj.attr, edge_type, None)
-
-                    built_obj[obj] = e
-                    return e
-                # intermediate or outputs
-                else:
-                    outputs = dfs(obj.trace)
-                    if len(outputs) == 1:
-                        # single output Op
-                        built_obj[obj] = outputs[0]
-                        output = outputs[0]
-                    else:
-                        # multiple output Op
-                        assert obj.trace_idx is not None, f"{obj.trace_idx}"
-                        my_trace_idx = obj.trace_idx
-                        built_obj[obj] = outputs[my_trace_idx]
-                        output = outputs[my_trace_idx]
-
-                    ## set attr
-                    ### output attr: must be obtained from the real graph
-                    if len(obj.uses) == 0:
-                        # output must present
-                        src_pattern = REVERSE_OUTPUTS_MAP[obj]
-                        assert src_pattern.pattern_id in matched, f"{src_pattern.pattern_id}"
-                        edge_id = matched[src_pattern.pattern_id][1]
-                        orig_edge = self.edge_map[edge_id]
-                        output.attr = orig_edge.attr
-                        assert orig_edge not in subgraph_output, f"subgraph_output should be distinct? {orig_edge.idx}"
-                        subgraph_output[orig_edge] = output
-                    ### intermediate attr: get from pattern
-                    else:
-                        output.attr = obj.attr
-                    return output
-
-            raise RuntimeError(f"{type(obj)}")
-
-        for out in rw.target_output:
-            dfs(out)
-
-        #################################################
-        # change subgraph input's trace and output's uses
-        #################################################
-        ban = set()  # ban the old subgraph
-        for source_pattern_id, v in matched.items():
+        # get actual mapping
+        for pattern_id, v in matched.items():
+            pat = PATTERN_ID_MAP[pattern_id]
+            obj = None
             if v[0] == 0:  # edge
                 edge_id = v[1]
-                orig_edge = self.edge_map[edge_id]
-                ban.add(orig_edge)
+                obj = self.edge_map[edge_id]
+                if len(pat.uses) == 0:
+                    old_subgraph_outputs.append(obj)
+                if pat.trace is None:
+                    old_subgraph_inputs.append(obj)
             elif v[0] == 1:  # node
                 node_id = v[1]
-                orig_node = self.node_map[node_id]
-                ban.add(orig_node)
+                obj = self.node_map[node_id]
             else:
                 raise RuntimeError(f"{v[0]}")
+            matched_mapping[pat] = obj
+            old_objs.add(obj)
 
-        for src, tgt in subgraph_input.items():
-            trace = src.trace
-            if trace is not None:
-                finds = []
-                for i, t in enumerate(trace.outputs):
-                    # FIXME this only for debug
-                    if t == src and len(finds) != 0:
-                        logger.warning(
-                            "[XXX]multi-match output not possible for expr!")
-                    if t == src:
-                        finds.append(i)
-                assert (len(finds) != 0), f"{len(finds)} | {rw.name}"
-                for find in finds:
-                    trace.outputs[find] = tgt
+        # get new subgraph from users
+        new_subgraph_outputs = rw.target_pattern(matched_mapping)
+        assert len(old_subgraph_outputs) == len(
+            new_subgraph_outputs
+        ), f"subgraph outputs must be 1-to-1, but {len(old_subgraph_outputs)} != {len(new_subgraph_outputs)}"
 
-                tgt.trace = trace
+        # change inputs' uses
+        for old in old_subgraph_inputs:
+            remove_list = []
+            for use in old.get_uses():
+                if use in old_objs:
+                    remove_list.append(use)
 
-            ## for multi-use inputs,
-            ## but pattern match needs to ensure inputs are not trivially used
-            # for use in src.uses:
-            #     if use not in ban:
-            #         # use not in subgraph
-            #         finds = []
-            #         for i, inp in enumerate(use.inputs):
-            #             if inp == src:
-            #                 finds.append(i)
-            #         for find in finds:
-            #             use.inputs[find] = tgt
-            #         tgt.uses.append(use)
+            # if multiple-uses, it will appear multiple times in the remove_list
+            # so will remove all
+            for use in remove_list:
+                use.get_inputs().remove(old)
+                old.get_uses().remove(use)
 
-        for src, tgt in subgraph_output.items():
-            for use in src.uses:
-                finds = []
-                for i, inp in enumerate(use.inputs):
-                    if inp == src:
-                        finds.append(i)
-                for find in finds:
-                    use.inputs[find] = tgt
+        # change outputs' uses
+        output_maps = {}
+        for old, new in zip(old_subgraph_outputs, new_subgraph_outputs):
+            output_maps[old] = new
 
-            tgt.uses = src.uses
-            src.uses = []
+        for old, new in zip(old_subgraph_outputs, new_subgraph_outputs):
+            old_uses = old.get_uses()
 
-        self._detect_uses(rw, matched, ban)
-        self._detect_ban(rw, matched, ban)
+            for use in old_uses:
+                for inp_idx, inp in enumerate(use.get_inputs()):
+                    if inp in output_maps:
+                        use.get_inputs()[inp_idx] = output_maps[inp]
+
+            # set new uses
+            new.set_uses(old_uses)
+
+            # clear old news
+            old.set_uses([])
+
+        self._detect_uses(rw, matched, old_objs)
+        self._detect_ban(rw, matched, old_objs)
         ############################################
         # rebuild continuous index and self.edges
         ############################################
@@ -355,25 +251,25 @@ class Env(gym.Env):
             if obj is None or obj in visited:
                 return
 
-            if isinstance(obj, rlx_Node):
+            if isinstance(obj, Node):
                 # perform type inference;
                 # because the entire new subgraph may be Const
                 # so propagate to output
                 out_type = self.const_type
                 for inp in obj.inputs:
                     dfs_rebuild(inp)
-                    if inp.edge_type == self.var_type:
+                    if inp.get_type() == self.var_type:
                         out_type = self.var_type
                 for out in obj.outputs:
-                    out.edge_type = out_type
+                    out.set_type(out_type)
 
-                obj.idx = node_cnt
+                obj._rlx_idx = node_cnt
                 node_cnt += 1
                 visited.add(obj)
 
-            if isinstance(obj, rlx_Edge):
+            if isinstance(obj, Edge):
                 dfs_rebuild(obj.trace)
-                obj.idx = edge_cnt
+                obj._rlx_idx = edge_cnt
                 edge_cnt += 1
                 visited.add(obj)
                 self.edges.append(obj)
@@ -382,10 +278,10 @@ class Env(gym.Env):
             # output_edge is up-to-update,
             # unless the substituted graph has new outputs
             # this dfs should cover ALMOST all nodes and edges
-            if out not in ban:
+            if out not in old_objs:
                 dfs_rebuild(out)
 
-        for _, out in subgraph_output.items():
+        for out in new_subgraph_outputs:
             # in case the new graph has new outputs
             dfs_rebuild(out)
 
@@ -393,35 +289,36 @@ class Env(gym.Env):
         self._check(rw, matched, False)
 
     def _call_reward_func(self, terminated: bool) -> float:
-        g = rlx_Graph([v for k, v in self.node_map.items()],
-                      [v for k, v in self.edge_map.items()])
+        g = rlx_Graph([v for _, v in self.node_map.items()],
+                      [v for _, v in self.edge_map.items()])
         return self.reward_func(g, terminated, self.stats)
 
     def _build_mapping(self):
+        # based on self.edges to build
         self.edge_map = {}
         self.node_map = {}
         self.input_edge = set()
         self.output_edge = set()
 
         for e in self.edges:
-            self.edge_map[e.idx] = e
+            self.edge_map[e.get_idx()] = e
 
-            node = e.trace
+            node = e.get_trace()
             if node is None:
                 self.input_edge.add(e)
-            elif node is not None and node.idx not in self.node_map:
-                self.node_map[node.idx] = node
+            elif node is not None and node.get_idx() not in self.node_map:
+                self.node_map[node.get_idx()] = node
 
-            if len(e.uses) == 0:
+            if len(e.get_uses()) == 0:
                 self.output_edge.add(e)
-            for node in e.uses:
-                if node.idx not in self.node_map:
-                    self.node_map[node.idx] = node
+            for node in e.get_uses():
+                if node.get_idx() not in self.node_map:
+                    self.node_map[node.get_idx()] = node
 
     def _build_state(self):
         # get mapping of each rewrite rules -> (pattern -> node/edge)
         pattern_map = PatternMatch().build(self.edges, self.rewrite_rules)
-        self.pattern_map = pattern_map  # pattern_map always up-to-update
+        self.pattern_map = pattern_map  # keep pattern_map up-to-update
 
         # for rule_id, pmaps in pattern_map.items():
         #     locs = len(pmaps)
@@ -430,17 +327,19 @@ class Env(gym.Env):
         ######################################
         #### embedding: build graph tuple ####
         ######################################
-        # NOTE: rlx_Edge and embedding are NOT 1-to-1
+        # NOTE: Edge and embedding are NOT 1-to-1
         # e.g. an edge can be used by two nodes
         # it is 1 edge in rlx_Graph, but embedding has 2 edges
         # also NOTE: that there are ghost nodes from input_edge/output_edge
+
+        # FIXME change idx to _rlx_idx
         n_node = len(self.node_map) + len(self.input_edge) + len(
             self.output_edge)
-        edge_embedding_map = {}  # rlx_Edge id -> graphTuple edge id
+        edge_embedding_map = {}  # Edge id -> graphTuple edge id
         embed_idx, n_edge = 0, 0
         for e in self.edges:
             tmp = []
-            for use in e.uses:
+            for _ in e.get_uses():
                 tmp.append(embed_idx)
                 embed_idx += 1
                 n_edge += 1
@@ -558,7 +457,7 @@ class Env(gym.Env):
             self.parser.viz(self.edges, f"graph_break_{self.cnt}", False)
             print("+++")
             print(rw.name)
-            for source_pattern_id, v in matched.items():
+            for pattern_id, v in matched.items():
                 if v[0] == 0:
                     # edge
                     print("e: ", v[1])
@@ -580,30 +479,30 @@ class Env(gym.Env):
             if obj is None or obj in visited:
                 return
 
-            if isinstance(obj, rlx_Node):
+            if isinstance(obj, Node):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.idx}")
+                    logger.critical(f"circle detected! {obj.get_idx()}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
                 path.add(obj)
-                stack.append(obj.idx)
-                for inp in obj.inputs:
+                stack.append(obj.get_idx())
+                for inp in obj.get_inputs():
                     dfs(inp)
                 node_cnt += 1
                 visited.add(obj)
                 path.remove(obj)
                 stack.pop()
 
-            if isinstance(obj, rlx_Edge):
+            if isinstance(obj, Edge):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.idx}")
+                    logger.critical(f"circle detected! {obj.get_idx()}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
                 path.add(obj)
-                stack.append(obj.idx)
-                dfs(obj.trace)
+                stack.append(obj.get_idx())
+                dfs(obj.get_trace())
                 edge_cnt += 1
                 visited.add(obj)
                 path.remove(obj)
@@ -627,41 +526,41 @@ class Env(gym.Env):
         def dfs(obj):
             nonlocal node_cnt, edge_cnt
             if obj in ban:
-                if isinstance(obj, rlx_Node):
-                    logger.error(f"ban detected! Node idx: {obj.idx}")
-                    print([i.idx for i in ban])
-                elif isinstance(obj, rlx_Edge):
-                    logger.error(f"ban detected! Edge idx: {obj.idx}")
-                    print([i.idx for i in ban])
+                if isinstance(obj, Node):
+                    logger.error(f"ban detected! Node idx: {obj.get_idx()}")
+                    print([i.get_idx() for i in ban])
+                elif isinstance(obj, Edge):
+                    logger.error(f"ban detected! Edge idx: {obj.get_idx()}")
+                    print([i.get_idx() for i in ban])
                 raise RuntimeError("ban detected")
 
             if obj is None or obj in visited:
                 return
 
-            if isinstance(obj, rlx_Node):
+            if isinstance(obj, Node):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.idx}")
+                    logger.critical(f"circle detected! {obj.get_idx()}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
                 path.add(obj)
-                stack.append(obj.idx)
-                for inp in obj.inputs:
+                stack.append(obj.get_idx())
+                for inp in obj.get_inputs():
                     dfs(inp)
                 node_cnt += 1
                 visited.add(obj)
                 path.remove(obj)
                 stack.pop()
 
-            if isinstance(obj, rlx_Edge):
+            if isinstance(obj, Edge):
                 if obj in path:
-                    logger.critical(f"circle detected! {obj.idx}")
+                    logger.critical(f"circle detected! {obj.get_idx()}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
                 path.add(obj)
-                stack.append(obj.idx)
-                dfs(obj.trace)
+                stack.append(obj.get_idx())
+                dfs(obj.get_trace())
                 edge_cnt += 1
                 visited.add(obj)
                 path.remove(obj)
@@ -670,7 +569,7 @@ class Env(gym.Env):
         try:
             for out in self.output_edge:
                 if out in ban:
-                    logger.warning(f"output edge in ban! {out.idx}")
+                    logger.warning(f"output edge in ban! {out.get_idx()}")
                     continue
                 dfs(out)
         except Exception as e:
@@ -701,7 +600,7 @@ class Env(gym.Env):
                             continue
 
                         logger.critical(
-                            f"neither sink or ban? {n}, {edge.idx}")
+                            f"neither sink or ban? {n}, {edge.get_idx()}")
                         raise Exception
 
                 # e.g. r23 introduces multi-uses
@@ -713,7 +612,7 @@ class Env(gym.Env):
             print("EEEEEEEEEEE")
             self.parser.viz(self.edges, f"graph_multi_edge{self.cnt}", False)
             print(rw.name)
-            for source_pattern_id, v in matched.items():
+            for pattern_id, v in matched.items():
                 if v[0] == 0:
                     # edge
                     print("e: ", v[1])
@@ -724,12 +623,3 @@ class Env(gym.Env):
             print("iter: ", self.cnt)
             print(e)
             raise
-
-    def _resolve_attr(self, edge, orig_edge):
-        # logger.warning(f"resolve: {edge.attr} | {orig_edge.attr}")
-        if edge.attr is None:
-            edge.attr = orig_edge.attr
-        elif orig_edge.attr is None:
-            pass
-        else:
-            assert edge.attr == orig_edge.attr, f"cannot resolve: {edge.attr} != {orig_edge.attr}"

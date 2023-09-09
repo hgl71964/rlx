@@ -2,7 +2,7 @@ import math
 
 from rlx.frontend.registry import get_node_type
 from rlx.frontend.registry import register_node_type
-from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern
+from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern, EdgePattern, NodePattern
 
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
@@ -170,7 +170,7 @@ class r1(RewriteRule):
         add = node_pattern(self.node_types["Add"], [self.a, self.b], 1)
         return [add]
 
-    def target_pattern(self, matched):
+    def target_pattern(self, matched: dict[EdgePattern, Edge]):
         a, b = [matched[idx] for idx in [self.ta, self.tb]]
         new = expr_node(-1,
                         attr=None,
