@@ -1,6 +1,8 @@
 import sys
 from copy import deepcopy
 
+from collections import defaultdict
+
 # import gym
 import gymnasium as gym
 from gymnasium.spaces import Graph, Box, Discrete, MultiDiscrete
@@ -321,7 +323,7 @@ class Env(gym.Env):
         #     locs = len(pmaps)
         #     logger.warning(f"++rule ID: {rule_id};; n_match: {locs}++")
         ######################################
-        #### embedding: build graph tuple ####
+        ####### Build adjacency matrix #######
         ######################################
         # NOTE: Edge and embedding are NOT 1-to-1
         # e.g. an edge can be used by two nodes
@@ -329,16 +331,9 @@ class Env(gym.Env):
         # also: that there are ghost nodes from input_edge/output_edge
         n_node = len(self.node_map) + len(self.input_edge) + len(
             self.output_edge)
-        edge_embedding_map = {}  # Edge _rlx_idx -> graphTuple edge id
-        embed_idx, n_edge = 0, 0
+        n_edge = 0
         for edge in self.edges:
-            graph_tuple_edge_idx = []
-            for _ in edge.get_uses():
-                graph_tuple_edge_idx.append(embed_idx)
-                embed_idx += 1
-                n_edge += 1
-            edge_embedding_map[edge._rlx_idx] = graph_tuple_edge_idx
-
+            n_edge += len(edge.get_uses())
         n_edge += len(self.output_edge)
 
         # default dtype torch.float
@@ -348,25 +343,76 @@ class Env(gym.Env):
         loc_mask = torch.zeros((self.n_rewrite_rules + 1, self.max_loc),
                                dtype=torch.long)
 
+        # 1. adjacancy matrix for internal edges
+        rlx_idx_to_graph_edge_idx = defaultdict(list)
+        graph_edge_idx = 0
+        edge_index = []
+        for edge in self.edges:
+            if edge not in self.input_edge and edge not in self.output_edge:
+                src_id = edge.get_trace()._rlx_idx
+                for node in edge.get_uses():
+                    dest_id = node._rlx_idx
+                    edge_index.append((src_id, dest_id))
+
+                    rlx_idx_to_graph_edge_idx[edge._rlx_idx].append(
+                        graph_edge_idx)
+                    graph_edge_idx += 1
         # to tensor
         edge_index = torch.tensor(edge_index,
                                   dtype=torch.long).t().contiguous()
 
-        # add self edges; self edges attr = [1.]
+        # 2. add self edges for internal edges; with fill_value attr
         edge_index, edge_feat = pyg.utils.add_self_loops(edge_index,
                                                          edge_feat,
                                                          fill_value=1.)
+        # 3. add ghost nodes to edge index (ghost node feat is all 0.)
+        ghost_index = []
+        inp_start = len(self.node_map)
+        graph_edge_idx = edge_index.shape[
+            0]  # number of edge after adding self loop
+        for i, e in enumerate(self.input_edge):
+            for node in e.get_uses():
+                dest_id = node._rlx_idx
+                ghost_index.append((inp_start + i, dest_id))
 
+                rlx_idx_to_graph_edge_idx[edge._rlx_idx].append(graph_edge_idx)
+                graph_edge_idx += 1
+
+        out_start = inp_start + len(self.input_edge)
+        for i, e in enumerate(self.output_edge):
+            if e.get_trace() is None:
+                # special case -> the entire graph has 1 edge
+                raise RuntimeError("output_edge has None trace")
+            src_id = e.get_trace()._rlx_idx
+            ghost_index.append((src_id, i + out_start))
+
+            rlx_idx_to_graph_edge_idx[edge._rlx_idx].append(graph_edge_idx)
+            graph_edge_idx += 1
+
+        # concat all edges
+        num_ghost_edge = len(ghost_index)
+        edge_feat = torch.cat([
+            edge_feat,
+            torch.zeros([num_ghost_edge, self.n_edge_feat], dtype=torch.float)
+        ],
+                              dim=0)
+        ghost_index = torch.tensor(ghost_index,
+                                   dtype=torch.long).t().contiguous()
+        edge_index = torch.cat([edge_index, ghost_index], dim=1).contiguous()
+
+        ######################################
+        ############# embedding ##############
+        ######################################
         # 1. type embedding
         for n_rlx_idx, n in self.node_map.items():
             node_feat[n_rlx_idx, n.get_type().value] = 1.
 
         for e_rlx_idx, e in self.edge_map.items():
             if e.get_type() == self.const_type:
-                for embed_eid in edge_embedding_map[e_rlx_idx]:
+                for embed_eid in rlx_idx_to_graph_edge_idx[e_rlx_idx]:
                     edge_feat[embed_eid, 0] = 1.
             else:
-                for embed_eid in edge_embedding_map[e_rlx_idx]:
+                for embed_eid in rlx_idx_to_graph_edge_idx[e_rlx_idx]:
                     edge_feat[embed_eid, 1] = 1.
 
         # 2. pattern-match embedding
@@ -389,49 +435,16 @@ class Env(gym.Env):
                     # both EdgePattern and NodePattern
                     idx = v[1]
                     if v[0] == 0:  # edge
-                        for embed_eid in edge_embedding_map[idx]:
+                        for embed_eid in rlx_idx_to_graph_edge_idx[idx]:
                             edge_feat[embed_eid,
                                       edge_rule_start + rule_id] = 1.
                     elif v[0] == 1:  # node
                         node_feat[idx, node_rule_start + rule_id] = 1.
                     else:
                         raise RuntimeError(f"type error {v[0]}")
-
-        # build Adjacency matrix
-        edge_index = []
-        for edge in self.edges:
-            if edge not in self.input_edge and edge not in self.output_edge:
-                src_id = edge.get_trace()._rlx_idx
-                for node in edge.get_uses():
-                    dest_id = node._rlx_idx
-                    edge_index.append((src_id, dest_id))
-
-        # add connection to ghost nodes (ghost node feat is all 0.)
-        ghost_idx = []
-        inp_start = len(self.node_map)
-        for i, e in enumerate(self.input_edge):
-            for node in e.get_uses():
-                dest_id = node._rlx_idx
-                ghost_idx.append((inp_start + i, dest_id))
-
-        out_start = inp_start + len(self.input_edge)
-        for i, e in enumerate(self.output_edge):
-            if e.get_trace() is None:
-                # special case -> the entire graph has 1 edge
-                ghost_idx.append((0, 1))  # <- dummy feat
-                break
-            src_id = e.get_trace()._rlx_idx
-            ghost_idx.append((src_id, i + out_start))
-
-        # concat all edges
-        ghost_idx = torch.tensor(ghost_idx, dtype=torch.long).t().contiguous()
-
-        edge_index = torch.cat([edge_index, ghost_idx], dim=1).contiguous()
-
         # sort
         edge_index, edge_feat = pyg.utils.sort_edge_index(
             edge_index, edge_feat)
-
         # to torch pyg
         graph_data = pyg.data.Data(x=node_feat,
                                    edge_index=edge_index,
