@@ -5,7 +5,9 @@ from collections import defaultdict
 
 # import gym
 import gymnasium as gym
-from gymnasium.spaces import Graph, Box, Discrete, MultiDiscrete
+from gymnasium.spaces import Box, Discrete, MultiDiscrete
+from gymnasium.spaces import Graph as GymGraph
+from gymnasium.envs.registration import register
 
 import numpy as np
 import torch
@@ -25,8 +27,13 @@ logger = get_logger(__name__)
 # needed for safe expression generation (may cause python segFault)
 sys.setrecursionlimit(10**5)
 
+register(
+    id="env-v0",
+    entry_point="rlx.rw_engine.environment.env:Env",
+)
 
-class GraphObsSpace(Graph):
+
+class GraphObsSpace(GymGraph):
     def contains(self, x) -> bool:
         if x is None:
             # terminated TODO why still warn?
@@ -333,8 +340,8 @@ class Env(gym.Env):
             self.output_edge)
         n_edge = 0
         for edge in self.edges:
-            n_edge += len(edge.get_uses())
-        n_edge += len(self.output_edge)
+            if edge not in self.input_edge and edge not in self.output_edge:
+                n_edge += len(edge.get_uses())
 
         # default dtype torch.float
         node_feat = torch.zeros([n_node, self.n_node_feat], dtype=torch.float)
@@ -362,20 +369,23 @@ class Env(gym.Env):
                                   dtype=torch.long).t().contiguous()
 
         # 2. add self edges for internal edges; with fill_value attr
-        edge_index, edge_feat = pyg.utils.add_self_loops(edge_index,
-                                                         edge_feat,
-                                                         fill_value=1.)
-        # 3. add ghost nodes to edge index (ghost node feat is all 0.)
+        edge_index, edge_feat = pyg.utils.add_self_loops(
+            edge_index,
+            edge_feat,
+            fill_value=1.,
+        )
+        # 3. add ghost nodes to edge index
+        # (ghost node feat are all 0., edge feat will be updated later)
         ghost_index = []
         inp_start = len(self.node_map)
-        graph_edge_idx = edge_index.shape[
-            0]  # number of edge after adding self loop
+        # number of edge after adding self loop
+        graph_edge_idx = edge_index.shape[1]
         for i, e in enumerate(self.input_edge):
             for node in e.get_uses():
                 dest_id = node._rlx_idx
                 ghost_index.append((inp_start + i, dest_id))
 
-                rlx_idx_to_graph_edge_idx[edge._rlx_idx].append(graph_edge_idx)
+                rlx_idx_to_graph_edge_idx[e._rlx_idx].append(graph_edge_idx)
                 graph_edge_idx += 1
 
         out_start = inp_start + len(self.input_edge)
@@ -386,7 +396,7 @@ class Env(gym.Env):
             src_id = e.get_trace()._rlx_idx
             ghost_index.append((src_id, i + out_start))
 
-            rlx_idx_to_graph_edge_idx[edge._rlx_idx].append(graph_edge_idx)
+            rlx_idx_to_graph_edge_idx[e._rlx_idx].append(graph_edge_idx)
             graph_edge_idx += 1
 
         # concat all edges
@@ -432,7 +442,6 @@ class Env(gym.Env):
 
             for loc_id, pmap in enumerate(pmaps):
                 for _, v in pmap.items():
-                    # both EdgePattern and NodePattern
                     idx = v[1]
                     if v[0] == 0:  # edge
                         for embed_eid in rlx_idx_to_graph_edge_idx[idx]:

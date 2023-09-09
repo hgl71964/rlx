@@ -95,7 +95,6 @@ class G2(Graph):
 
 
 def rw2(node_types):
-    # XXX think about if the asymmetric reduce opportunities?
     # asysmetric
     return [r11(node_types)]
 
@@ -444,10 +443,11 @@ def test_expr():
                     raise
 
     # Test2:
-    print("Test2: ")
+    t = "PM2"
+    print(f"{t}: ")
     g = G2(node_types)
     r = rw2(node_types)
-    print_test(g, r, "test2", viz=False)
+    print_test(g, r, t, viz=False)
 
     # Test3:
     # print("Test3: ")

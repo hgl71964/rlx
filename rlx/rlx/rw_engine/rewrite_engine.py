@@ -15,12 +15,6 @@ from rlx.rw_engine.agents.multi_output_ppo import env_loop as multi_output_ppo
 from rlx.rw_engine.agents.multi_output_ppo import inference as multi_output_ppo_inference
 
 import gymnasium as gym
-from gymnasium.envs.registration import register
-
-register(
-    id="env-v0",
-    entry_point="rlx.rw_engine.environment.env:Env",
-)
 
 
 class RewriteEngine:
