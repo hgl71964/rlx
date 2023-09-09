@@ -189,7 +189,7 @@ def test_expr():
     print("Test1: ")
     g = G1(node_types)
     r = rw1(node_types)
-    plot_embedding(g, r, 1, None, viz=False)
+    plot_embedding(g, r, 1, None, viz=True)
 
     # Test2: substitution
     print("Test2: ")

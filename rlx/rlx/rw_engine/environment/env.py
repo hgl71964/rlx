@@ -369,6 +369,7 @@ class Env(gym.Env):
                                   dtype=torch.long).t().contiguous()
 
         # 2. add self edges for internal edges; with fill_value attr
+        # if one-node graph, will not have self-loop
         edge_index, edge_feat = pyg.utils.add_self_loops(
             edge_index,
             edge_feat,
