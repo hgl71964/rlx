@@ -236,7 +236,7 @@ class Env(gym.Env):
             if obj not in old_subgraph_inputs:
                 ban_objs.add(obj)
 
-        # get new subgraph from users
+        # get new subgraph from users; TODO if pat that are deleted?
         new_subgraph_outputs = rw.target_pattern(matched_mapping)
         assert len(old_subgraph_outputs) == len(
             new_subgraph_outputs
@@ -477,7 +477,7 @@ class Env(gym.Env):
             if viz:
                 self.parser.viz(self.edges, f"graph{self.cnt}", True)
             else:
-                self.parser._check(self.edges)
+                self.parser._check_connection(self.edges)
         except Exception as e:
             self.parser.viz(self.edges, f"graph_break_{self.cnt}", False)
             print("+++")

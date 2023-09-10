@@ -26,6 +26,7 @@ class Parser:
 
         # run some checks
         output_edges = [e for e in self.edges if len(e.get_uses()) == 0]
+        self._check_connection(self.edges)
         self._detect_circle(output_edges)
         self._check_uses(self.edges)
         self._infer_edge_type(output_edges)
@@ -145,7 +146,7 @@ class Parser:
 
     def viz(self, edges, path="rlx_graph_viz", check=True):
         if check:
-            self._check(edges)
+            self._check_connection(edges)
 
         # plot for debugging
         import graphviz  # type: ignore
@@ -183,8 +184,8 @@ class Parser:
 
         g.render(cleanup=True, format="png")
 
-    def _check(self, edges):
-        for i, e in enumerate(edges):
+    def _check_connection(self, edges):
+        for _, e in enumerate(edges):
             ok = True
             # input node
             if e.get_trace() is not None:
@@ -198,8 +199,6 @@ class Parser:
                     for out in n.outputs:
                         logger.critical(f"{out.get_idx()}, {out.get_type()}")
 
-                ok = ok and self._check_node(n)
-
             # output node
             for n in e.get_uses():
                 if e not in n.get_inputs():
@@ -211,23 +210,5 @@ class Parser:
                     for inp in n.get_inputs():
                         logger.critical(f"{inp.get_idx()}, {inp.get_type()}")
 
-                ok = ok and self._check_node(n)
-
             if not ok:
                 raise Exception
-
-    def _check_node(self, n):
-        ok = True
-        if len(n.get_inputs()) > 2 or len(n.get_inputs()) < 1:
-            ok = False
-            logger.erorr(
-                f"{n.get_idx()}, {n.get_type()}, {len(n.get_inputs())}")
-            for inp in n.get_inputs():
-                logger.critical(f"{inp.get_idx()}, {inp.get_type()}")
-        if len(n.get_outputs()) != 1:
-            ok = False
-            logger.error(
-                f"{n.get_idx()}, {n.get_type()}, {len(n.get_outputs())}")
-            for out in n.get_outputs():
-                logger.critical(f"{out.get_idx()}, {out.get_type()}")
-        return ok
