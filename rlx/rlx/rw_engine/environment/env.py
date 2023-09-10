@@ -202,7 +202,7 @@ class Env(gym.Env):
             the output's trace may change
         """
         self._check(rw, matched, False)
-        self._detect_uses(rw, matched)
+        # self._detect_uses(rw, matched)
         self._detect_circle()
         ############################################
         # apply graph transformation
@@ -236,7 +236,7 @@ class Env(gym.Env):
             if obj not in old_subgraph_inputs:
                 ban_objs.add(obj)
 
-        # get new subgraph from users; TODO if pat that are deleted?
+        # get new subgraph from users;
         new_subgraph_outputs = rw.target_pattern(matched_mapping)
         assert len(old_subgraph_outputs) == len(
             new_subgraph_outputs
@@ -274,7 +274,7 @@ class Env(gym.Env):
             # clear old news
             old.set_uses([])
 
-        self._detect_uses(rw, matched, ban_objs)
+        # self._detect_uses(rw, matched, ban_objs)
         self._detect_ban(rw, matched, ban_objs)
         ############################################
         ## rebuild continuous index and self.edges##
@@ -398,7 +398,9 @@ class Env(gym.Env):
         for i, e in enumerate(self.output_edge):
             if e.get_trace() is None:
                 # special case -> the entire graph has 1 edge
-                raise RuntimeError("output_edge has None trace")
+                # raise RuntimeError("output_edge has None trace")
+                ghost_index.append((0, 0))
+                continue
             src_id = e.get_trace()._rlx_idx
             ghost_index.append((src_id, i + out_start))
 
@@ -617,42 +619,42 @@ class Env(gym.Env):
             print(e)
             raise RuntimeError()
 
-    def _detect_uses(self, rw, matched, ban=None):
-        try:
-            for edge in self.edges:
-                n = len(edge.get_uses())
-                if n == 0:
-                    # if not sink
-                    if edge not in self.output_edge:
-                        # ok if edge is in the old graph, which is substituted
-                        if ban is not None and edge in ban:
-                            continue
+    # def _detect_uses(self, rw, matched, ban=None):
+    #     try:
+    #         for edge in self.edges:
+    #             n = len(edge.get_uses())
+    #             if n == 0:
+    #                 # if not sink
+    #                 if edge not in self.output_edge:
+    #                     # ok if edge is in the old graph, which is substituted
+    #                     if ban is not None and edge in ban:
+    #                         continue
 
-                        logger.critical(
-                            f"neither sink or ban? {n}, {edge.get_idx()} | {edge._rlx_idx}"
-                        )
-                        raise Exception
+    #                     logger.critical(
+    #                         f"neither sink or ban? {n}, {edge.get_idx()} | {edge._rlx_idx}"
+    #                     )
+    #                     raise Exception
 
-                # e.g. r23 introduces multi-uses
-                # if n > 1:
-                #     logger.critical(f"error: more than 1 uses {n}, {edge.idx}")
-                #     raise Exception
+    #             # e.g. r23 introduces multi-uses
+    #             # if n > 1:
+    #             #     logger.critical(f"error: more than 1 uses {n}, {edge.idx}")
+    #             #     raise Exception
 
-        except Exception as e:
-            print("EEEEEEEEEEE")
-            self.parser.viz(self.edges, f"graph_multi_edge{self.cnt}", False)
-            print(rw.name)
-            for pattern_id, v in matched.items():
-                if v[0] == 0:
-                    # edge
-                    print("e: ", v[1])
-                elif v[0] == 1:
-                    # node
-                    print("n: ", v[1])
+    #     except Exception as e:
+    #         print("EEEEEEEEEEE")
+    #         self.parser.viz(self.edges, f"graph_multi_edge{self.cnt}", False)
+    #         print(rw.name)
+    #         for pattern_id, v in matched.items():
+    #             if v[0] == 0:
+    #                 # edge
+    #                 print("e: ", v[1])
+    #             elif v[0] == 1:
+    #                 # node
+    #                 print("n: ", v[1])
 
-            print("iter: ", self.cnt)
-            print(e)
-            raise
+    #         print("iter: ", self.cnt)
+    #         print(e)
+    #         raise
 
     def _call_reward_func(self, terminated: bool) -> float:
         g = rlx_Graph([v for _, v in self.node_map.items()],
