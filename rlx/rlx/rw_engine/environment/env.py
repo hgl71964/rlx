@@ -5,18 +5,17 @@ from collections import defaultdict
 
 # import gym
 import gymnasium as gym
-from gymnasium.spaces import Box, Discrete, MultiDiscrete
+from gymnasium.spaces import Box, MultiDiscrete
 from gymnasium.spaces import Graph as GymGraph
 from gymnasium.envs.registration import register
 
-import numpy as np
 import torch
 from torch import Tensor
 import torch_geometric as pyg
 
 from rlx.frontend.registry import get_node_type
 from rlx.frontend.graph import Graph, Node, Edge
-from rlx.frontend.rewrite_rule import NodePattern, EdgePattern, PATTERN_ID_MAP
+from rlx.frontend.rewrite_rule import PATTERN_ID_MAP
 from rlx.utils.common import get_logger
 from rlx.rw_engine.parser import rlx_Graph
 
@@ -211,26 +210,26 @@ class Env(gym.Env):
         matched_mapping = {}  # pattern -> Node/Edge
         old_subgraph_outputs = []
         old_subgraph_inputs = []
-        old_objs = set()
+        old_subgraph_objs = set()
 
         # get actual mapping
         for pattern_id, v in matched.items():
             pat = PATTERN_ID_MAP[pattern_id]
             obj = None
             if v[0] == 0:  # edge
-                edge_id = v[1]
-                obj = self.edge_map[edge_id]
+                edge_rlx_idx = v[1]
+                obj = self.edge_map[edge_rlx_idx]
                 if len(pat.uses) == 0:
                     old_subgraph_outputs.append(obj)
                 if pat.trace is None:
                     old_subgraph_inputs.append(obj)
             elif v[0] == 1:  # node
-                node_id = v[1]
-                obj = self.node_map[node_id]
+                node_rlx_idx = v[1]
+                obj = self.node_map[node_rlx_idx]
             else:
                 raise RuntimeError(f"{v[0]}")
             matched_mapping[pat] = obj
-            old_objs.add(obj)
+            old_subgraph_objs.add(obj)
 
         # get new subgraph from users
         new_subgraph_outputs = rw.target_pattern(matched_mapping)
@@ -242,7 +241,7 @@ class Env(gym.Env):
         for old in old_subgraph_inputs:
             remove_list = []
             for use in old.get_uses():
-                if use in old_objs:
+                if use in old_subgraph_objs:
                     remove_list.append(use)
 
             # if multiple-uses, it will appear multiple times in the remove_list
@@ -270,10 +269,10 @@ class Env(gym.Env):
             # clear old news
             old.set_uses([])
 
-        self._detect_uses(rw, matched, old_objs)
-        self._detect_ban(rw, matched, old_objs)
+        self._detect_uses(rw, matched, old_subgraph_objs)
+        self._detect_ban(rw, matched, old_subgraph_objs)
         ############################################
-        # rebuild continuous index and self.edges
+        ## rebuild continuous index and self.edges##
         ############################################
         visited = set()
         node_cnt, edge_cnt = 0, 0
@@ -289,11 +288,11 @@ class Env(gym.Env):
                 # because the entire new subgraph may be Const
                 # so propagate to output
                 out_type = self.const_type
-                for inp in obj.inputs:
+                for inp in obj.get_inputs():
                     dfs_rebuild(inp)
                     if inp.get_type() == self.var_type:
                         out_type = self.var_type
-                for out in obj.outputs:
+                for out in obj.get_outputs():
                     out.set_type(out_type)
 
                 obj._rlx_idx = node_cnt
@@ -308,10 +307,10 @@ class Env(gym.Env):
                 self.edges.append(obj)
 
         for out in self.output_edge:
-            # output_edge is up-to-update,
+            # output_edge is (almost) up-to-update,
             # unless the substituted graph has new outputs
             # this dfs should cover ALMOST all nodes and edges
-            if out not in old_objs:
+            if out not in old_subgraph_objs:
                 dfs_rebuild(out)
 
         for out in new_subgraph_outputs:
@@ -322,7 +321,7 @@ class Env(gym.Env):
         self._check(rw, matched, False)
 
     def _build_state(self):
-        # get mapping of each rewrite rules -> (pattern -> node/edge)
+        # get MatchDict
         pattern_map = PatternMatch().build(self.edges, self.rewrite_rules)
         self.pattern_map = pattern_map  # keep pattern_map up-to-update
 
@@ -340,6 +339,7 @@ class Env(gym.Env):
             self.output_edge)
         n_edge = 0
         for edge in self.edges:
+            # only count internal edges here
             if edge not in self.input_edge and edge not in self.output_edge:
                 n_edge += len(edge.get_uses())
 
@@ -442,7 +442,7 @@ class Env(gym.Env):
             # +++fill mask+++
 
             for loc_id, pmap in enumerate(pmaps):
-                for _, v in pmap.items():
+                for pattern_id, v in pmap.items():
                     idx = v[1]
                     if v[0] == 0:  # edge
                         for embed_eid in rlx_idx_to_graph_edge_idx[idx]:
@@ -615,7 +615,7 @@ class Env(gym.Env):
     def _detect_uses(self, rw, matched, ban=None):
         try:
             for edge in self.edges:
-                n = len(edge.uses)
+                n = len(edge.get_uses())
                 if n == 0:
                     # if not sink
                     if edge not in self.output_edge:
