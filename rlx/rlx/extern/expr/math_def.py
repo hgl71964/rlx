@@ -6,6 +6,16 @@ from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pat
 
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
+_math_id = 100
+
+
+def get_id():
+    global _math_id
+    local = _math_id
+    _math_id += 1
+    return local
+
+
 NODE_TYPES = [
     "Diff",
     "Integral",
@@ -171,12 +181,12 @@ class r1(RewriteRule):
         return [add]
 
     def target_pattern(self, matched: dict[EdgePattern, Edge]):
-        a, b = [matched[idx] for idx in [self.ta, self.tb]]
-        new = expr_node(-1,
+        a, b = [matched[pat] for pat in [self.a, self.b]]
+        new = expr_node(get_id(),
                         attr=None,
                         node_type=self.node_types["Add"],
                         inputs=[b, a])
-        out = new.out()
+        out = new.out(get_id())
         return [out]
 
 
@@ -192,12 +202,12 @@ class r2(RewriteRule):
         return [add]
 
     def target_pattern(self, matched):
-        a, b = [matched[idx] for idx in [self.ta, self.tb]]
-        new = expr_node(-1,
+        a, b = [matched[pat] for pat in [self.a, self.b]]
+        new = expr_node(get_id(),
                         attr=None,
                         node_type=self.node_types["Mul"],
                         inputs=[b, a])
-        out = new.out()
+        out = new.out(get_id())
         return [out]
 
 
@@ -355,19 +365,19 @@ class r11(RewriteRule):
     def target_pattern(self, matched):
         a, b, c = [matched[idx] for idx in [self.a, self.b, self.c]]
         new = expr_node(
-            -1,
+            get_id(),
             attr=None,
             node_type=self.node_types["Add"],
             inputs=[b, c],
         )
-        out = new.out()
+        out = new.out(get_id())
         new = expr_node(
-            -1,
+            get_id(),
             attr=None,
             node_type=self.node_types["Mul"],
             inputs=[a, out],
         )
-        out = new.out()
+        out = new.out(get_id())
         return [out]
 
 

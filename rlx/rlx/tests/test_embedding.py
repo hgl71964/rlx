@@ -1,9 +1,6 @@
 from collections import namedtuple
 
-import matplotlib.pyplot as plt  # type: ignore
-import torch_geometric as pyg
-
-from rlx.frontend import Node, Edge, Graph, RewriteRule, EdgePattern, NodePattern, node_pattern, const_pattern, symbol_pattern
+from rlx.frontend import Node, Edge, Graph
 from rlx.frontend.registry import register_node_type, get_node_type, clear_node_type
 
 from rlx.rw_engine.parser import Parser
@@ -12,9 +9,6 @@ from rlx.rw_engine.environment.env import make_env
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
 from rlx.extern.expr.math_def import (r1,
-                                      r2,
-                                      r3,
-                                      r4,
                                       r11,)  # yapf: disable
 
 
@@ -124,15 +118,6 @@ def plot_embedding(g, r, n, action=None, viz=False):
 
     if viz:
         f = f"embedding_{n}_reset"
-
-        # import networkx as nx
-        # print("+++viz+++")
-        # print(pyg_g['x'])
-        # print(pyg_g['edge_attr'])
-        # g = pyg.utils.to_networkx(pyg_g, remove_self_loops=True)
-        # # g = pyg.utils.to_networkx(pyg_g, [str(x) for x in pyg_g['x']], [str(x) for x in pyg_g['edge_attr']], to_undirected=False)
-        # nx.draw(g)
-        # plt.show()
 
         import graphviz  # type: ignore
         g = graphviz.Digraph("embedding", format="pdf", filename=f"{f}")

@@ -149,7 +149,7 @@ class Parser:
 
         # plot for debugging
         import graphviz  # type: ignore
-        g = graphviz.Digraph("rlx_Graph", format="pdf", filename=f"{path}")
+        g = graphviz.Digraph("rlx_Graph", filename=f"{path}")
 
         built = set()
         for _, e in enumerate(edges):
@@ -181,7 +181,7 @@ class Parser:
                     built.add(nid)
                 g.edge(e_label, label)  # edge -> uses
 
-        g.render()
+        g.render(cleanup=True, format="png")
 
     def _check(self, edges):
         for i, e in enumerate(edges):

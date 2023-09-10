@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from rlx.frontend import Node, Edge, Graph, RewriteRule, EdgePattern, NodePattern, node_pattern, const_pattern, symbol_pattern
 from rlx.frontend.registry import register_node_type, get_node_type, clear_node_type
 
@@ -13,6 +15,17 @@ from rlx.extern.expr.math_def import (r1,
                                       r11,)  # yapf: disable
 
 import torch
+
+Config = namedtuple('Config', [
+    "max_loc",
+    "h",
+    "normalize_reward",
+])
+CONFIG = Config(
+    max_loc=10,
+    h=100,
+    normalize_reward=1,
+)
 
 from absl import app
 from absl import flags
@@ -49,7 +62,7 @@ def rw1(node_types):
     return [r1(node_types)]
 
 
-class G2(Graph):
+class G2(G):
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -781,11 +794,18 @@ def print_env(g, r, n, action=None, viz=False):
     gym_id = "env-v0"
     parser = Parser(g)
     for _r in r:
-        r.initialise()
-    env = make_env(gym_id, parser, lambda x: 0, r, seed=0, config={})()
-    (pyg_g, m), _ = env.reset()
+        _r.initialise()
+    env = make_env(
+        gym_id,
+        parser,
+        lambda x, y, z: 0,
+        r,
+        seed=0,
+        config=CONFIG,
+    )()
+    (pyg_g, m, _, _), _ = env.reset()
     print("+++reset+++")
-    print(pyg_g)
+    # print(pyg_g)
     if action is None:
         action = tuple([torch.tensor(0).long() for _ in range(2)])
     for rule_id, pmaps in m.items():
@@ -794,17 +814,15 @@ def print_env(g, r, n, action=None, viz=False):
         print(f"{locs} matches")
 
     if viz:
-        f = f"test{n}_reset"
-        env.viz(f)
+        f = f"sub_{n}_reset"
+        env.unwrapped.viz(f)
 
     print("+++step+++")
     obs, reward, terminated, truncated, info = env.step(action)
-    pyg_g, m = obs
-    print(pyg_g)
 
     if viz:
-        f = f"test{n}_step"
-        env.viz(f)
+        f = f"sub_{n}_step"
+        env.unwrapped.viz(f)
 
 
 def test_expr():
@@ -834,236 +852,109 @@ def test_expr():
     node_types, _, _ = get_node_type()
 
     # Test1: x+y=>y+x
-    print("Test1: ")
+    n = 1
+    print(f"Test{n}: ")
     g = G1(node_types)
     r = rw1(node_types)
-    print_env(g, r, 1, None, viz=False)
+    print_env(g, r, n, None, viz=True)
 
     # Test2: substitution
-    print("Test2: ")
-    g = G2(node_types)
-    r = rw2(node_types)
-    print_env(g, r, 2, None, viz=False)
-
-    # Test3: substitution at inputs boundary
-    print("Test3: ")
-    g = G3(node_types)
-    r = rw3(node_types)
-    print_env(g, r, 3, None, viz=False)
-
-    # Test4: edge cases? e.g. (+ ?a 0) => ?a
-    print("Test4: ")
-    g = G4(node_types)
-    r = rw4(node_types)
-    print_env(g, r, 4, None, False)
-
-    print("Test4_v2: ")
-    g = G4_v2(node_types)
-    r = rw4(node_types)
-    print_env(g, r, 4.02, None, False)
-
-    print("Test4-cancel-sub: ")
-    g = G4_cancel_sub(node_types)
-    r = rw4(node_types)
-    a = (torch.tensor(1).long(), torch.tensor(0).long())
-    print_env(g, r, 4.1, a, viz=False)
-
-    print("Test4-cancel-sub_v2: ")
-    g = G4_cancel_sub_v2(node_types)
-    r = rw4(node_types)
-    a = (torch.tensor(1).long(), torch.tensor(0).long())
-    print_env(g, r, 4.2, a, viz=False)
-
-    print("Test4-cancel-sub_v3: ")
-    g = G4_cancel_sub_v3(node_types)
-    r = rw4(node_types)
-    a = (torch.tensor(1).long(), torch.tensor(0).long())
-    print_env(g, r, 4.3, a, viz=False)
-
-    # Test5: edge cases? e.g. (d ?x (sin ?x) )
-    print("Test5: ")
-    g = G5(node_types)
-    r = rw5(node_types)
-    print_env(g, r, 5, None, viz=False)
-
-    # Test all: expr rewrite rules
-    print("TestAll:")
-    print("sub_canon:")
-    g = G5_sub_canon(node_types)
-    r = rw5_(node_types)
-    print_env(g, r, 5.1, None, viz=False)
-
-    g = G5_sub_canon_more(node_types)
-    r = rw5_(node_types)
-    print_env(g, r, 5.2, None, viz=False)
-
-    print("zero-add:")
-    g = G6(node_types)
-    r = rw6_(node_types)
-    print_env(g, r, 6.1, None, viz=False)
-
-    g = G6_more(node_types)
-    r = rw6_(node_types)
-    print_env(g, r, 6.2, None, viz=False)
-
-    print("zero-mul:")
-    g = G7(node_types)
-    r = rw7_(node_types)
-    print_env(g, r, 7.1, None, viz=False)
-
-    print("cancel-sub:")
-    g = G9(node_types)
-    r = rw9_(node_types)
-    print_env(g, r, 9, None, viz=False)
-
-    print("pow2:")
-    g = G14(node_types)
-    r = rw14_(node_types)
-    print_env(g, r, 14, None, viz=False)
-
-    print("d-cos:")
-    g = G18(node_types)
-    r = rw18_(node_types)
-    print_env(g, r, 18, None, viz=False)
-
-    print("i-part:")
-    g = G24(node_types)
-    r = rw24_(node_types)
-    print_env(g, r, 24, None, viz=True)
 
 
-###############
-#### Test 1
-###############
-class dfg_node(Node):
-    def __init__(self, idx, attr, node_type, inputs):
-        self.idx = idx
-        self.attr = attr
-        self.node_type = node_type
-        self.inputs = inputs
-        self.outputs = []
-
-        for inp in inputs:
-            inp.uses.append(self)
-
-    def get_type(self):
-        return self.node_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_inputs(self):
-        return self.inputs
-
-    def get_outputs(self):
-        return self.outputs
-
-
-class dfg_edge(Edge):
-    def __init__(self, idx, attr, edge_type, trace):
-        self.idx = idx
-        self.attr = attr
-        self.edge_type = edge_type
-        self.uses = []
-        self.trace = trace
-
-        if trace is not None:
-            self.trace.outputs.append(self)
-
-    def get_type(self):
-        return self.edge_type
-
-    def get_attr(self):
-        return self.attr
-
-    def get_uses(self):
-        return self.uses
-
-    def get_trace(self):
-        return self.trace
-
-
-class DG1(Graph):
-    def __init__(self, node_types):
-        data = dfg_edge(0, None, node_types["Var"], None)
-        K = dfg_edge(1, None, node_types["Const"], None)
-        Q = dfg_edge(2, None, node_types["Const"], None)
-        m1 = dfg_node(3, None, node_types["Matmul"], [data, K])
-        m2 = dfg_node(4, None, node_types["Matmul"], [data, Q])
-        out1 = dfg_edge(5, None, node_types["Matmul"], trace=m1)
-        out2 = dfg_edge(6, None, node_types["Matmul"], trace=m2)
-
-        self.nodes = []
-        self.edges = []
-        self.edges.append(data)
-        self.edges.append(K)
-        self.edges.append(Q)
-        self.edges.append(out1)
-        self.edges.append(out2)
-        self.nodes.append(m1)
-        self.nodes.append(m2)
-
-    def get_nodes(self):
-        return self.nodes
-
-    def get_edges(self):
-        return self.edges
-
-
-def drw1(node_types):
-    class r1(RewriteRule):
-        def __init__(self):
-            self.name = "matmul(x, c1)|matmul(x, c2) ==> matmul(x, concat(c1, c2)) followed by split"
-            self.d, self.td = symbol_pattern()
-            self.k, self.tk = const_pattern()
-            self.q, self.tq = const_pattern()
-
-        def source_pattern(self):
-            self.m1 = node_pattern(node_types["Matmul"], [self.d, self.k],
-                                   n_outputs=1)
-            self.m2 = node_pattern(node_types["Matmul"], [self.d, self.q],
-                                   n_outputs=1)
-            return [self.m1, self.m2]
-
-        def target_pattern(self):
-            concat = node_pattern(node_types["Concat"], [self.tk, self.tq],
-                                  n_outputs=1)
-            matmul = node_pattern(node_types["Matmul"], [self.td, concat],
-                                  n_outputs=1)
-            self.split = node_pattern(node_types["Split"], [matmul],
-                                      n_outputs=2)
-            return self.split
-
-    return [
-        r1(),
-    ]
-
-
-def test_dataflow():
-    print("=======")
-    print("test dataflow")
-    print("=======")
-    node_types = [
-        "Matmul",
-        "Concat",
-        "Split",
-
-        # leaf;
-        "Var",
-        "Const",
-    ]
-    clear_node_type()
-    register_node_type(node_types)
-    node_types, _, _ = get_node_type()
-
-    # Test1: TODO
-    g1 = DG1(node_types)
-    r1 = drw1(node_types)
+#    print("Test2: ")
+#    g = G2(node_types)
+#    r = rw2(node_types)
+#    print_env(g, r, 2, None, viz=False)
+#
+#    # Test3: substitution at inputs boundary
+#    print("Test3: ")
+#    g = G3(node_types)
+#    r = rw3(node_types)
+#    print_env(g, r, 3, None, viz=False)
+#
+#    # Test4: edge cases? e.g. (+ ?a 0) => ?a
+#    print("Test4: ")
+#    g = G4(node_types)
+#    r = rw4(node_types)
+#    print_env(g, r, 4, None, False)
+#
+#    print("Test4_v2: ")
+#    g = G4_v2(node_types)
+#    r = rw4(node_types)
+#    print_env(g, r, 4.02, None, False)
+#
+#    print("Test4-cancel-sub: ")
+#    g = G4_cancel_sub(node_types)
+#    r = rw4(node_types)
+#    a = (torch.tensor(1).long(), torch.tensor(0).long())
+#    print_env(g, r, 4.1, a, viz=False)
+#
+#    print("Test4-cancel-sub_v2: ")
+#    g = G4_cancel_sub_v2(node_types)
+#    r = rw4(node_types)
+#    a = (torch.tensor(1).long(), torch.tensor(0).long())
+#    print_env(g, r, 4.2, a, viz=False)
+#
+#    print("Test4-cancel-sub_v3: ")
+#    g = G4_cancel_sub_v3(node_types)
+#    r = rw4(node_types)
+#    a = (torch.tensor(1).long(), torch.tensor(0).long())
+#    print_env(g, r, 4.3, a, viz=False)
+#
+#    # Test5: edge cases? e.g. (d ?x (sin ?x) )
+#    print("Test5: ")
+#    g = G5(node_types)
+#    r = rw5(node_types)
+#    print_env(g, r, 5, None, viz=False)
+#
+#    # Test all: expr rewrite rules
+#    print("TestAll:")
+#    print("sub_canon:")
+#    g = G5_sub_canon(node_types)
+#    r = rw5_(node_types)
+#    print_env(g, r, 5.1, None, viz=False)
+#
+#    g = G5_sub_canon_more(node_types)
+#    r = rw5_(node_types)
+#    print_env(g, r, 5.2, None, viz=False)
+#
+#    print("zero-add:")
+#    g = G6(node_types)
+#    r = rw6_(node_types)
+#    print_env(g, r, 6.1, None, viz=False)
+#
+#    g = G6_more(node_types)
+#    r = rw6_(node_types)
+#    print_env(g, r, 6.2, None, viz=False)
+#
+#    print("zero-mul:")
+#    g = G7(node_types)
+#    r = rw7_(node_types)
+#    print_env(g, r, 7.1, None, viz=False)
+#
+#    print("cancel-sub:")
+#    g = G9(node_types)
+#    r = rw9_(node_types)
+#    print_env(g, r, 9, None, viz=False)
+#
+#    print("pow2:")
+#    g = G14(node_types)
+#    r = rw14_(node_types)
+#    print_env(g, r, 14, None, viz=False)
+#
+#    print("d-cos:")
+#    g = G18(node_types)
+#    r = rw18_(node_types)
+#    print_env(g, r, 18, None, viz=False)
+#
+#    print("i-part:")
+#    g = G24(node_types)
+#    r = rw24_(node_types)
+#    print_env(g, r, 24, None, viz=True)
 
 
 def main(_):
     test_expr()
-    test_dataflow()
 
 
 if __name__ == "__main__":

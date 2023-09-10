@@ -2,15 +2,6 @@ from rlx.rw_engine.parser import Parser
 from rlx.rw_engine.environment.env import make_env
 
 # Agent table
-from rlx.rw_engine.agents.max_ppo import env_loop as max_ppo
-from rlx.rw_engine.agents.max_ppo import inference as max_ppo_inference
-
-from rlx.rw_engine.agents.sampling_ppo import env_loop as sampling_ppo
-from rlx.rw_engine.agents.sampling_ppo import inference as sampling_ppo_inference
-
-from rlx.rw_engine.agents.one_gnn_ppo import env_loop as one_gnn_ppo
-from rlx.rw_engine.agents.one_gnn_ppo import inference as one_gnn_ppo_inference
-
 from rlx.rw_engine.agents.multi_output_ppo import env_loop as multi_output_ppo
 from rlx.rw_engine.agents.multi_output_ppo import inference as multi_output_ppo_inference
 

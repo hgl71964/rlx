@@ -35,14 +35,14 @@ register(
 class GraphObsSpace(GymGraph):
     def contains(self, x) -> bool:
         if x is None:
-            # terminated TODO why still warn?
             return True
 
         # override to satisfy the type checker; otherwise will warn
         if isinstance(x, tuple):
-            if len(x) == 3:
+            if len(x) == 4:
                 if isinstance(x[0], pyg.data.Data) and isinstance(
-                        x[1], dict) and isinstance(x[2], Tensor):
+                        x[1], dict) and isinstance(
+                            x[2], Tensor) and isinstance(x[3], Tensor):
                     return True
         return False
 
