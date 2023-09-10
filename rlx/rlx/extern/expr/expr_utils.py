@@ -55,7 +55,7 @@ class expr_node(Node):
         self.attr = attr
         self.node_type = node_type
         self.inputs = inputs
-        self.outputs = None
+        self.outputs = []
 
         for inp in inputs:
             inp.uses.append(self)

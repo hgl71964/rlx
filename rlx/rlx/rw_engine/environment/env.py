@@ -231,6 +231,11 @@ class Env(gym.Env):
             matched_mapping[pat] = obj
             old_subgraph_objs.add(obj)
 
+        ban_objs = set()  # old_subgraph_objs except inputs
+        for obj in old_subgraph_objs:
+            if obj not in old_subgraph_inputs:
+                ban_objs.add(obj)
+
         # get new subgraph from users
         new_subgraph_outputs = rw.target_pattern(matched_mapping)
         assert len(old_subgraph_outputs) == len(
@@ -241,7 +246,7 @@ class Env(gym.Env):
         for old in old_subgraph_inputs:
             remove_list = []
             for use in old.get_uses():
-                if use in old_subgraph_objs:
+                if use in ban_objs:
                     remove_list.append(use)
 
             # if multiple-uses, it will appear multiple times in the remove_list
@@ -269,8 +274,8 @@ class Env(gym.Env):
             # clear old news
             old.set_uses([])
 
-        self._detect_uses(rw, matched, old_subgraph_objs)
-        self._detect_ban(rw, matched, old_subgraph_objs)
+        self._detect_uses(rw, matched, ban_objs)
+        self._detect_ban(rw, matched, ban_objs)
         ############################################
         ## rebuild continuous index and self.edges##
         ############################################
@@ -310,7 +315,7 @@ class Env(gym.Env):
             # output_edge is (almost) up-to-update,
             # unless the substituted graph has new outputs
             # this dfs should cover ALMOST all nodes and edges
-            if out not in old_subgraph_objs:
+            if out not in ban_objs:
                 dfs_rebuild(out)
 
         for out in new_subgraph_outputs:
@@ -579,7 +584,7 @@ class Env(gym.Env):
             if isinstance(obj, Edge):
                 if obj in path:
                     logger.critical(
-                        f"circle detected! {obj.get_idx()} | {obj._rlx_idx}")
+                        f"circle detected! {obj.get_idx()}| {obj._rlx_idx}")
                     print(node_cnt, edge_cnt)
                     print(stack)
                     raise RuntimeError("circle detected")
@@ -601,7 +606,7 @@ class Env(gym.Env):
                 dfs(out)
         except Exception as e:
             print("xxxxxxxxx")
-            self.parser.viz(self.edges, f"graph_ban{self.cnt}", False)
+            self.parser.viz(self.edges, f"graph_ban_{self.cnt}", False)
             print(rw.name)
             for pattern_id, v in matched.items():
                 if v[0] == 0:  # edge

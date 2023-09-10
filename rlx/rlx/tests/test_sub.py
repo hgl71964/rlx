@@ -67,68 +67,40 @@ class G2(G):
         self.nodes = []
         self.edges = []
         # input
-        t = expr_edge(0, None, node_types["Const"], None)
-        tw = expr_edge(0, None, node_types["Const"], None)
+        t = expr_edge(1, None, node_types["Const"], None)
+        tw = expr_edge(2, None, node_types["Const"], None)
 
-        # a = expr_edge(0, None, node_types["Const"], None)
-        b = expr_edge(0, None, node_types["Const"], None)
-        x = expr_edge(0, None, node_types["Var"], None)
-        more = expr_edge(0, None, node_types["Const"], None)
+        b = expr_edge(3, None, node_types["Const"], None)
+        x = expr_edge(4, None, node_types["Const"], None)
+        more = expr_edge(5, None, node_types["Const"], None)
 
         # gen a
-        a_node = expr_node(0, None, node_types["Add"], [t, tw])
-        a = a_node.out()
+        a_node = expr_node(6, None, node_types["Add"], [t, tw])
+        a = a_node.out(7)
 
         # x*a
-        m1 = expr_node(0, None, node_types["Mul"], [a, x])
-        m1_out = m1.out()
+        m1 = expr_node(8, None, node_types["Mul"], [a, x])
+        m1_out = m1.out(9)
         # x*b
-        m2 = expr_node(0, None, node_types["Mul"], [b, x])
-        m2_out = m2.out()
+        m2 = expr_node(10, None, node_types["Mul"], [b, x])
+        m2_out = m2.out(11)
 
-        add = expr_node(0, None, node_types["Add"], [m1_out, m2_out])
-        add_out = add.out()
+        add = expr_node(12, None, node_types["Add"], [m1_out, m2_out])
+        add_out = add.out(13)
 
-        more_node = expr_node(0, None, node_types["Add"], [add_out, more])
-        more_out = more_node.out()
+        more_node = expr_node(14, None, node_types["Add"], [add_out, more])
+        more_out = more_node.out(15)
 
         self.edges.extend(
             [t, tw, b, x, more, a, m1_out, m2_out, add_out, more_out])
         self.nodes.extend([a_node, m1, m2, add, more_node])
 
-    def get_nodes(self):
-        return self.nodes
-
-    def get_edges(self):
-        return self.edges
-
 
 def rw2(node_types):
-    class r1(RewriteRule):
-        def __init__(self):
-            self.name = "x*a + x*b => x*(a+b)"
-            self.a, self.ta = const_pattern()
-            self.b, self.tb = const_pattern()
-            self.x, self.tx = symbol_pattern()
-
-        def source_pattern(self):
-            mul1 = node_pattern(node_types["Mul"], [self.a, self.x],
-                                n_outputs=1)
-            mul2 = node_pattern(node_types["Mul"], [self.b, self.x],
-                                n_outputs=1)
-            out = node_pattern(node_types["Add"], [mul1, mul2], n_outputs=1)
-            return [out]
-
-        def target_pattern(self):
-            add1 = node_pattern(node_types["Add"], [self.ta, self.tb],
-                                n_outputs=1)
-            out = node_pattern(node_types["Mul"], [add1, self.tx], n_outputs=1)
-            return [out]
-
-    return [r1()]
+    return [r11(node_types)]
 
 
-class G3(Graph):
+class G3(G):
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -152,12 +124,6 @@ class G3(Graph):
 
         self.edges.extend([a, b, x, more, p1_out, p2_out, add_out, more_out])
         self.nodes.extend([p1, p2, add_node, more_node])
-
-    def get_nodes(self):
-        return self.nodes
-
-    def get_edges(self):
-        return self.edges
 
 
 def rw3(node_types):
@@ -856,15 +822,16 @@ def test_expr():
     print(f"Test{n}: ")
     g = G1(node_types)
     r = rw1(node_types)
-    print_env(g, r, n, None, viz=True)
+    print_env(g, r, n, None, viz=False)
 
     # Test2: substitution
+    n = 2
+    print(f"Test{n}: ")
+    g = G2(node_types)
+    r = rw2(node_types)
+    print_env(g, r, n, None, viz=True)
 
 
-#    print("Test2: ")
-#    g = G2(node_types)
-#    r = rw2(node_types)
-#    print_env(g, r, 2, None, viz=False)
 #
 #    # Test3: substitution at inputs boundary
 #    print("Test3: ")

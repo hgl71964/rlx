@@ -6,7 +6,7 @@ from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pat
 
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
-_math_id = 100
+_math_id = 1000  # for substituted obj id, for debugging
 
 
 def get_id():
@@ -363,21 +363,19 @@ class r11(RewriteRule):
         return [add]
 
     def target_pattern(self, matched):
-        a, b, c = [matched[idx] for idx in [self.a, self.b, self.c]]
-        new = expr_node(
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(
             get_id(),
             attr=None,
             node_type=self.node_types["Add"],
             inputs=[b, c],
-        )
-        out = new.out(get_id())
-        new = expr_node(
+        ).out(get_id())
+        out = expr_node(
             get_id(),
             attr=None,
             node_type=self.node_types["Mul"],
             inputs=[a, out],
-        )
-        out = new.out(get_id())
+        ).out(get_id())
         return [out]
 
 
