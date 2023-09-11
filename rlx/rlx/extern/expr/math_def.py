@@ -353,7 +353,7 @@ class r8(RewriteRule):
 
     def target_pattern(self, matched):
         a = matched[self.a]
-        return a
+        return [a]
 
 
 class r9(RewriteRule):

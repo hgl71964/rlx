@@ -11,16 +11,19 @@ from rlx.rw_engine import RewriteEngine
 from rlx.utils.common import get_logger
 
 from rlx.extern.expr.expr_utils import (callback_reward_function, expr_graph,
-                                        get_lang, load_expr, rlxGraph2Expr,
+                                        get_lang, load_expr,
                                         cnt_op)
 
 from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
 from rlx.extern.expr.math_def import verify as math_verify
 from rlx.extern.expr.math_def import define_node_type as define_math_node_type
+from rlx.extern.expr.math_def import rlxGraph2math
 
 from rlx.extern.expr.prop_def import define_rewrite_rules as prop_rewrite_rules
 from rlx.extern.expr.prop_def import verify as prop_verify
 from rlx.extern.expr.prop_def import define_node_type as define_prop_node_type
+from rlx.extern.expr.prop_def import rlxGraph2Prop
+
 
 from absl import app
 from absl import flags
@@ -106,14 +109,19 @@ def main(_):
     logger.info("=" * 40)
 
     # register
-    if FLAGS.lang == "MATH" or FLAGS.lang == "MathLang":
-        node_types, _, _ = define_math_node_type()
-        rewrite_rules = math_rewrite_rules(node_types)
+    if FLAGS.lang == "MATH" or FLAGS.lang == "math":
+        define_types = define_math_node_type
+        rewrite_rules = math_rewrite_rules
+        conversion = rlxGraph2math
     elif FLAGS.lang == "PROP" or FLAGS.lang == "prop":
-        node_types, _, _ = define_prop_node_type()
-        rewrite_rules = prop_rewrite_rules(node_types)
+        define_types = define_prop_node_type
+        rewrite_rules = prop_rewrite_rules
+        conversion = rlxGraph2Prop
     else:
         raise NotImplementedError(f"Unsupported lang: {FLAGS.lang}")
+
+    node_types, _, _ = define_types()
+    rewrite_rules = math_rewrite_rules(node_types)
     my_expr_graph = expr_graph(expr, node_types)
 
     # for plot
@@ -124,7 +132,7 @@ def main(_):
                    check=False)
 
     # run a sanity check
-    # round_trip = rlxGraph2Expr(lang.all_operators(), my_expr_graph.get_edges())
+    # round_trip = conversion(lang.all_operators(), my_expr_graph.get_edges())
     # v2 = verify(expr)
     # v1 = verify(round_trip)
     # assert np.isclose(v1, v2), f"verify failed: {v1}, {v2}"
@@ -139,7 +147,7 @@ def main(_):
         rw_eng.train()
     else:
         opt_graph = rw_eng.run()
-        opt_expr = rlxGraph2Expr(lang.all_operators(), opt_graph)
+        opt_expr = conversion(lang.all_operators(), opt_graph)
         logger.info("opt expression: %s", pformat(opt_expr))
         original_num_op = cnt_op(expr)
         num_op = cnt_op(opt_expr)

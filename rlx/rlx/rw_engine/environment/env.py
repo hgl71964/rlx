@@ -128,21 +128,24 @@ class Env(gym.Env):
             self.stats = {
                 "init_n_node": len(self.node_map),
                 "init_n_edge": len(self.edge_map),
+                "n_node": len(self.node_map),
+                "n_edge": len(self.edge_map),
             }
             uses = 0
             for _, e in enumerate(self.edges):
-                uses += len(e.uses)
+                uses += len(e.get_uses())
             self.stats["init_n_uses"] = uses
+            self.stats["n_uses"] = uses
             reward = self._call_reward_func(False)
             self.stats["init_reward"] = reward
             # logger.info(f"init stats: {self.stats}")
-
-        self.stats["n_node"] = len(self.node_map)
-        self.stats["n_edge"] = len(self.edge_map)
-        uses = 0
-        for _, e in enumerate(self.edges):
-            uses += len(e.uses)
-        self.stats["n_uses"] = uses
+        else:
+            self.stats["n_node"] = len(self.node_map)
+            self.stats["n_edge"] = len(self.edge_map)
+            uses = 0
+            for _, e in enumerate(self.edges):
+                uses += len(e.get_uses())
+            self.stats["n_uses"] = uses
 
     def _build_mapping(self):
         # based on self.edges to build
@@ -238,6 +241,9 @@ class Env(gym.Env):
 
         # get new subgraph from users;
         new_subgraph_outputs = rw.target_pattern(matched_mapping)
+        assert isinstance(
+            new_subgraph_outputs,
+            list), f"expect list, got {type(new_subgraph_outputs)}"
         assert len(old_subgraph_outputs) == len(
             new_subgraph_outputs
         ), f"subgraph outputs must be 1-to-1, but {len(old_subgraph_outputs)} != {len(new_subgraph_outputs)}"

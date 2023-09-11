@@ -69,13 +69,7 @@ class RewriteEngine:
                                             copy=True)
 
         # ===== dispatch to agent training loop =====
-        if self.config.agent == "max_ppo":
-            max_ppo(envs, self.config)
-        elif self.config.agent == "sampling_ppo":
-            sampling_ppo(envs, self.config)
-        elif self.config.agent == "one_gnn_ppo":
-            one_gnn_ppo(envs, self.config)
-        elif self.config.agent == "multi_output_ppo":
+        if self.config.agent == "multi_output_ppo":
             multi_output_ppo(envs, self.config)
         else:
             raise RuntimeError(f"fail to dispatch {self.config.agent}")
