@@ -111,17 +111,17 @@ def main(_):
     # register
     if FLAGS.lang == "MATH" or FLAGS.lang == "math":
         define_types = define_math_node_type
-        rewrite_rules = math_rewrite_rules
+        define_rewrite_rules = math_rewrite_rules
         conversion = rlxGraph2math
     elif FLAGS.lang == "PROP" or FLAGS.lang == "prop":
         define_types = define_prop_node_type
-        rewrite_rules = prop_rewrite_rules
+        define_rewrite_rules = prop_rewrite_rules
         conversion = rlxGraph2Prop
     else:
         raise NotImplementedError(f"Unsupported lang: {FLAGS.lang}")
 
     node_types, _, _ = define_types()
-    rewrite_rules = math_rewrite_rules(node_types)
+    rewrite_rules = define_rewrite_rules(node_types)
     my_expr_graph = expr_graph(expr, node_types)
 
     # for plot

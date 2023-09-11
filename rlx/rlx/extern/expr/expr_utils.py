@@ -144,7 +144,7 @@ class expr_graph(Graph):
 def callback_reward_function(graph: Graph, terminated: bool,
                              stats: dict) -> float:
     uses = 0
-    for i, e in enumerate(graph.get_edges()):
+    for _, e in enumerate(graph.get_edges()):
         uses += len(e.uses)
     reward = (stats["n_uses"] - uses) / (stats["init_n_uses"] + 1)
 

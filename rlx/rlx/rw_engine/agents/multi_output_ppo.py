@@ -21,32 +21,25 @@ logger = get_logger(__name__)
 
 
 class Agent(nn.Module):
-    def __init__(
-        self,
-        nvec,
-        actor_n_action: int,  # TODO del
-        critic_n_action: int,  # TODO del
-        n_node_features: int,
-        n_edge_features: int,
-        num_head: int,
-        n_layers: int,
-        hidden_size: int,
-        vgat: int,
-        weights_path=None,
-        use_dropout=False,
-        use_edge_attr=True,
-        device=torch.device("cpu")):
+    def __init__(self,
+                 nvec,
+                 n_node_features: int,
+                 n_edge_features: int,
+                 num_head: int,
+                 n_layers: int,
+                 hidden_size: int,
+                 vgat: int,
+                 use_dropout=False,
+                 use_edge_attr=True,
+                 device=torch.device("cpu")):
         super().__init__()
         logger.info(f"nvec: {nvec}")
-        logger.info(f"actor_n_action: {actor_n_action}")
-        logger.info(f"critic_n_action: {critic_n_action}")
+        logger.info(f"actor_n_action: {nvec}")
+        logger.info(f"critic_n_action: 1")
         logger.info(f"use_edge_attr: {use_edge_attr}")
         logger.info(f"use_dropout: {use_dropout}")
-        logger.info(f"weights_path: {weights_path}")
         assert vgat == 1 or vgat == 2, f"vgat must be 1 or 2, got {vgat}"
         self.nvec = nvec.tolist()  # list[int]
-        self.actor_n_action = actor_n_action
-        self.critic_n_action = critic_n_action
         self.device = device
 
         self.critic = GATNetwork_with_global(
@@ -74,10 +67,6 @@ class Agent(nn.Module):
             # make init action similar
             out_std=0.01,
             edge_dim=n_edge_features)
-
-        # load from pre-trained
-        if weights_path is not None:
-            assert False, f"Don't load inside nn.Module"
 
     def get_value(self, x):
         vf, _ = self.critic(x)
@@ -155,8 +144,6 @@ def env_loop(envs, config):
     # ===== agent =====
     agent = Agent(
         nvec=envs.single_action_space.nvec,
-        actor_n_action=envs.single_action_space.nvec[0],
-        critic_n_action=config.out_node_features,
         n_node_features=envs.single_observation_space.node_space.shape[0],
         n_edge_features=envs.single_observation_space.edge_space.shape[0],
         num_head=config.num_head,
@@ -165,7 +152,6 @@ def env_loop(envs, config):
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
         use_edge_attr=bool(config.use_edge_attr),
-        weights_path=config.weights_path,
         device=device).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=config.lr, eps=1e-5)
 
@@ -494,8 +480,6 @@ def inference(env, config):
     fn = os.path.join(f"{config.default_out_path}/runs/", config.weights_path,
                       f"{agent_id}.pt")
     agent = Agent(nvec=env.action_space.nvec,
-                  actor_n_action=env.action_space.nvec[0],
-                  critic_n_action=config.out_node_features,
                   n_node_features=env.observation_space.node_space.shape[0],
                   n_edge_features=env.observation_space.edge_space.shape[0],
                   num_head=config.num_head,
@@ -504,7 +488,6 @@ def inference(env, config):
                   vgat=config.vgat,
                   use_dropout=bool(config.use_dropout),
                   use_edge_attr=bool(config.use_edge_attr),
-                  weights_path=None,
                   device=device)
     agent_state_dict = torch.load(fn, map_location=device)
     agent.load_state_dict(agent_state_dict)
