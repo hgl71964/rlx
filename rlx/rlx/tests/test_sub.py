@@ -661,10 +661,11 @@ def test_expr():
     r = rw18_(node_types)
     print_env(g, r, n, None, viz=True)
 
+    n = 24
     print("i-part:")
     g = G24(node_types)
     r = rw24_(node_types)
-    print_env(g, r, 24, None, viz=True)
+    print_env(g, r, n, None, viz=True)
 
 
 def main(_):

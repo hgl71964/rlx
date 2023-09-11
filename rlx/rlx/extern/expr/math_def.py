@@ -212,41 +212,57 @@ class r2(RewriteRule):
 
 
 class r3(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["assoc-add", op.add(op.add(a, b), c), op.add(a, op.add(b, c))],
         self.name = "assoc-add"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        add1 = node_pattern(node_types["Add"], [self.a, self.b], 1)
-        add2 = node_pattern(node_types["Add"], [add1, self.c], 1)
+        add1 = node_pattern(self.node_types["Add"], [self.a, self.b], 1)
+        add2 = node_pattern(self.node_types["Add"], [add1, self.c], 1)
         return [add2]
 
-    def target_pattern(self):
-        add1 = node_pattern(node_types["Add"], [self.tb, self.tc], 1)
-        add2 = node_pattern(node_types["Add"], [self.ta, add1], 1)
-        return [add2]
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(get_id(),
+                        attr=None,
+                        node_type=self.node_types["Add"],
+                        inputs=[b, c]).out(get_id())
+        out = expr_node(get_id(),
+                        attr=None,
+                        node_type=self.node_types["Add"],
+                        inputs=[a, out]).out(get_id())
+        return [out]
 
 
 class r4(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["assoc-mul", op.mul(op.mul(a, b), c), op.mul(a, op.mul(b, c))],
         self.name = "assoc-mul"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        mul1 = node_pattern(node_types["Mul"], [self.a, self.b], 1)
-        mul2 = node_pattern(node_types["Mul"], [mul1, self.c], 1)
+        mul1 = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
+        mul2 = node_pattern(self.node_types["Mul"], [mul1, self.c], 1)
         return [mul2]
 
-    def target_pattern(self):
-        mul1 = node_pattern(node_types["Mul"], [self.tb, self.tc], 1)
-        mul2 = node_pattern(node_types["Mul"], [self.ta, mul1], 1)
-        return [mul2]
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(get_id(),
+                        attr=None,
+                        node_type=self.node_types["Mul"],
+                        inputs=[b, c]).out(get_id())
+        out = expr_node(get_id(),
+                        attr=None,
+                        node_type=self.node_types["Mul"],
+                        inputs=[a, out]).out(get_id())
+        return [out]
 
 
 class r5(RewriteRule):
@@ -324,18 +340,20 @@ class r7(RewriteRule):
 
 
 class r8(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["one-mul", op.mul(a, 1), a],
         self.name = "one-mul"
-        self.a, self.ta = const_pattern()
-        self.one, _ = const_pattern(attr=1)
+        self.a = const_pattern()
+        self.one = const_pattern(attr=1)
+        self.node_types = node_types
 
     def source_pattern(self):
-        mul = node_pattern(node_types["Mul"], [self.a, self.one], 1)
+        mul = node_pattern(self.node_types["Mul"], [self.a, self.one], 1)
         return [mul]
 
-    def target_pattern(self):
-        return [self.ta]
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        return a
 
 
 class r9(RewriteRule):
@@ -360,23 +378,40 @@ class r9(RewriteRule):
 
 
 class r10(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # [ "distribute", op.mul(a, op.add(b, c)), op.add(op.mul(a, b), op.mul(a, c))],
         self.name = "distribute"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        add = node_pattern(node_types["Add"], [self.b, self.c], 1)
-        mul = node_pattern(node_types["Mul"], [self.a, add], 1)
+        add = node_pattern(self.node_types["Add"], [self.b, self.c], 1)
+        mul = node_pattern(self.node_types["Mul"], [self.a, add], 1)
         return [mul]
 
-    def target_pattern(self):
-        mul1 = node_pattern(node_types["Mul"], [self.ta, self.tb], 1)
-        mul2 = node_pattern(node_types["Mul"], [self.ta, self.tc], 1)
-        add = node_pattern(node_types["Add"], [mul1, mul2], 1)
-        return [add]
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, b],
+        ).out(get_id())
+        out2 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, c],
+        ).out(get_id())
+        out3 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[out, out2],
+        ).out(get_id())
+        return [out3]
 
 
 class r11(RewriteRule):
@@ -444,18 +479,20 @@ class r12(RewriteRule):
 
 
 class r13(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["pow1", op.pow(x, 1), x],
         self.name = "pow1"
-        self.a, self.ta = const_pattern()
-        self.one, _ = const_pattern(attr=1)
+        self.a = const_pattern()
+        self.one = const_pattern(attr=1)
+        self.node_types = node_types
 
     def source_pattern(self):
-        pow1 = node_pattern(node_types["Pow"], [self.a, self.one], 1)
+        pow1 = node_pattern(self.node_types["Pow"], [self.a, self.one], 1)
         return [pow1]
 
-    def target_pattern(self):
-        return [self.ta]
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        return [a]
 
 
 class r14(RewriteRule):
@@ -482,45 +519,89 @@ class r14(RewriteRule):
 
 
 class r15(RewriteRule):
-    def __init__(self):
-        # ["d-add", op.diff(x, op.add(a, b)), op.add(op.diff(x, a), op.diff(x, b)) ],
+    def __init__(self, node_types):
+        # ["d-add", op.diff(x, op.add(a, b)), op.add(op.diff(x, a), op.diff(x, b))],
         self.name = "d-add"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        add = node_pattern(node_types["Add"], [self.a, self.b], 1)
-        diff = node_pattern(node_types["Diff"], [self.c, add], 1)
+        add = node_pattern(self.node_types["Add"], [self.a, self.b], 1)
+        diff = node_pattern(self.node_types["Diff"], [self.c, add], 1)
         return [diff]
 
-    def target_pattern(self):
-        diff1 = node_pattern(node_types["Diff"], [self.tc, self.ta], 1)
-        diff2 = node_pattern(node_types["Diff"], [self.tc, self.tb], 1)
-        add = node_pattern(node_types["Add"], [diff1, diff2], 1)
-        return [add]
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Diff"],
+            inputs=[c, a],
+        ).out(get_id())
+        out2 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Diff"],
+            inputs=[c, b],
+        ).out(get_id())
+        out3 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[out, out2],
+        ).out(get_id())
+        return [out3]
 
 
 class r16(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["d-mul", op.diff(x, op.mul(a, b)), op.add(op.mul(a, op.diff(x, b)), op.mul(b, op.diff(x, a)))],
         self.name = "d-mul"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        mul = node_pattern(node_types["Mul"], [self.a, self.b], 1)
-        diff = node_pattern(node_types["Diff"], [self.c, mul], 1)
+        mul = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
+        diff = node_pattern(self.node_types["Diff"], [self.c, mul], 1)
         return [diff]
 
-    def target_pattern(self):
-        diff_a = node_pattern(node_types["Diff"], [self.tc, self.ta], 1)
-        diff_b = node_pattern(node_types["Diff"], [self.tc, self.tb], 1)
-        mul_a = node_pattern(node_types["Mul"], [self.tb, diff_a], 1)
-        mul_b = node_pattern(node_types["Mul"], [self.ta, diff_b], 1)
-        add = node_pattern(node_types["Add"], [mul_a, mul_b], 1)
-        return [add]
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        diff_a = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Diff"],
+            inputs=[c, a],
+        ).out(get_id())
+        mul_a = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[b, diff_a],
+        ).out(get_id())
+        diff_b = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Diff"],
+            inputs=[c, b],
+        ).out(get_id())
+        mul_b = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, diff_b],
+        ).out(get_id())
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[mul_a, mul_b],
+        ).out(get_id())
+        return [out]
 
 
 class r17(RewriteRule):
@@ -582,91 +663,151 @@ class r18(RewriteRule):
 
 
 class r19(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["i-one", op.integral(1, x), x],
         self.name = "i-one"
-        self.a, self.ta = const_pattern()
-        self.one, _ = const_pattern(1)
+        self.a = const_pattern()
+        self.one = const_pattern(1)
+        self.node_types = node_types
 
     def source_pattern(self):
-        ing = node_pattern(node_types["Integral"], [self.one, self.a], 1)
+        ing = node_pattern(self.node_types["Integral"], [self.one, self.a], 1)
         return [ing]
 
-    def target_pattern(self):
-        return [self.ta]
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        return [a]
 
 
 class r20(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["i-cos", op.integral(op.cos(x), x), op.sin(x)],
         self.name = "i-cos"
-        self.a, self.ta = const_pattern()
+        self.a = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        cos = node_pattern(node_types["Cos"], [self.a], 1)
-        ing = node_pattern(node_types["Integral"], [cos, self.a], 1)
+        cos = node_pattern(self.node_types["Cos"], [self.a], 1)
+        ing = node_pattern(self.node_types["Integral"], [cos, self.a], 1)
         return [ing]
 
-    def target_pattern(self):
-        sin = node_pattern(node_types["Sin"], [self.ta], 1)
-        return [sin]
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Sin"],
+            inputs=[a],
+        ).out(get_id())
+        return [out]
 
 
 class r21(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["i-sin", op.integral(op.sin(x), x), op.mul(-1, op.cos(x))],
         self.name = "i-sin"
-        self.a, self.ta = const_pattern()
-        _, self.tmone = const_pattern(1)
+        self.a = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        sin = node_pattern(node_types["Sin"], [self.a], 1)
-        ing = node_pattern(node_types["Integral"], [sin, self.a], 1)
+        sin = node_pattern(self.node_types["Sin"], [self.a], 1)
+        ing = node_pattern(self.node_types["Integral"], [sin, self.a], 1)
         return [ing]
 
-    def target_pattern(self):
-        cos = node_pattern(node_types["Cos"], [self.ta], 1)
-        mul = node_pattern(node_types["Mul"], [self.tmone, cos], 1)
-        return [mul]
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Cos"],
+            inputs=[a],
+        ).out(get_id())
+        minus_one = expr_edge(
+            get_id(),
+            attr=-1,
+            edge_type=self.node_types["Const"],
+            trace=None,
+        )
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[minus_one, out],
+        ).out(get_id())
+        return [out]
 
 
 class r22(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["i-sum", op.integral(op.add(f, g), x), op.add(op.integral(f, x), op.integral(g, x))],
         self.name = "i-sum"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        add = node_pattern(node_types["Add"], [self.a, self.b], 1)
-        ing = node_pattern(node_types["Integral"], [add, self.c], 1)
+        add = node_pattern(self.node_types["Add"], [self.a, self.b], 1)
+        ing = node_pattern(self.node_types["Integral"], [add, self.c], 1)
         return [ing]
 
-    def target_pattern(self):
-        ing1 = node_pattern(node_types["Integral"], [self.ta, self.tc], 1)
-        ing2 = node_pattern(node_types["Integral"], [self.tb, self.tc], 1)
-        add = node_pattern(node_types["Add"], [ing1, ing2], 1)
-        return [add]
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        ing1 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Integral"],
+            inputs=[a, c],
+        ).out(get_id())
+        ing2 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Integral"],
+            inputs=[b, c],
+        ).out(get_id())
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[ing1, ing2],
+        ).out(get_id())
+        return [out]
 
 
 class r23(RewriteRule):
-    def __init__(self):
+    def __init__(self, node_types):
         # ["i-dif", op.integral(op.sub(f, g), x), op.sub(op.integral(f, x), op.integral(g, x))],
         self.name = "i-dif"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.c, self.tc = const_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        sub = node_pattern(node_types["Sub"], [self.a, self.b], 1)
-        ing = node_pattern(node_types["Integral"], [sub, self.c], 1)
+        sub = node_pattern(self.node_types["Sub"], [self.a, self.b], 1)
+        ing = node_pattern(self.node_types["Integral"], [sub, self.c], 1)
         return [ing]
 
-    def target_pattern(self):
-        ing1 = node_pattern(node_types["Integral"], [self.ta, self.tc], 1)
-        ing2 = node_pattern(node_types["Integral"], [self.tb, self.tc], 1)
-        sub = node_pattern(node_types["Sub"], [ing1, ing2], 1)
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        ing1 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Integral"],
+            inputs=[a, c],
+        ).out(get_id())
+        ing2 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Integral"],
+            inputs=[b, c],
+        ).out(get_id())
+        sub = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Sub"],
+            inputs=[ing1, ing2],
+        ).out(get_id())
         return [sub]
 
 
@@ -678,6 +819,7 @@ class r24(RewriteRule):
         self.a = const_pattern()
         self.b = const_pattern()
         self.c = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
         mul = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
@@ -686,20 +828,51 @@ class r24(RewriteRule):
 
     def target_pattern(self, matched):
         a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
-
-        # first part TODO
-
         # first part
-        ing1 = node_pattern(node_types["Integral"], [self.tb, self.tc], 1)
-        mul1 = node_pattern(node_types["Mul"], [self.ta, ing1], 1)
+        ing1 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Integral"],
+            inputs=[b, c],
+        ).out(get_id())
+        mul1 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, ing1],
+        ).out(get_id())
 
         # second part
-        diff = node_pattern(node_types["Diff"], [self.tc, self.ta], 1)
-        ing2 = node_pattern(node_types["Integral"], [self.tb, self.tc], 1)
-        mul2 = node_pattern(node_types["Mul"], [diff, ing2], 1)
-        ing3 = node_pattern(node_types["Integral"], [mul2, self.tc], 1)
-
-        sub = node_pattern(node_types["Sub"], [mul1, ing3], 1)
+        diff = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Diff"],
+            inputs=[c, a],
+        ).out(get_id())
+        ing2 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Integral"],
+            inputs=[b, c],
+        ).out(get_id())
+        mul2 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[diff, ing2],
+        ).out(get_id())
+        ing3 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Integral"],
+            inputs=[mul2, c],
+        ).out(get_id())
+        sub = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Sub"],
+            inputs=[mul1, ing3],
+        ).out(get_id())
         return [sub]
 
     #["add-zero", a, op.add(a, 0)],
@@ -710,26 +883,26 @@ def define_rewrite_rules(node_types):
     return [
         r1(node_types),
         r2(node_types),
-        # r3(node_types),
-        # r4(node_types),
-        # r5(node_types),
-        # r6(node_types),
-        # r7(node_types),
-        # r8(node_types),
-        # r9(node_types),
-        # r10(node_types),
+        r3(node_types),
+        r4(node_types),
+        r5(node_types),
+        r6(node_types),
+        r7(node_types),
+        r8(node_types),
+        r9(node_types),
+        r10(node_types),
         r11(node_types),
-        # r12(node_types),
-        # r13(node_types),
-        # r14(node_types),
-        # r15(node_types),
-        # r16(node_types),
-        # r17(node_types),
-        # r18(node_types),
-        # r19(node_types),
-        # r20(node_types),
-        # r21(node_types),
-        # r22(node_types),
-        # r23(node_types),
-        # r24(node_types),
+        r12(node_types),
+        r13(node_types),
+        r14(node_types),
+        r15(node_types),
+        r16(node_types),
+        r17(node_types),
+        r18(node_types),
+        r19(node_types),
+        r20(node_types),
+        r21(node_types),
+        r22(node_types),
+        r23(node_types),
+        r24(node_types),
     ]
