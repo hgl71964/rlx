@@ -12,9 +12,8 @@ from rlx.frontend.rewrite_rule import EdgePattern, NodePattern, RewriteRule
 # or pygmtools: https://github.com/Thinklab-SJTU/pygmtools/blob/main/examples/numpy/plot_subgraphs_numpy.py
 # or hidet: Hidet: Task-Mapping Programming Paradigm for Deep Learning Tensor Programs
 
-MatchDict = Dict[int,
-                 tuple[int,
-                       int]]  # pattern_id -> bool, edge_rlx_idx/node_rlx_idx
+# pattern_id -> bool, edge_rlx_idx/node_rlx_idx
+MatchDict = Dict[int, tuple[int, int]] # yapf: disable
 
 logger = get_logger(__name__)
 
@@ -114,19 +113,29 @@ class PatternMatch:
 
         # check inner edges
         for inner_e in inner_edges:
+            use_cnt_check = True
+            use_check = True
+
             inp_use = len(inner_e.get_uses())
             pat_use = len(self.reverse_matched[inner_e].uses)
             if inp_use != pat_use:
-                logger.warning(
-                    f"[PatternMatch][inner] {inp_use} | {pat_use}; rule_id: {rule_id}"
-                )
-                return True
+                # logger.warning(
+                #     f"[PatternMatch][inner] {inp_use} | {pat_use}; rule_id: {rule_id}"
+                # )
+                use_cnt_check = False
+
             for use in inner_e.get_uses():
                 if use not in matched_nodes:
                     # logger.warning(
                     #     f"[PatternMatch] find incomplete subgraphs with {rule_id}, {rw.name}"
                     # )
-                    return True
+                    use_check = False
+
+            # not xor
+            assert (not (use_cnt_check != use_check)
+                    ), f"{use_cnt_check}, {use_check}"
+            if not use_cnt_check:
+                return True
 
         return False
 
