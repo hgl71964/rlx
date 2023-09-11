@@ -16,6 +16,7 @@ import torch_geometric as pyg
 from rlx.frontend.registry import get_node_type
 from rlx.frontend.graph import Graph, Node, Edge
 from rlx.frontend.rewrite_rule import PATTERN_ID_MAP
+from rlx.rw_engine.parser import Parser
 from rlx.utils.common import get_logger
 from rlx.rw_engine.parser import rlx_Graph
 
@@ -47,8 +48,8 @@ class GraphObsSpace(GymGraph):
         return False
 
 
-def make_env(env_id, parser, callback_reward_function, rewrite_rules, seed,
-             config):
+def make_env(env_id, parser: Parser, callback_reward_function: callable,
+             rewrite_rules: list, seed: int, config):
     def thunk():
         env = gym.make(env_id,
                        parser=parser,
@@ -73,7 +74,7 @@ def make_env(env_id, parser, callback_reward_function, rewrite_rules, seed,
 
 
 class Env(gym.Env):
-    def __init__(self, parser, reward_func, rewrite_rules, max_loc):
+    def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc):
         super().__init__()
         self.parser = parser
         self.reward_func = reward_func
