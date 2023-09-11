@@ -274,6 +274,11 @@ class Env(gym.Env):
                 for inp_idx, inp in enumerate(use.get_inputs()):
                     if inp in output_maps:
                         use.get_inputs()[inp_idx] = output_maps[inp]
+                
+            # sanity check
+            for use in old_uses:
+                for inp_idx, inp in enumerate(use.get_inputs()):
+                    assert inp not in output_maps, f"{inp} not in {output_maps}"
 
             # set new uses
             new.set_uses(old_uses)
