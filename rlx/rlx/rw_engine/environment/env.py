@@ -161,7 +161,7 @@ class Env(gym.Env):
             node = e.get_trace()
             if node is None:
                 self.input_edge.add(e)
-            elif node is not None and node._rlx_idx not in self.node_map:
+            if node is not None and node._rlx_idx not in self.node_map:
                 self.node_map[node._rlx_idx] = node
 
             if len(e.get_uses()) == 0:
@@ -185,8 +185,9 @@ class Env(gym.Env):
         else:
             matched = self.pattern_map[rule_id][loc_id]
             rw = self.rewrite_rules[rule_id]
-            self._substitute(rw, matched)
+            ban = self._substitute(rw, matched)
             self._build_mapping()
+            self._check_nodes(rw, matched, [v for _, v in self.node_map.items()], ban)
 
         reward = self._call_reward_func(terminated)
         if terminated:
@@ -205,7 +206,7 @@ class Env(gym.Env):
             the input's uses may change
             the output's trace may change
         """
-        self._check(rw, matched, False)
+        self._check_edges(rw, matched, False)
         # self._detect_uses(rw, matched)
         self._detect_circle()
         ############################################
@@ -230,6 +231,12 @@ class Env(gym.Env):
             elif v[0] == 1:  # node
                 node_rlx_idx = v[1]
                 obj = self.node_map[node_rlx_idx]
+
+                # check
+                for inp in obj.get_inputs():
+                    print(f"me: {node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
+                print()
+
             else:
                 raise RuntimeError(f"{v[0]}")
             matched_mapping[pat] = obj
@@ -255,6 +262,12 @@ class Env(gym.Env):
             for use in old.get_uses():
                 if use in ban_objs:
                     remove_list.append(use)
+            
+            # check
+            if len(remove_list) == len(set(remove_list)) and len(remove_list) != 1:
+                logger.warning(f"same element in the remove list: {remove_list}")
+                for l in remove_list:
+                    print(f"{l.get_idx()} | {l._rlx_idx}")
 
             # if multiple-uses, it will appear multiple times in the remove_list
             # so will remove all
@@ -274,17 +287,70 @@ class Env(gym.Env):
                 for inp_idx, inp in enumerate(use.get_inputs()):
                     if inp in output_maps:
                         use.get_inputs()[inp_idx] = output_maps[inp]
-                
+
             # sanity check
             for use in old_uses:
                 for inp_idx, inp in enumerate(use.get_inputs()):
-                    assert inp not in output_maps, f"{inp} not in {output_maps}"
+                    assert inp not in output_maps, f"{inp} in {output_maps}"
+                    assert inp not in ban_objs, f"{inp} in {ban_objs}"
 
             # set new uses
             new.set_uses(old_uses)
 
             # clear old news
             old.set_uses([])
+
+            # sanity check
+            for use in new.get_uses():
+                for inp_idx, inp in enumerate(use.get_inputs()):
+                    assert inp not in output_maps, f"{inp} in {output_maps}"
+                    assert inp not in ban_objs, f"{inp} in {ban_objs}"
+
+        # check
+        for new in new_subgraph_outputs:
+            try:
+                self.parser._check_nodes(new.get_uses())
+            except Exception as e:
+                print(rw.name)
+                print(f"{new.get_idx()}")
+                raise
+
+        # more check
+        for _, n in self.node_map.items():
+            error = False
+            for inp in n.get_inputs():
+                if inp in old_subgraph_outputs:   # it should be unreachable from node's input
+                    logger.error(f"{inp.get_idx()} | {n.get_idx()} | ")
+                    error = True
+
+            if error:
+                for inp in n.get_inputs():
+                    logger.critical(f"n: {inp.get_idx()}")
+
+                    for o in inp.get_uses():
+                        logger.critical(f"o: {o.get_idx()}")
+
+                logger.critical(f"new: {new.get_idx()}")
+                for o in new.get_uses():
+                    logger.critical(f"new out: {o.get_idx()}")
+                if new.get_trace() is not None:
+                    logger.critical(f"new trace: {new.get_trace().get_idx()}")
+
+        # more check
+        for _, v in matched.items():
+            if v[0] == 0:  # edge
+                pass
+            elif v[0] == 1:  # node
+                node_rlx_idx = v[1]
+                obj = self.node_map[node_rlx_idx]
+
+                # check
+                if len(obj.get_inputs()) != 0:
+                    for inp in obj.get_inputs():
+                        print(f"me after: {node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
+                    raise
+                print()
+
 
         # self._detect_uses(rw, matched, ban_objs)
         self._detect_ban(rw, matched, ban_objs)
@@ -297,6 +363,12 @@ class Env(gym.Env):
 
         def dfs_rebuild(obj):
             nonlocal node_cnt, edge_cnt
+
+            # check
+            if obj in ban_objs:
+                print(obj._rlx_idx)
+                raise RuntimeError(f"ban")
+
             if obj is None or obj in visited:
                 return
 
@@ -335,7 +407,15 @@ class Env(gym.Env):
             dfs_rebuild(out)
 
         # logger.warning(f"{node_cnt} nodes | {edge_cnt} edges")
-        self._check(rw, matched, False)
+        self._check_edges(rw, matched, False)
+
+        # check
+        for e in self.edges:
+            if e in ban_objs:
+                print(e.get_idx())
+                raise
+
+        return ban_objs
 
     def _build_state(self):
         # get MatchDict
@@ -385,6 +465,8 @@ class Env(gym.Env):
         edge_index = torch.tensor(edge_index,
                                   dtype=torch.long).t().contiguous()
 
+        assert edge_index.shape[1] == n_edge, f"{edge_index.shape[1]} != {n_edge}"
+
         # 2. add self edges for internal edges; with fill_value attr
         # if one-node graph, will not have self-loop
         edge_index, edge_feat = pyg.utils.add_self_loops(
@@ -429,6 +511,8 @@ class Env(gym.Env):
         ghost_index = torch.tensor(ghost_index,
                                    dtype=torch.long).t().contiguous()
         edge_index = torch.cat([edge_index, ghost_index], dim=1).contiguous()
+
+        assert edge_index.shape[1] == edge_feat.shape[0], f"{edge_index.shape} != {edge_feat.shape}"
 
         ######################################
         ############# embedding ##############
@@ -484,14 +568,39 @@ class Env(gym.Env):
 
     def viz(self, path="parser_viz", check=True):
         self.parser.viz(self.edges, path, check)
+    
+    def _check_nodes(self, rw, matched, nodes, ban):
+        try:
+            self.parser._check_nodes(nodes)
+        except Exception as e:
+            print("NNNNN")
+            self.parser.viz(self.edges, f"graph_node_break_{self.cnt}", False)
+            print(rw.name)
+            for pattern_id, v in matched.items():
+                if v[0] == 0:  # edge
+                    print("e: ", v[1])
+                elif v[0] == 1:  # node
+                    print("n: ", v[1])
+            print("iter: ", self.cnt)
+            print("ban obj: ")
+            for i in ban:
+                print(f"{i.get_idx()} | {i._rlx_idx}")
+                if isinstance(i, Edge):
+                    is_in = i._rlx_idx in self.edge_map
+                    print(f"is in self.edge {is_in}")  # True, Sep-12
+                    for use in i.get_uses():
+                        print(f"use: {use.get_idx()}")
+                    
 
-    def _check(self, rw, matched, viz: bool):
+            raise RuntimeError()
+
+    def _check_edges(self, rw, matched, viz: bool):
         # NOTE: sanity check; remove for efficiency
         try:
             if viz:
                 self.parser.viz(self.edges, f"graph{self.cnt}", True)
             else:
-                self.parser._check_connection(self.edges)
+                self.parser._check_edges(self.edges)
         except Exception as e:
             self.parser.viz(self.edges, f"graph_break_{self.cnt}", False)
             print("+++")
@@ -574,6 +683,7 @@ class Env(gym.Env):
                         f"ban detected! Edge idx: {obj.get_idx()} | {obj._rlx_idx}"
                     )
                     print([i.get_idx() for i in ban])
+                    print([i.get_uses().get_idx() for i in ban if isinstance(obj, Edge)])
                 raise RuntimeError("ban detected")
 
             if obj is None or obj in visited:

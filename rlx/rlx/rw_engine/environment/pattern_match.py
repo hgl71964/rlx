@@ -111,6 +111,17 @@ class PatternMatch:
             for v in self.matched.values() if isinstance(v, Node)
         }
 
+        # no need to check this
+        # matched_edges = {
+        #     v
+        #     for v in self.matched.values() if isinstance(v, Edge)
+        # }
+        # for n in matched_nodes:
+        #     for inp in n.get_inputs():
+        #         if inp not in matched_edges:
+        #             logger.warning(f"[PatternMatch] reject multi-use nodes with {rule_id}, {rw.name}")
+        #             return True
+
         # check inner edges
         for inner_e in inner_edges:
             use_cnt_check = True
