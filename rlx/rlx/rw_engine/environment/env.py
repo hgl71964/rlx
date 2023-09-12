@@ -483,7 +483,7 @@ class Env(gym.Env):
         edge_index, edge_feat = pyg.utils.add_self_loops(
             edge_index,
             edge_feat,
-            fill_value=1.,
+            fill_value=0.,
         )
         # 3. add ghost nodes to edge index
         # (ghost node feat are all 0., edge feat will be updated later)
