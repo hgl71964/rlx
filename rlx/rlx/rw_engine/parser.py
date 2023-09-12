@@ -8,6 +8,7 @@ logger = get_logger(__name__)
 
 
 class rlx_Graph(Graph):
+
     def __init__(self, nodes, edges):
         self.nodes = nodes
         self.edges = edges
@@ -20,6 +21,7 @@ class rlx_Graph(Graph):
 
 
 class Parser:
+
     def __init__(self, graph: Graph):
         self.edges = graph.get_edges()
         self.nodes = graph.get_nodes()
@@ -187,9 +189,7 @@ class Parser:
 
     def _check_edges(self, edges):
         for _, e in enumerate(edges):
-            assert isinstance(
-                e, Edge
-            ), f"expect Edge, but got {type(e)}"
+            assert isinstance(e, Edge), f"expect Edge, but got {type(e)}"
             ok = True
             # input node
             if e.get_trace() is not None:
@@ -219,9 +219,7 @@ class Parser:
 
     def _check_nodes(self, nodes):
         for n in nodes:
-            assert isinstance(
-                n, Node
-            ), f"expect Node, but got {type(n)}"
+            assert isinstance(n, Node), f"expect Node, but got {type(n)}"
             ok = True
             for inp in n.get_inputs():
                 if n not in inp.get_uses():
@@ -229,17 +227,25 @@ class Parser:
                     logger.critical(
                         f"Catch Node: {n.get_idx()} | {n._rlx_idx}, {n.get_type()}"
                     )
-                    logger.critical(f"inp: {inp.get_idx()} | {inp._rlx_idx}, {inp.get_type()}")
+                    logger.critical(
+                        f"inp: {inp.get_idx()} | {inp._rlx_idx}, {inp.get_type()}"
+                    )
                     for use in inp.get_uses():
-                        logger.critical(f"inp's use: {use.get_idx()} | {use._rlx_idx}, {use.get_type()}")
-                    
+                        logger.critical(
+                            f"inp's use: {use.get_idx()} | {use._rlx_idx}, {use.get_type()}"
+                        )
+
                     for out in n.get_outputs():
-                        logger.critical(f"Node's output: {out.get_idx()} | {out._rlx_idx}, {out.get_type()}")
+                        logger.critical(
+                            f"Node's output: {out.get_idx()} | {out._rlx_idx}, {out.get_type()}"
+                        )
 
                         if out.get_trace() is not None:
                             trace = out.get_trace()
-                            logger.critical(f"Node's output's trace: {trace.get_idx()} | {trace._rlx_idx}, {trace.get_type()}")
-            
+                            logger.critical(
+                                f"Node's output's trace: {trace.get_idx()} | {trace._rlx_idx}, {trace.get_type()}"
+                            )
+
             for out in n.get_outputs():
                 if n != out.get_trace():
                     ok = False
@@ -247,6 +253,6 @@ class Parser:
                         f"An exception occurred: {n.get_idx()}, {n.get_type()}"
                     )
                     logger.critical(f"{out.get_idx()}, {out.get_type()}")
-            
+
             if not ok:
                 raise Exception

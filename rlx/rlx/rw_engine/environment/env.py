@@ -34,6 +34,7 @@ register(
 
 
 class GraphObsSpace(GymGraph):
+
     def contains(self, x) -> bool:
         if x is None:
             return True
@@ -50,6 +51,7 @@ class GraphObsSpace(GymGraph):
 
 def make_env(env_id, parser: Parser, callback_reward_function: callable,
              rewrite_rules: list, seed: int, config):
+
     def thunk():
         env = gym.make(env_id,
                        parser=parser,
@@ -74,6 +76,7 @@ def make_env(env_id, parser: Parser, callback_reward_function: callable,
 
 
 class Env(gym.Env):
+
     def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc):
         super().__init__()
         self.parser = parser
@@ -187,7 +190,9 @@ class Env(gym.Env):
             rw = self.rewrite_rules[rule_id]
             ban = self._substitute(rw, matched)
             self._build_mapping()
-            self._check_nodes(rw, matched, [v for _, v in self.node_map.items()], ban)
+            # check
+            nodes = [v for _, v in self.node_map.items()]
+            self._check_nodes(rw, matched, nodes, ban)
 
         reward = self._call_reward_func(terminated)
         if terminated:
@@ -233,9 +238,9 @@ class Env(gym.Env):
                 obj = self.node_map[node_rlx_idx]
 
                 # check
-                for inp in obj.get_inputs():
-                    print(f"me: {node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
-                print()
+                # for inp in obj.get_inputs():
+                #     print(f"me: {obj.get_idx()}|{node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
+                # print()
 
             else:
                 raise RuntimeError(f"{v[0]}")
@@ -262,10 +267,12 @@ class Env(gym.Env):
             for use in old.get_uses():
                 if use in ban_objs:
                     remove_list.append(use)
-            
+
             # check
-            if len(remove_list) == len(set(remove_list)) and len(remove_list) != 1:
-                logger.warning(f"same element in the remove list: {remove_list}")
+            if len(remove_list) == len(
+                    set(remove_list)) and len(remove_list) != 1:
+                logger.warning(
+                    f"same element in the remove list: {remove_list}")
                 for l in remove_list:
                     print(f"{l.get_idx()} | {l._rlx_idx}")
 
@@ -284,8 +291,10 @@ class Env(gym.Env):
             old_uses = old.get_uses()
 
             for use in old_uses:
+                # print(f"uses: {use.get_idx()}|{use._rlx_idx}")
                 for inp_idx, inp in enumerate(use.get_inputs()):
                     if inp in output_maps:
+                        # use.inputs[inp_idx] = output_maps[inp]  # for now
                         use.get_inputs()[inp_idx] = output_maps[inp]
 
             # sanity check
@@ -295,7 +304,8 @@ class Env(gym.Env):
                     assert inp not in ban_objs, f"{inp} in {ban_objs}"
 
             # set new uses
-            new.set_uses(old_uses)
+            new_use = new.get_uses()
+            new.set_uses(new_use + old_uses)
 
             # clear old news
             old.set_uses([])
@@ -306,20 +316,11 @@ class Env(gym.Env):
                     assert inp not in output_maps, f"{inp} in {output_maps}"
                     assert inp not in ban_objs, f"{inp} in {ban_objs}"
 
-        # check
-        for new in new_subgraph_outputs:
-            try:
-                self.parser._check_nodes(new.get_uses())
-            except Exception as e:
-                print(rw.name)
-                print(f"{new.get_idx()}")
-                raise
-
         # more check
         for _, n in self.node_map.items():
             error = False
             for inp in n.get_inputs():
-                if inp in old_subgraph_outputs:   # it should be unreachable from node's input
+                if inp in old_subgraph_outputs:  # it should be unreachable from node's input
                     logger.error(f"{inp.get_idx()} | {n.get_idx()} | ")
                     error = True
 
@@ -337,20 +338,18 @@ class Env(gym.Env):
                     logger.critical(f"new trace: {new.get_trace().get_idx()}")
 
         # more check
-        for _, v in matched.items():
-            if v[0] == 0:  # edge
-                pass
-            elif v[0] == 1:  # node
-                node_rlx_idx = v[1]
-                obj = self.node_map[node_rlx_idx]
+        # for _, v in matched.items():
+        #     if v[0] == 0:  # edge
+        #         pass
+        #     elif v[0] == 1:  # node
+        #         node_rlx_idx = v[1]
+        #         obj = self.node_map[node_rlx_idx]
 
-                # check
-                if len(obj.get_inputs()) != 0:
-                    for inp in obj.get_inputs():
-                        print(f"me after: {node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
-                    raise
-                print()
-
+        #         for inp in obj.get_inputs():
+        #             # TODO inp should only be internal edges
+        #             print(f"me after: {node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
+        #             assert inp in ban_objs, "inp should only be ban objs"
+        #         print()
 
         # self._detect_uses(rw, matched, ban_objs)
         self._detect_ban(rw, matched, ban_objs)
@@ -363,12 +362,6 @@ class Env(gym.Env):
 
         def dfs_rebuild(obj):
             nonlocal node_cnt, edge_cnt
-
-            # check
-            if obj in ban_objs:
-                print(obj._rlx_idx)
-                raise RuntimeError(f"ban")
-
             if obj is None or obj in visited:
                 return
 
@@ -387,6 +380,15 @@ class Env(gym.Env):
                 obj._rlx_idx = node_cnt
                 node_cnt += 1
                 visited.add(obj)
+
+                # if obj.get_idx() == 1194:
+                #     n = obj
+                #     logger.critical(
+                #         f"Catch Node: {n.get_idx()} | {n._rlx_idx}, {n.get_type()}"
+                #     )
+                #     logger.critical(f"inp: {inp.get_idx()} | {inp._rlx_idx}, {inp.get_type()}")
+                #     for use in inp.get_uses():
+                #         logger.critical(f"inp's use: {use.get_idx()} | {use._rlx_idx}, {use.get_type()}")
 
             if isinstance(obj, Edge):
                 dfs_rebuild(obj.trace)
@@ -410,10 +412,18 @@ class Env(gym.Env):
         self._check_edges(rw, matched, False)
 
         # check
-        for e in self.edges:
-            if e in ban_objs:
-                print(e.get_idx())
-                raise
+        # for e in self.edges:
+        #     if e in ban_objs:
+        #         print(e.get_idx())
+        #         raise
+        #     if e.get_idx() == 1195:
+        #         print(e.get_idx())
+        #         logger.critical(
+        #             f"Catch Node: {n.get_idx()} | {n._rlx_idx}, {n.get_type()}"
+        #         )
+        #         logger.critical(f"inp: {inp.get_idx()} | {inp._rlx_idx}, {inp.get_type()}")
+        #         for use in inp.get_uses():
+        #             logger.critical(f"inp's use: {use.get_idx()} | {use._rlx_idx}, {use.get_type()}")
 
         return ban_objs
 
@@ -465,7 +475,8 @@ class Env(gym.Env):
         edge_index = torch.tensor(edge_index,
                                   dtype=torch.long).t().contiguous()
 
-        assert edge_index.shape[1] == n_edge, f"{edge_index.shape[1]} != {n_edge}"
+        assert edge_index.shape[
+            1] == n_edge, f"{edge_index.shape[1]} != {n_edge}"
 
         # 2. add self edges for internal edges; with fill_value attr
         # if one-node graph, will not have self-loop
@@ -512,7 +523,8 @@ class Env(gym.Env):
                                    dtype=torch.long).t().contiguous()
         edge_index = torch.cat([edge_index, ghost_index], dim=1).contiguous()
 
-        assert edge_index.shape[1] == edge_feat.shape[0], f"{edge_index.shape} != {edge_feat.shape}"
+        assert edge_index.shape[1] == edge_feat.shape[
+            0], f"{edge_index.shape} != {edge_feat.shape}"
 
         ######################################
         ############# embedding ##############
@@ -568,7 +580,7 @@ class Env(gym.Env):
 
     def viz(self, path="parser_viz", check=True):
         self.parser.viz(self.edges, path, check)
-    
+
     def _check_nodes(self, rw, matched, nodes, ban):
         try:
             self.parser._check_nodes(nodes)
@@ -586,11 +598,8 @@ class Env(gym.Env):
             for i in ban:
                 print(f"{i.get_idx()} | {i._rlx_idx}")
                 if isinstance(i, Edge):
-                    is_in = i._rlx_idx in self.edge_map
-                    print(f"is in self.edge {is_in}")  # True, Sep-12
                     for use in i.get_uses():
                         print(f"use: {use.get_idx()}")
-                    
 
             raise RuntimeError()
 
@@ -683,7 +692,10 @@ class Env(gym.Env):
                         f"ban detected! Edge idx: {obj.get_idx()} | {obj._rlx_idx}"
                     )
                     print([i.get_idx() for i in ban])
-                    print([i.get_uses().get_idx() for i in ban if isinstance(obj, Edge)])
+                    print([
+                        i.get_uses().get_idx() for i in ban
+                        if isinstance(obj, Edge)
+                    ])
                 raise RuntimeError("ban detected")
 
             if obj is None or obj in visited:

@@ -14,6 +14,7 @@ sys.setrecursionlimit(10**5)
 
 class MathLang(Language):
     """A simple Math language for testing."""
+
     def get_supported_datatypes(self):
         return ["integers"]
 

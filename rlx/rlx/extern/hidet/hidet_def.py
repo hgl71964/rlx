@@ -124,6 +124,7 @@ register_node_type(NODE_TYPE)
 
 
 class DFG_Edge(Edge):
+
     def __init__(self, idx, attr, edge_type, trace):
         self.idx = idx
         self.attr = attr
@@ -145,6 +146,7 @@ class DFG_Edge(Edge):
 
 
 class DFG_Op(Node):
+
     def __init__(self, idx, attr, node_type, inputs):
         self.idx = idx
         self.attr = attr
@@ -169,6 +171,7 @@ class DFG_Op(Node):
 
 
 class DataflowGraph(Graph):
+
     def __init__(self, nodes, edges):
         self.nodes = nodes
         self.edges = edges
@@ -187,6 +190,7 @@ class DataflowGraph(Graph):
 
 #### transform rules ####
 class tr1(RewriteRule):
+
     def __init__(self, node_type):
         self.node_type = node_type
         self.name = "reshape(x) * scale => "
@@ -205,6 +209,7 @@ class tr1(RewriteRule):
 
 
 class tr2(RewriteRule):
+
     def __init__(self):
         self.name = "reshape(x) + bias => "
         self.a, self.ta = const_pattern()
@@ -219,6 +224,7 @@ class tr2(RewriteRule):
 
 ##### arithmetic rules ####
 class ar1(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "a + x => x + a"
         self.a, self.ta = const_pattern()
@@ -235,6 +241,7 @@ class ar1(RewriteRule):
 
 
 class ar2(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "x - a => x + (-a)"
         self.a, self.ta = const_pattern()
@@ -252,6 +259,7 @@ class ar2(RewriteRule):
 
 
 class ar3(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "(x + a) + b => x + (a + b)"
         self.a, self.ta = const_pattern()
@@ -271,6 +279,7 @@ class ar3(RewriteRule):
 
 
 class ar4(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "(x + a) * b => x * b + a * b"
         self.a, self.ta = const_pattern()
@@ -291,6 +300,7 @@ class ar4(RewriteRule):
 
 
 class ar5(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "(x + a) + (y + b) => (x + y) + (a + b)"
         self.a, self.ta = const_pattern()
@@ -314,6 +324,7 @@ class ar5(RewriteRule):
 
 ##### matmul rules ####
 class mr1(RewriteRule):
+
     def __init__(self):
         self.name = "matmul(x, c1)|matmul(x, c2) ==> matmul(x, concat(c1, c2)) followed by split"
         self.x, self.tx = symbol_pattern()
@@ -334,6 +345,7 @@ class mr1(RewriteRule):
 
 
 class mr2(RewriteRule):
+
     def __init__(self):
         self.name = "matmul(x, c1)|matmul(x, c2)|matmul(x, c3) => matmul(x, concat(c1, c2, c3)) followed by split"
         self.x, self.tx = symbol_pattern()
@@ -357,6 +369,7 @@ class mr2(RewriteRule):
 
 
 class mr3(RewriteRule):
+
     def __init__(self):
         self.name = "3 branches of matmul(x, branch c) + branch b ==> matmul(x, c) + b followed by split"
         self.x, self.tx = symbol_pattern()
@@ -393,6 +406,7 @@ class mr3(RewriteRule):
 
 ##### attn rules ####
 class attnr1(RewriteRule):
+
     def __init__(self):
         # TODO q, k is symbol or const?
         self.name = "matmul(q,k) * c1 => matmul(c1 * q, k)"
@@ -412,6 +426,7 @@ class attnr1(RewriteRule):
 
 
 class attnr2(RewriteRule):
+
     def __init__(self):
         # TODO q, k is symbol or const?
         self.name = "matmul(q,k) / c1 => matmul(q/c1, k)"
@@ -431,6 +446,7 @@ class attnr2(RewriteRule):
 
 
 class attnr3(RewriteRule):
+
     def __init__(self):
         self.name = "matmul(Softmax(matmul(q, k)), v) => attn(q, k, v)"
         # TODO how to design attr
@@ -454,6 +470,7 @@ class attnr3(RewriteRule):
 
 
 class attnr4(RewriteRule):
+
     def __init__(self):
         self.name = "matmul(Softmax(matmul(q, k) + mask), v) => attn(q, k, v, mask)"
         # TODO how to design attr
@@ -481,6 +498,7 @@ class attnr4(RewriteRule):
 
 ##### conv rules ####
 class cr1(RewriteRule):
+
     def __init__(self):
         self.name = "conv2d(x, w) * scale => conv2d(x, w * scale)"
         self.x, self.tx = symbol_pattern()
@@ -502,6 +520,7 @@ class cr1(RewriteRule):
 
 
 class cr2(RewriteRule):
+
     def __init__(self):
         self.name = "conv2d(x, w1)|conv2d(x, w2) => conv2d(x, w1 + w2)"
         self.x, self.tx = symbol_pattern()
@@ -524,6 +543,7 @@ class cr2(RewriteRule):
 
 
 class cr3(RewriteRule):
+
     def __init__(self):
         self.name = "conv2d(x, w1)|conv2d(x, w2)|conv2d(x, w3) => conv2d(x, w1 + w2 + w3)"
         self.x, self.tx = symbol_pattern()

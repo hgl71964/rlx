@@ -126,6 +126,7 @@ def rlxGraph2Prop(ops, edges: list[Edge]):
 ########### rewrite rules! ##############
 #########################################
 class r1(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "def_imply"
         self.node_types = node_types
@@ -143,6 +144,7 @@ class r1(RewriteRule):
 
 
 class r2(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "double_neg"
         self.node_types = node_types
@@ -158,6 +160,7 @@ class r2(RewriteRule):
 
 
 class r3(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "def_imply_flip"
         self.node_types = node_types
@@ -175,6 +178,7 @@ class r3(RewriteRule):
 
 
 class r4(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "double_neg_flip"
         self.node_types = node_types
@@ -190,6 +194,7 @@ class r4(RewriteRule):
 
 
 class r5(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "assoc_or"
         self.node_types = node_types
@@ -209,6 +214,7 @@ class r5(RewriteRule):
 
 
 class r6(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "dist_and_or"
         self.node_types = node_types
@@ -229,6 +235,7 @@ class r6(RewriteRule):
 
 
 class r7(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "dist_or_and"
         self.node_types = node_types
@@ -249,6 +256,7 @@ class r7(RewriteRule):
 
 
 class r8(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "comm_or"
         self.node_types = node_types
@@ -265,6 +273,7 @@ class r8(RewriteRule):
 
 
 class r9(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "comm_and"
         self.node_types = node_types
@@ -281,6 +290,7 @@ class r9(RewriteRule):
 
 
 class r10(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "lem"
         self.node_types = node_types
@@ -297,6 +307,7 @@ class r10(RewriteRule):
 
 
 class r11(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "or_true"
         self.node_types = node_types
@@ -312,6 +323,7 @@ class r11(RewriteRule):
 
 
 class r12(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "and_true"
         self.node_types = node_types
@@ -327,6 +339,7 @@ class r12(RewriteRule):
 
 
 class r13(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "contrapositive"
         self.node_types = node_types

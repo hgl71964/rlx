@@ -9,6 +9,7 @@ import gymnasium as gym
 
 
 class RewriteEngine:
+
     def __init__(self, graph, rewrite_rules, callback_reward_function, config):
         self.graph = graph
         self.callback_reward_function = callback_reward_function

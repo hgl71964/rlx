@@ -20,6 +20,7 @@ class NodePattern:  # for type annotation
 
 
 class EdgePattern:
+
     def __init__(self, is_const: bool, trace: Optional[NodePattern],
                  trace_idx: Optional[int], attr: Any):
         self.is_const = is_const  # either Const or Var
@@ -38,6 +39,7 @@ class EdgePattern:
 
 
 class NodePattern:
+
     def __init__(self, node_type, inputs: list[EdgePattern], n_outputs: int,
                  attr: Any, output_attr: Any):
         self.node_type = node_type
@@ -94,6 +96,7 @@ def node_pattern(node_type,
 
 
 class RewriteRule(ABC):
+
     @abstractmethod
     def source_pattern(self) -> list[EdgePattern]:
         pass

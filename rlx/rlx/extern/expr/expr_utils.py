@@ -17,6 +17,7 @@ from rlx.extern.expr.lib import Language, EGraph
 ## override user-API for expr domain ###
 ########################################
 class expr_edge(Edge):
+
     def __init__(self, idx, attr, edge_type, trace):
         self.idx = idx
         self.attr = attr
@@ -50,6 +51,7 @@ class expr_edge(Edge):
 
 
 class expr_node(Node):
+
     def __init__(self, idx, attr, node_type, inputs):
         self.idx = idx
         self.attr = attr
@@ -89,6 +91,7 @@ class expr_node(Node):
 
 
 class expr_graph(Graph):
+
     def __init__(self, expr, node_types):
         # build graph from expr (tree)
         cnt = 0

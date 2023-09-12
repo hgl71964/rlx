@@ -125,6 +125,7 @@ def rlxGraph2math(ops, edges: list[Edge]):
 
 
 def verify(expr):
+
     def dfs(node):
         # leaf
         if isinstance(node, int):
@@ -169,6 +170,7 @@ def verify(expr):
 ########### rewrite rules! ##############
 #########################################
 class r1(RewriteRule):
+
     def __init__(self, node_types):
         # ["comm-add", op.add(a, b), op.add(b, a)],
         self.name = "comm-add"
@@ -191,6 +193,7 @@ class r1(RewriteRule):
 
 
 class r2(RewriteRule):
+
     def __init__(self, node_types):
         self.name = "a*b => b*a"
         self.a = const_pattern()
@@ -212,6 +215,7 @@ class r2(RewriteRule):
 
 
 class r3(RewriteRule):
+
     def __init__(self, node_types):
         # ["assoc-add", op.add(op.add(a, b), c), op.add(a, op.add(b, c))],
         self.name = "assoc-add"
@@ -239,6 +243,7 @@ class r3(RewriteRule):
 
 
 class r4(RewriteRule):
+
     def __init__(self, node_types):
         # ["assoc-mul", op.mul(op.mul(a, b), c), op.mul(a, op.mul(b, c))],
         self.name = "assoc-mul"
@@ -266,6 +271,7 @@ class r4(RewriteRule):
 
 
 class r5(RewriteRule):
+
     def __init__(self, node_types):
         # ["sub-canon", op.sub(a, b), op.add(a, op.mul(-1, b))],
         self.name = "sub-canon"
@@ -301,6 +307,7 @@ class r5(RewriteRule):
 
 
 class r6(RewriteRule):
+
     def __init__(self, node_types):
         # ["zero-add", op.add(a, 0), a],
         self.name = "zero-add"
@@ -318,6 +325,7 @@ class r6(RewriteRule):
 
 
 class r7(RewriteRule):
+
     def __init__(self, node_types):
         # ["zero-mul", op.mul(a, 0), 0],
         self.name = "zero-mul"
@@ -340,6 +348,7 @@ class r7(RewriteRule):
 
 
 class r8(RewriteRule):
+
     def __init__(self, node_types):
         # ["one-mul", op.mul(a, 1), a],
         self.name = "one-mul"
@@ -357,6 +366,7 @@ class r8(RewriteRule):
 
 
 class r9(RewriteRule):
+
     def __init__(self, node_types):
         # ["cancel-sub", op.sub(a, a), 0],
         self.name = "cancel-sub"
@@ -378,6 +388,7 @@ class r9(RewriteRule):
 
 
 class r10(RewriteRule):
+
     def __init__(self, node_types):
         # [ "distribute", op.mul(a, op.add(b, c)), op.add(op.mul(a, b), op.mul(a, c))],
         self.name = "distribute"
@@ -415,6 +426,7 @@ class r10(RewriteRule):
 
 
 class r11(RewriteRule):
+
     def __init__(self, node_types):
         # [ "factor", op.add(op.mul(a, b), op.mul(a, c)), op.mul(a, op.add(b, c)) ],
         self.name = "factor"
@@ -447,6 +459,7 @@ class r11(RewriteRule):
 
 
 class r12(RewriteRule):
+
     def __init__(self, node_types):
         # [ "pow-mul", op.mul(op.pow(a, b), op.pow(a, c)), op.pow(a, op.add(b, c)) ],
         self.name = "pow-mul"
@@ -479,6 +492,7 @@ class r12(RewriteRule):
 
 
 class r13(RewriteRule):
+
     def __init__(self, node_types):
         # ["pow1", op.pow(x, 1), x],
         self.name = "pow1"
@@ -496,6 +510,7 @@ class r13(RewriteRule):
 
 
 class r14(RewriteRule):
+
     def __init__(self, node_types):
         # ["pow2", op.pow(x, 2), op.mul(x, x)],
         self.name = "pow2"
@@ -519,6 +534,7 @@ class r14(RewriteRule):
 
 
 class r15(RewriteRule):
+
     def __init__(self, node_types):
         # ["d-add", op.diff(x, op.add(a, b)), op.add(op.diff(x, a), op.diff(x, b))],
         self.name = "d-add"
@@ -556,6 +572,7 @@ class r15(RewriteRule):
 
 
 class r16(RewriteRule):
+
     def __init__(self, node_types):
         # ["d-mul", op.diff(x, op.mul(a, b)), op.add(op.mul(a, op.diff(x, b)), op.mul(b, op.diff(x, a)))],
         self.name = "d-mul"
@@ -605,6 +622,7 @@ class r16(RewriteRule):
 
 
 class r17(RewriteRule):
+
     def __init__(self, node_types):
         # ["d-sin", op.diff(x, op.sin(x)), op.cos(x)],
         self.name = "d-sin"
@@ -628,6 +646,7 @@ class r17(RewriteRule):
 
 
 class r18(RewriteRule):
+
     def __init__(self, node_types):
         # ["d-cos", op.diff(x, op.cos(x)), op.mul(-1, op.sin(x))],
         self.name = "d-cos"
@@ -663,6 +682,7 @@ class r18(RewriteRule):
 
 
 class r19(RewriteRule):
+
     def __init__(self, node_types):
         # ["i-one", op.integral(1, x), x],
         self.name = "i-one"
@@ -680,6 +700,7 @@ class r19(RewriteRule):
 
 
 class r20(RewriteRule):
+
     def __init__(self, node_types):
         # ["i-cos", op.integral(op.cos(x), x), op.sin(x)],
         self.name = "i-cos"
@@ -703,6 +724,7 @@ class r20(RewriteRule):
 
 
 class r21(RewriteRule):
+
     def __init__(self, node_types):
         # ["i-sin", op.integral(op.sin(x), x), op.mul(-1, op.cos(x))],
         self.name = "i-sin"
@@ -738,6 +760,7 @@ class r21(RewriteRule):
 
 
 class r22(RewriteRule):
+
     def __init__(self, node_types):
         # ["i-sum", op.integral(op.add(f, g), x), op.add(op.integral(f, x), op.integral(g, x))],
         self.name = "i-sum"
@@ -775,6 +798,7 @@ class r22(RewriteRule):
 
 
 class r23(RewriteRule):
+
     def __init__(self, node_types):
         # ["i-dif", op.integral(op.sub(f, g), x), op.sub(op.integral(f, x), op.integral(g, x))],
         self.name = "i-dif"
@@ -812,6 +836,7 @@ class r23(RewriteRule):
 
 
 class r24(RewriteRule):
+
     def __init__(self, node_types):
         # ["i-parts", op.integral(op.mul(a, b), x),
         # op.sub(op.mul(a, op.integral(b, x)), op.integral(op.mul(op.diff(x, a), op.integral(b, x)), x))],

@@ -28,6 +28,7 @@ FLAGS = flags.FLAGS
 #### Test 1
 ###############
 class G(Graph):
+
     def get_nodes(self):
         return self.nodes
 
@@ -36,6 +37,7 @@ class G(Graph):
 
 
 class G1(G):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -54,6 +56,7 @@ def rw1(node_types):
 
 
 class G2(G):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
