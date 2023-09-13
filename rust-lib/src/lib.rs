@@ -13,7 +13,7 @@ use pyo3::AsPyPointer;
 use pyo3::{
     basic::CompareOp,
     prelude::*,
-    types::{PyList, PyString, PyTuple, PyType, PyBytes},
+    types::{PyList, PyString, PyTuple, PyType, PyBytes, PyLong},
 };
 
 // to pickle
@@ -86,6 +86,8 @@ impl Var {
 struct PyLang {
     obj: PyObject,
     children: Vec<egg::Id>,
+
+    name: String,
 }
 
 impl PyLang {
@@ -95,6 +97,8 @@ impl PyLang {
         Self {
             obj: any.to_object(py),
             children: children.into_iter().collect(),
+
+            name: ty.name().unwrap().to_string(),
         }
     }
 
@@ -131,6 +135,9 @@ impl PyLang {
         Self {
             obj: hashable.obj.clone(),
             children: vec![],
+
+            // leaf is always int
+            name: "int".to_string(),
         }
     }
 
@@ -489,8 +496,8 @@ impl EGraph {
         assert_eq!(ids.len(), 1);
 
         // this will compute the cost
-        let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
-        // let extractor = egg::Extractor::new(&self.egraph, MathCost);
+        // let extractor = egg::Extractor::new(&self.egraph, egg::AstSize);
+        let extractor = egg::Extractor::new(&self.egraph, MathCost);
 
         ids.iter()
             .map(|&id| {
@@ -640,11 +647,15 @@ impl<L: egg::Language> egg::CostFunction<L> for ASTcost {
         // };
         // enode.fold(op_cost, |sum, i| sum + costs(i))
 
+        // L has not such field
+        // if let Ok(py_type) = enode.obj.downcast::<PyType>() {
+        //     println!("type: {} name {} ", py_type, py_type.name().unwrap());
+        // }
         enode.fold(1, |sum, id| sum + costs(id))
     }
 }
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct MathCost;
 impl egg::CostFunction<PyLang> for MathCost {
     type Cost = usize;
@@ -652,46 +663,41 @@ impl egg::CostFunction<PyLang> for MathCost {
     where
         C: FnMut(egg::Id) -> Self::Cost,
     {
-        // only SymbolLang provides `op` field, which can `as_str()`
-        // let op_cost = match enode.op.as_str() {
-        //     "d" => 100,
-        //     "i" => 100,
-        //     _ => 1,
-        // };
-        // enode.fold(op_cost, |sum, i| sum + costs(i))
-        
-        Python::with_gil(|py| {
-            println!("enode: {}", enode);
-            println!("obj: {}", enode.obj);
-            let op = enode.obj.extract::<String>(py).unwrap();
-            println!("op: {}", op);
-        });
-
         // Python::with_gil(|py| {
-        //     let my_object: Py<pyo3::types::PyAny> = enode.obj;
-        //     
-        //     // Check if it's a list
-        //     if my_object.is_instance::<PyList>() {
-        //         // Now you know it's a list, you can use PyList methods
-        //         let list = my_object.extract::<PyList>()?;
-        //         // Use list-specific methods
-        //         let len = list.len();
-        //         println!("List length: {}", len);
-        //     } else {
-        //         println!("Not a list.");
-        //     }
-        //     
-        //     Ok(())
+        //     let any: PyObject = PyDict::new(py).into();
+        
+        //     assert!(any.downcast::<PyDict>(py).is_ok());
+        //     assert!(any.downcast::<PyList>(py).is_err());
         // });
 
+        // ("Diff", "x", "y"),
+        // ("Integral", "x", "y"),
+        // ("Add", "x", "y"),
+        // ("Sub", "x", "y"),
+        // ("Mul", "x", "y"),
+        // ("Div", "x", "y"),
+        // ("Pow", "x", "y"),
+        // # ("Ln", "x"),
+        // ("Sqrt", "x"),
+        // ("Sin", "x"),
+        // ("Cos", "x")
 
-        // let op_cost = match enode.obj.as_str() {
-        //     "Pow" => 8,
-        //     _ => 1,
-        // };
-        // enode.fold(op_cost, |sum, i| sum + costs(i))
-
-        enode.fold(1, |sum, id| sum + costs(id))
+        let op_cost = match enode.name.as_str() {
+            "Diff" => 100,
+            "Integral" => 100,
+            "Add" => 2,
+            "Sub" => 2,
+            "Mul" => 4,
+            "Div" => 8,
+            "Pow" => 10,
+            // "Ln" => 1,
+            "Sqrt" => 10,
+            "Sin" => 5,
+            "Cos" => 5,
+            "int" => 1,
+            _ => panic!("unknown op {}", enode.name),
+        };
+        enode.fold(op_cost, |sum, id| sum + costs(id))
     }
 }
 
@@ -713,16 +719,23 @@ fn reconstruct(py: Python, recexpr: &RecExpr<PyLang>) -> PyObject {
 
 fn add_rec(egraph: &mut egg::EGraph<PyLang, PyAnalysis>, expr: &PyAny) -> egg::Id {
     if let Ok(Id(id)) = expr.extract() {
+        // println!("Id: {}", id);
         egraph.find(id)
     } else if let Ok(Var(var)) = expr.extract() {
         panic!("Can't add a var: {}", var)
     } else if let Ok(tuple) = expr.downcast::<PyTuple>() {
+
+        // let py_type = tuple.get_type();
+        // println!("Tuple: {};; {}, {}", tuple, tuple.get_item(0).unwrap(), tuple.get_item(1).unwrap());
+        // println!("type: {} name {} ", py_type, py_type.name().unwrap());
+
         let enode = PyLang::op(
             expr.get_type(),
             tuple.iter().map(|child| add_rec(egraph, child)),
         );
         egraph.add(enode)
     } else {
+        // println!("Leaf: {}", expr);
         egraph.add(PyLang::leaf(expr))
     }
 }

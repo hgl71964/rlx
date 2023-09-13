@@ -173,6 +173,41 @@ class MathLang(Language):
         node = op(*children)
         return node
 
+    def gen_example_expr(self):
+
+        # ("Diff", "x", "y"),
+        # ("Integral", "x", "y"),
+        # ("Add", "x", "y"),
+        # ("Sub", "x", "y"),
+        # ("Mul", "x", "y"),
+        # ("Div", "x", "y"),
+        # ("Pow", "x", "y"),
+        # # ("Ln", "x"),
+        # ("Sqrt", "x"),
+        # ("Sin", "x"),
+        # ("Cos", "x")
+        
+        op_table = {
+            "Diff": 0,
+            "Integral": 1,
+            "Add": 2,
+            "Sub": 3,
+            "Mul": 4,
+            "Div": 5,
+            "Pow": 6,
+            "Sqrt": 7,
+            "Sin": 8,
+            "Cos": 9
+        }
+        # ops is NameTuple class
+        ops = self.all_operators()
+        op = ops[op_table["Diff"]]
+        expr = op(
+            x=0,
+            y=1
+        )
+        return expr
+
     def get_op_tbl(self) -> dict:
         return self.op_to_ind
 

@@ -13,7 +13,6 @@ from absl import flags
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("node_lim", 10000, "enode limit")
-flags.DEFINE_integer("depth_lim", 5, "expression depth limit")
 flags.DEFINE_integer("seed", 0, "")
 flags.DEFINE_integer("l", 0, "whether to log")
 
@@ -100,9 +99,8 @@ def main(_):
     lang = get_lang(FLAGS.lang)()
     print("=" * 40)
     if FLAGS.fn is None:
-        expr = lang.gen_expr(p_leaf=0., depth_limit=FLAGS.depth_lim)
+        expr = lang.gen_example_expr()
         print("Generated expression: ", expr)
-        print("Depth: ", FLAGS.depth_lim)
     else:
         fn = f"{FLAGS.default_out_path}/rlx/inputs/"
         fn += FLAGS.fn
