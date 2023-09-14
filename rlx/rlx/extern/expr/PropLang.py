@@ -8,7 +8,6 @@ from rlx.extern.expr.lib import Language, TestExprs
 
 class PropLang(Language):
     """A simple Propositional Logic language."""
-
     @functools.cache
     def all_operators(self):
         return list(

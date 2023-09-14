@@ -53,7 +53,6 @@ def out(op, attr=None):
 
 
 class DG1(Graph):
-
     def __init__(self, node_types):
         v1 = DFG_Edge(0, None, node_types["Var"], None)
         c1 = DFG_Edge(0, None, node_types["Const"], None)

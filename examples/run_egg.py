@@ -4,7 +4,9 @@ import datetime
 import numpy as np
 import pandas as pd
 
-from rlx.extern.expr.expr_utils import get_lang, new_egraph, add_df_meta, step, load_expr, cnt_op
+from rlx.extern.expr.expr_utils import (get_lang, new_egraph, add_df_meta,
+                                        step, load_expr, cnt_op,
+                                        solve_without_step)
 
 from rust_lib import print_id
 
@@ -13,10 +15,13 @@ from absl import flags
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("node_lim", 10000, "enode limit")
+flags.DEFINE_integer("iter_lim", 100, "")
+flags.DEFINE_integer("time_lim", 100, "")
+flags.DEFINE_integer("backoff", 1, "")
 flags.DEFINE_integer("seed", 0, "")
 flags.DEFINE_integer("l", 0, "whether to log")
 
-flags.DEFINE_string("lang", "MATH", "")
+flags.DEFINE_string("lang", None, "")
 flags.DEFINE_string("e", "greedy", "extractor; greedy or ilp")
 flags.DEFINE_string("fn", None, "file name of the pre-generated expr")
 flags.DEFINE_string("default_out_path", "data", "output dir")
@@ -80,17 +85,6 @@ def solve_expr_egg(lang, expr, node_lim):
     return steps_df, best_expr
 
 
-def test_expr(lang, expr):
-    for op in lang.all_operators():
-        print(op)
-        print_id(op)
-
-    print("expr: ", type(expr))
-
-    egraph = new_egraph(expr)
-    base_cost, _ = egraph.extract(expr)
-
-
 def main(_):
     random.seed(FLAGS.seed)
     np.random.seed(FLAGS.seed)
@@ -108,16 +102,22 @@ def main(_):
         print("Loaded expression: ", expr)
     print("=" * 40)
 
-    # test_expr(lang, expr)
-    # raise
-
-    # egg solver
+    #########################
+    ####### solver ##########
+    #########################
     print("=" * 40)
     print("[EGG] Solving expression", expr)
     print("=" * 40)
-    egg_df, best_expr = solve_expr_egg(lang, expr, FLAGS.node_lim)
+    # egg_df, best_expr = solve_expr_egg(lang, expr, FLAGS.node_lim)
+
+    # solve without step
+    egraph = new_egraph(expr)
+    base_cost, _ = egraph.extract(expr)
+    print("[EGG] base cost:", base_cost)
+    step_info, best_expr = solve_without_step(expr, lang, egraph, FLAGS)
 
     print("=" * 40)
+    print(f"best cost {step_info.cost:.2f}")
     num_op = cnt_op(best_expr)
     print(f"[EGG] num of ops: {num_op}")
     # cost = cnt_op_cost(best_expr)
@@ -139,7 +139,7 @@ def main(_):
             os.mkdir(save_path)
         # https://github.com/abseil/abseil-py/issues/57
         FLAGS.append_flags_into_file(save_path + "/hyperparams.txt")
-        egg_df.to_csv(f"{save_path}/egg.csv")
+        # egg_df.to_csv(f"{save_path}/egg.csv")
 
 
 if __name__ == "__main__":

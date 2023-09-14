@@ -17,7 +17,6 @@ from torch_geometric.nn.models.basic_gnn import GAT
 ############ Utils ###########
 ##############################
 class CategoricalMasked(Categorical):
-
     def __init__(self,
                  probs=None,
                  logits=None,
@@ -56,7 +55,6 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 ############ GNNs ############
 ##############################
 class EdgeModel(torch.nn.Module):
-
     def __init__(self, hidden_size, out):
         super().__init__()
         self.head = nn.Sequential(
@@ -77,7 +75,6 @@ class GATNetwork(nn.Module):
     """A Graph Attentional Network (GAT)
     https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html
     """
-
     def __init__(self,
                  num_node_features: int,
                  num_edge_features: int,
@@ -167,7 +164,6 @@ class GATNetwork(nn.Module):
 
 
 class GATNetwork_with_global(nn.Module):
-
     def __init__(self,
                  num_node_features: int,
                  num_edge_features: int,

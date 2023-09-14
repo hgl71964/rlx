@@ -17,7 +17,6 @@ from rlx.extern.expr.lib import Language, EGraph
 ## override user-API for expr domain ###
 ########################################
 class expr_edge(Edge):
-
     def __init__(self, idx, attr, edge_type, trace):
         self.idx = idx
         self.attr = attr
@@ -51,7 +50,6 @@ class expr_edge(Edge):
 
 
 class expr_node(Node):
-
     def __init__(self, idx, attr, node_type, inputs):
         self.idx = idx
         self.attr = attr
@@ -91,7 +89,6 @@ class expr_node(Node):
 
 
 class expr_graph(Graph):
-
     def __init__(self, expr, node_types):
         # build graph from expr (tree)
         cnt = 0
@@ -248,6 +245,31 @@ def step(action: int, expr_to_extract, lang: Language, egraph: EGraph,
     # print("all eid", egraph.eclass_ids())
     return step_info(action=action,
                      action_name=lang.rule_names[action],
+                     num_applications=num_applications,
+                     stop_reason=stop_reason,
+                     cost=float(best_cost),
+                     best_expr=str(best_expr),
+                     num_eclasses=num_eclasses,
+                     num_enodes=num_enodes,
+                     init_expr=str(expr_to_extract),
+                     extract_time=t1 - t0), best_expr
+
+
+def solve_without_step(expr_to_extract, lang, egraph, flags):
+    stop_reason, num_applications, num_enodes, num_eclasses = egraph.run(
+        lang.rewrite_rules(),
+        iter_limit=flags.iter_lim,
+        node_limit=flags.node_lim,
+        time_limit=flags.time_lim,
+        use_backoff=bool(flags.backoff),
+    )
+    t0 = time.perf_counter()
+    best_cost, best_expr = egraph.extract(expr_to_extract)
+    t1 = time.perf_counter()
+    # print("entry: ", egraph.extraction_entry_point(expr_to_extract))
+    # print("all eid", egraph.eclass_ids())
+    return step_info(action=-1,
+                     action_name="NaN",
                      num_applications=num_applications,
                      stop_reason=stop_reason,
                      cost=float(best_cost),

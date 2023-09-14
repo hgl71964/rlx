@@ -34,7 +34,6 @@ register(
 
 
 class GraphObsSpace(GymGraph):
-
     def contains(self, x) -> bool:
         if x is None:
             return True
@@ -51,7 +50,6 @@ class GraphObsSpace(GymGraph):
 
 def make_env(env_id, parser: Parser, callback_reward_function: callable,
              rewrite_rules: list, seed: int, config):
-
     def thunk():
         env = gym.make(env_id,
                        parser=parser,
@@ -76,7 +74,6 @@ def make_env(env_id, parser: Parser, callback_reward_function: callable,
 
 
 class Env(gym.Env):
-
     def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc):
         super().__init__()
         self.parser = parser

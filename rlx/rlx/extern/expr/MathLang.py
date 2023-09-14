@@ -14,7 +14,6 @@ sys.setrecursionlimit(10**5)
 
 class MathLang(Language):
     """A simple Math language for testing."""
-
     def get_supported_datatypes(self):
         return ["integers"]
 
@@ -186,7 +185,7 @@ class MathLang(Language):
         # ("Sqrt", "x"),
         # ("Sin", "x"),
         # ("Cos", "x")
-        
+
         op_table = {
             "Diff": 0,
             "Integral": 1,
@@ -202,10 +201,7 @@ class MathLang(Language):
         # ops is NameTuple class
         ops = self.all_operators()
         op = ops[op_table["Diff"]]
-        expr = op(
-            x=0,
-            y=1
-        )
+        expr = op(x=0, y=1)
         return expr
 
     def get_op_tbl(self) -> dict:

@@ -47,7 +47,6 @@ FLAGS = flags.FLAGS
 #### Test 1
 ###############
 class G(Graph):
-
     def get_nodes(self):
         return self.nodes
 
@@ -56,7 +55,6 @@ class G(Graph):
 
 
 class G1(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -75,7 +73,6 @@ def rw1(node_types):
 
 
 class G2(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -114,7 +111,6 @@ def rw2(node_types):
 
 
 class G3(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -145,7 +141,6 @@ def rw3(node_types):
 
 
 class G4(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -161,7 +156,6 @@ class G4(G):
 
 
 class G4_v2(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -185,7 +179,6 @@ class G4_v2(G):
 
 
 class G4_cancel_sub(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -199,7 +192,6 @@ class G4_cancel_sub(G):
 
 
 class G4_cancel_sub_v2(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -218,7 +210,6 @@ class G4_cancel_sub_v2(G):
 
 
 class G4_cancel_sub_v3(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -245,7 +236,6 @@ def rw4(node_types):
 
 
 class G5(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -267,7 +257,6 @@ def rw5(node_types):
 
 
 class G5_sub_canon(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -283,7 +272,6 @@ class G5_sub_canon(G):
 
 
 class G5_sub_canon_more(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -311,7 +299,6 @@ def rw5_(node_types):
 
 
 class G6(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -327,7 +314,6 @@ class G6(G):
 
 
 class G6_more(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -355,7 +341,6 @@ def rw6_(node_types):
 
 
 class G7(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -371,7 +356,6 @@ class G7(G):
 
 
 class G7_more(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -399,7 +383,6 @@ def rw7_(node_types):
 
 
 class G9(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -426,7 +409,6 @@ def rw9_(node_types):
 
 
 class G14(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -454,7 +436,6 @@ def rw14_(node_types):
 
 
 class G18(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -485,7 +466,6 @@ def rw18_(node_types):
 
 
 class G24(G):
-
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []

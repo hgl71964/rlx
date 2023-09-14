@@ -8,7 +8,6 @@ logger = get_logger(__name__)
 
 
 class rlx_Graph(Graph):
-
     def __init__(self, nodes, edges):
         self.nodes = nodes
         self.edges = edges
@@ -21,7 +20,6 @@ class rlx_Graph(Graph):
 
 
 class Parser:
-
     def __init__(self, graph: Graph):
         self.edges = graph.get_edges()
         self.nodes = graph.get_nodes()

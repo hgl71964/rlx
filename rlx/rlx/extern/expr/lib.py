@@ -16,7 +16,6 @@ TestExprs = namedtuple("TestExprs", ["saturatable", "explodes"])
 
 
 class ObjectView:
-
     def __init__(self, d):
         self.__dict__ = d
 
@@ -27,7 +26,6 @@ class ObjectView:
 class Language(Protocol):
     """A base Language for an equality saturation task.
     This will be passed to egg."""
-
     def get_supported_datatypes(self):
         raise NotImplementedError
 

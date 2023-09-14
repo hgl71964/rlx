@@ -4,7 +4,6 @@ from rlx.examples.expr_utils import *
 
 
 class TestDefineRewriteRules(unittest.TestCase):
-
     def test_r1(self):
         # Testing r1 rule
         self.assertEqual(r1().name, "a+b => b+a")

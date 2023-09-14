@@ -19,7 +19,6 @@ logger = get_logger(__name__)
 
 
 class PatternMatch:
-
     def __init__(self):
         """we need to make sure there is a match if and only if it is valid"""
         self.matched = {}
@@ -144,8 +143,8 @@ class PatternMatch:
                     use_check = False
 
             # not xor
-            assert (not (use_cnt_check
-                         != use_check)), f"{use_cnt_check}, {use_check}"
+            assert (not (use_cnt_check != use_check)
+                    ), f"{use_cnt_check}, {use_check}"
             if not use_cnt_check:
                 return True
 
