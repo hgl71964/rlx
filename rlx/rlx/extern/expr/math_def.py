@@ -64,10 +64,6 @@ def reward_func(
     terminated: bool,
     stats: dict,
 ) -> float:
-    # uses = 0
-    # for _, e in enumerate(graph.get_edges()):
-    #     uses += len(e.uses)
-    # reward = (stats["n_uses"] - uses) / (stats["init_n_uses"] + 1)
     cost = 0
     for e in graph.get_edges():
         if e.get_trace() is None:
@@ -77,10 +73,15 @@ def reward_func(
         cost += OP_COST[n.node_type.name]
 
     if init:
+        # print(f"init cost {cost}")
         assert (cost != 0), f"initial reward cannot be zero"
+        stats["init_cost"] = cost
+        stats["last_cost"] = cost
         return cost
 
-    reward = (stats["last_reward"] - cost) / stats["init_reward"]
+    # print(f"last: {stats['last_cost']}; now {cost}; init: {stats['init_cost']} ")
+    reward = (stats["last_cost"] - cost) / stats["init_cost"]
+    stats["last_cost"] = cost
     return reward
 
 

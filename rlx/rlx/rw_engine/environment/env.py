@@ -120,17 +120,10 @@ class Env(gym.Env):
         # deepcopy the graph
         self.edges = deepcopy(self.parser.edges)
         self._build_mapping()
-        reward = self._call_reward_func(True, False)
-        self._add_stats(True, reward)
+        self.stats = {}
+        _ = self._call_reward_func(True, False)
         self.cnt = 0
         return self._build_state(), {}
-
-    def _add_stats(self, init, reward):
-        if init:
-            self.stats = {}
-            self.stats["init_reward"] = reward
-
-        self.stats["last_reward"] = reward
 
     def _build_mapping(self):
         # based on self.edges to build
@@ -176,7 +169,6 @@ class Env(gym.Env):
             self._check_nodes(rw, matched, nodes, ban)
 
         reward = self._call_reward_func(False, terminated)
-        self._add_stats(False, reward)
         if terminated:
             # this is will be reset immediately:
             # https://github.com/Farama-Foundation/Gymnasium/blob/5799984991d16b4f6f923900d70bf1d750c97391/gymnasium/vector/sync_vector_env.py#L153
