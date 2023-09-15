@@ -472,8 +472,9 @@ class Env(gym.Env):
         edge_index = torch.tensor(edge_index,
                                   dtype=torch.long).t().contiguous()
 
-        assert edge_index.shape[
-            1] == n_edge, f"{edge_index.shape[1]} != {n_edge}"
+        if n_edge != 0:  # n_edge == 0, if only one node graph
+            assert edge_index.shape[
+                1] == n_edge, f"{edge_index.shape[1]} != {n_edge}"
 
         # 2. add self edges for internal edges; with fill_value attr
         # if one-node graph, will not have self-loop

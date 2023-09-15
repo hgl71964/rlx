@@ -9,7 +9,9 @@ from rlx.rw_engine.environment.env import make_env
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
 from rlx.extern.expr.math_def import (r1,
-                                      r11,)  # yapf: disable
+                                      r11,
+                                      r14,
+                                      )  # yapf: disable
 
 
 config = namedtuple('config', [
@@ -93,6 +95,33 @@ def rw2(node_types):
     return [r11(node_types)]
 
 
+class G14(G):
+    def __init__(self, node_types):
+        self.nodes = []
+        self.edges = []
+        # input
+        a = expr_edge(0, -2, node_types["Const"], None)
+        b = expr_edge(1, 1, node_types["Const"], None)
+        c = expr_edge(2, 2, node_types["Const"], None)
+        d = expr_edge(3, 2, node_types["Const"], None)
+
+        mul0 = expr_node(4, None, node_types["Mul"], [a, b])
+        mul0_out = mul0.out(5)
+
+        pow1 = expr_node(6, None, node_types["Pow"], [mul0_out, c])
+        pow1_out = pow1.out(7)
+
+        mul = expr_node(8, None, node_types["Mul"], [pow1_out, d])
+        mul_out = mul.out(9)
+
+        self.edges.extend([a, b, c, d, mul0_out, pow1_out, mul_out])
+        self.nodes.extend([mul0, pow1, mul])
+
+
+def rw14(node_types):
+    return [r14(node_types)]
+
+
 def plot_embedding(g, r, n, action=None, viz=False):
     n = str(n)
     gym_id = "env-v0"
@@ -135,9 +164,11 @@ def plot_embedding(g, r, n, action=None, viz=False):
             dest_label = f"Node-{dest}-{x[dest]}"
             g.edge(src_label, dest_label)
 
-        g.render()
+        g.render(cleanup=True, format="png")
 
-        print(edge_index.shape, pyg_g["edge_attr"].shape)
+        # print edge; because we don't plot
+        print("edge_index shape:  edge_attr shape")
+        print(pyg_g['edge_index'].shape, pyg_g["edge_attr"].shape)
         assert edge_index.shape[0] == pyg_g["edge_attr"].shape[0]
         for i, (edge_index,
                 edge) in enumerate(zip(edge_index, pyg_g["edge_attr"])):
@@ -176,11 +207,17 @@ def test_expr():
     r = rw1(node_types)
     plot_embedding(g, r, 1, None, viz=True)
 
-    # Test2: substitution
+    # Test2:
     print("Test2: ")
     g = G2(node_types)
     r = rw2(node_types)
     plot_embedding(g, r, 2, None, viz=True)
+
+    n = 14
+    print(f"Test{n}: ")
+    g = G14(node_types)
+    r = rw14(node_types)
+    plot_embedding(g, r, n, None, viz=True)
 
 
 def main(_):
