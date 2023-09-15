@@ -143,8 +143,11 @@ class PatternMatch:
                     use_check = False
 
             # not xor
-            assert (not (use_cnt_check != use_check)
-                    ), f"{use_cnt_check}, {use_check}"
+            if (not (use_cnt_check != use_check)):
+                # FIXME prop seems to have a bug here
+                logger.error(f"rule id: {rule_id}, rw: {rw.name}; {use_cnt_check}, {use_check}")
+                raise RuntimeError()
+
             if not use_cnt_check:
                 return True
 
