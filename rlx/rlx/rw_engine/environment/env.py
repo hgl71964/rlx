@@ -549,7 +549,9 @@ class Env(gym.Env):
             if n_loc == 0:
                 rule_mask[rule_id] = 0
             if n_loc > self.max_loc:
-                logger.critical(f"ruleID: {rule_id}, n_loc: {n_loc} > max loc: {self.max_loc}")
+                logger.critical(
+                    f"ruleID: {rule_id}, n_loc: {n_loc} > max loc: {self.max_loc}"
+                )
             loc_mask[rule_id, :n_loc] = 1
             logger.debug(f"++rule ID: {rule_id};; n_match: {n_loc}++")
             # +++fill mask+++

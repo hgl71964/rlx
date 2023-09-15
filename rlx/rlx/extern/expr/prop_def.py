@@ -452,7 +452,7 @@ def define_rewrite_rules(node_types):
         r1(node_types),
         r2(node_types),
         r3(node_types),
-        r4(node_types),
+        # r4(node_types),
         r5(node_types),
         r6(node_types),
         r7(node_types),
