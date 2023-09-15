@@ -6,7 +6,7 @@ from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pat
 
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
-_math_id = 1000  # for substituted obj id, for debugging
+_math_id = 10000  # for substituted obj id, for debugging
 
 
 def get_id():
