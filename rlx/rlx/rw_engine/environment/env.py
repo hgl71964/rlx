@@ -120,33 +120,17 @@ class Env(gym.Env):
         # deepcopy the graph
         self.edges = deepcopy(self.parser.edges)
         self._build_mapping()
-        self._add_stats(init=True)
+        reward = self._call_reward_func(True, False)
+        self._add_stats(True, reward)
         self.cnt = 0
         return self._build_state(), {}
 
-    def _add_stats(self, init):
+    def _add_stats(self, init, reward):
         if init:
-            self.stats = {
-                "init_n_node": len(self.node_map),
-                "init_n_edge": len(self.edge_map),
-                "n_node": len(self.node_map),
-                "n_edge": len(self.edge_map),
-            }
-            uses = 0
-            for _, e in enumerate(self.edges):
-                uses += len(e.get_uses())
-            self.stats["init_n_uses"] = uses
-            self.stats["n_uses"] = uses
-            reward = self._call_reward_func(False)
+            self.stats = {}
             self.stats["init_reward"] = reward
-            # logger.info(f"init stats: {self.stats}")
-        else:
-            self.stats["n_node"] = len(self.node_map)
-            self.stats["n_edge"] = len(self.edge_map)
-            uses = 0
-            for _, e in enumerate(self.edges):
-                uses += len(e.get_uses())
-            self.stats["n_uses"] = uses
+
+        self.stats["last_reward"] = reward
 
     def _build_mapping(self):
         # based on self.edges to build
@@ -191,14 +175,14 @@ class Env(gym.Env):
             nodes = [v for _, v in self.node_map.items()]
             self._check_nodes(rw, matched, nodes, ban)
 
-        reward = self._call_reward_func(terminated)
+        reward = self._call_reward_func(False, terminated)
+        self._add_stats(False, reward)
         if terminated:
             # this is will be reset immediately:
             # https://github.com/Farama-Foundation/Gymnasium/blob/5799984991d16b4f6f923900d70bf1d750c97391/gymnasium/vector/sync_vector_env.py#L153
             next_state = None
         else:
             next_state = self._build_state()
-        self._add_stats(init=False)
         self.cnt += 1
         return next_state, reward, terminated, truncated, info
 
@@ -790,7 +774,7 @@ class Env(gym.Env):
     #         print(e)
     #         raise
 
-    def _call_reward_func(self, terminated: bool) -> float:
+    def _call_reward_func(self, init: bool, terminated: bool) -> float:
         g = rlx_Graph([v for _, v in self.node_map.items()],
                       [v for _, v in self.edge_map.items()])
-        return self.reward_func(g, terminated, self.stats)
+        return self.reward_func(g, init, terminated, self.stats)

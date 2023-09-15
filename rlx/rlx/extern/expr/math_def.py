@@ -43,6 +43,47 @@ def define_node_type():
 #########################################
 ################ utility ################
 #########################################
+OP_COST = {
+    "Diff": 100,
+    "Integral": 100,
+    "Add": 2,
+    "Sub": 2,
+    "Mul": 4,
+    "Div": 8,
+    "Pow": 10,
+    "Sqrt": 10,
+    "Sin": 5,
+    "Cos": 5,
+    # "int": 1,
+}
+
+
+def reward_func(
+    graph: Graph,
+    init: bool,
+    terminated: bool,
+    stats: dict,
+) -> float:
+    # uses = 0
+    # for _, e in enumerate(graph.get_edges()):
+    #     uses += len(e.uses)
+    # reward = (stats["n_uses"] - uses) / (stats["init_n_uses"] + 1)
+    cost = 0
+    for e in graph.get_edges():
+        if e.get_trace() is None:
+            cost += 1
+
+    for n in graph.get_nodes():
+        cost += OP_COST[n.node_type.name]
+
+    if init:
+        assert (cost != 0), f"initial reward cannot be zero"
+        return cost
+
+    reward = (stats["last_reward"] - cost) / stats["init_reward"]
+    return reward
+
+
 def cnt_op_cost(expr):
     raise
     # m = {

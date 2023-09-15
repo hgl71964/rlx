@@ -35,6 +35,26 @@ def define_node_type():
 #########################################
 ################ utility ################
 #########################################
+def reward_func(
+    graph: Graph,
+    terminated: bool,
+    stats: dict,
+) -> float:
+    uses = 0
+    for _, e in enumerate(graph.get_edges()):
+        uses += len(e.uses)
+    reward = (stats["n_uses"] - uses) / (stats["init_n_uses"] + 1)
+
+    # print()
+    # print(f"reward: {reward}")
+    # expr = rlxGraph2Expr(MathLang().all_operators(), graph.get_edges())
+    # num_op = cnt_op(expr)
+    # print(f"num of ops: {num_op}")
+    # print()
+
+    return reward
+
+
 def verify(expr):
     raise
 
