@@ -124,33 +124,35 @@ class PatternMatch:
 
         # check inner edges
         for inner_e in inner_edges:
-            use_cnt_check = True
-            use_check = True
+            use_cnt_ok = True
+            use_ok = True
 
             inp_use = len(inner_e.get_uses())
             pat_use = len(self.reverse_matched[inner_e].uses)
             if inp_use != pat_use:
+                # NOTE: an internal node is use by an internal edge multiple times
+                # e.g. pow(x, 2) => x * x
                 # logger.warning(
                 #     f"[PatternMatch][inner] {inp_use} | {pat_use}; rule_id: {rule_id}"
                 # )
-                use_cnt_check = False
+                use_cnt_ok = False
 
             for use in inner_e.get_uses():
                 if use not in matched_nodes:
                     # logger.warning(
                     #     f"[PatternMatch] find incomplete subgraphs with {rule_id}, {rw.name}"
                     # )
-                    use_check = False
+                    use_ok = False
 
-            # not xor
-            if use_cnt_check != use_check:
-                # FIXME prop seems to have a bug here
-                logger.error(
-                    f"rule id: {rule_id}, rw: {rw.name}; {use_cnt_check}, {use_check}"
+            # XOR
+            if use_cnt_ok != use_ok:
+                logger.warning(
+                    f"rule id: {rule_id}, rw: {rw.name}; {use_cnt_ok}, {use_ok}"
                 )
-                raise RuntimeError()
+                logger.warning(f"pat use: {pat_use}, inp use: {inp_use}")
+                # raise RuntimeError()
 
-            if not use_cnt_check:
+            if not use_cnt_ok or not use_ok:
                 return True
 
         return False

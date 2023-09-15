@@ -37,21 +37,24 @@ def define_node_type():
 #########################################
 def reward_func(
     graph: Graph,
+    init: bool,
     terminated: bool,
     stats: dict,
 ) -> float:
-    uses = 0
-    for _, e in enumerate(graph.get_edges()):
-        uses += len(e.uses)
-    reward = (stats["n_uses"] - uses) / (stats["init_n_uses"] + 1)
+    cost = 0
+    for e in graph.get_edges():
+        cost += len(e.uses)
 
-    # print()
-    # print(f"reward: {reward}")
-    # expr = rlxGraph2Expr(MathLang().all_operators(), graph.get_edges())
-    # num_op = cnt_op(expr)
-    # print(f"num of ops: {num_op}")
-    # print()
+    if init:
+        # print(f"init cost {cost}")
+        assert (cost != 0), f"initial reward cannot be zero"
+        stats["init_cost"] = cost
+        stats["last_cost"] = cost
+        return cost
 
+    # print(f"last: {stats['last_cost']}; now {cost}; init: {stats['init_cost']} ")
+    reward = (stats["last_cost"] - cost) / stats["init_cost"]
+    stats["last_cost"] = cost
     return reward
 
 
