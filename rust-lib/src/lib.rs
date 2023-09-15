@@ -240,7 +240,8 @@ fn build_pattern(ast: &mut egg::PatternAst<PyLang>, tree: &PyAny) -> egg::Id {
 
 #[pyclass]
 struct Rewrite {
-    rewrite: egg::Rewrite<PyLang, PyAnalysis>,
+    // rewrite: egg::Rewrite<PyLang, PyAnalysis>,
+    rewrite: egg::Rewrite<PyLang, ()>,
 }
 
 #[pymethods]
@@ -322,28 +323,31 @@ impl egg::Analysis<PyLang> for PyAnalysis {
     }
 
     fn modify(egraph: &mut egg::EGraph<PyLang, Self>, id: egg::Id) {
-        let obj = egraph[id].data.clone();
-        if let Some(obj) = obj {
-            let py = unsafe { Python::assume_gil_acquired() };
-            let id2 = add_rec(egraph, obj.as_ref(py));
-            egraph.union(id, id2);
-        }
+        // jlet obj = egraph[id].data.clone();
+        // jif let Some(obj) = obj {
+        // j    let py = unsafe { Python::assume_gil_acquired() };
+        // j    let id2 = add_rec(egraph, obj.as_ref(py));
+        // j    egraph.union(id, id2);
+        // j}
     }
 }
 
 #[pyclass]
 struct EGraph {
-    egraph: egg::EGraph<PyLang, PyAnalysis>,
+    // egraph: egg::EGraph<PyLang, PyAnalysis>,
+    egraph: egg::EGraph<PyLang, ()>,
 }
 
-type Runner = egg::Runner<PyLang, PyAnalysis, ()>;
+// type Runner = egg::Runner<PyLang, PyAnalysis, ()>;
+type Runner = egg::Runner<PyLang, (), ()>;
 
 #[pymethods]
 impl EGraph {
     #[new]
     fn new(eval: Option<PyObject>) -> Self {
         Self {
-            egraph: egg::EGraph::new(PyAnalysis { eval }),
+            // egraph: egg::EGraph::new(PyAnalysis { eval }),
+            egraph: egg::EGraph::new(()),
         }
     }
 
@@ -516,24 +520,24 @@ impl EGraph {
         ids.iter().map(|id| id.to_string()).collect()
     }
 
-    fn classes(&mut self, py: Python) -> PyObject {
-        let eg = &self.egraph;
-        let mut ids: Vec<egg::Id> = eg.classes().map(|c| c.id).collect();
-        ids.sort();
+    // fn classes(&mut self, py: Python) -> PyObject {
+    //     let eg = &self.egraph;
+    //     let mut ids: Vec<egg::Id> = eg.classes().map(|c| c.id).collect();
+    //     ids.sort();
 
-        let mut nodes_by_class: HashMap<String, (Option<PyObject>, Vec<PyObject>)> = HashMap::new();
-        // Collect all the nodes, grouped by class ID
-        for id in ids {
-            let data = eg[id].data.clone();
-            let mut class_nodes: Vec<PyObject> = vec![];
-            for node in &eg[id].nodes {
-                class_nodes.push(node.to_object(py, |id| Id(id)));
-            }
-            nodes_by_class.insert(id.to_string(), (data, class_nodes));
-        }
+    //     let mut nodes_by_class: HashMap<String, (Option<PyObject>, Vec<PyObject>)> = HashMap::new();
+    //     // Collect all the nodes, grouped by class ID
+    //     for id in ids {
+    //         let data = eg[id].data.clone();
+    //         let mut class_nodes: Vec<PyObject> = vec![];
+    //         for node in &eg[id].nodes {
+    //             class_nodes.push(node.to_object(py, |id| Id(id)));
+    //         }
+    //         nodes_by_class.insert(id.to_string(), (data, class_nodes));
+    //     }
 
-        nodes_by_class.to_object(py)
-    }
+    //     nodes_by_class.to_object(py)
+    // }
 
     // return a list of what each Eclass point to (other Eclasses)
     fn eclass2class_connection(&mut self, py: Python) -> PyObject {
@@ -665,7 +669,7 @@ impl egg::CostFunction<PyLang> for MathCost {
     {
         // Python::with_gil(|py| {
         //     let any: PyObject = PyDict::new(py).into();
-        
+
         //     assert!(any.downcast::<PyDict>(py).is_ok());
         //     assert!(any.downcast::<PyList>(py).is_err());
         // });
@@ -717,7 +721,8 @@ fn reconstruct(py: Python, recexpr: &RecExpr<PyLang>) -> PyObject {
     objs.pop().unwrap()
 }
 
-fn add_rec(egraph: &mut egg::EGraph<PyLang, PyAnalysis>, expr: &PyAny) -> egg::Id {
+// fn add_rec(egraph: &mut egg::EGraph<PyLang, PyAnalysis>, expr: &PyAny) -> egg::Id {
+fn add_rec(egraph: &mut egg::EGraph<PyLang, ()>, expr: &PyAny) -> egg::Id {
     if let Ok(Id(id)) = expr.extract() {
         // println!("Id: {}", id);
         egraph.find(id)
