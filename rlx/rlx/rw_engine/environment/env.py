@@ -242,8 +242,8 @@ class Env(gym.Env):
                     remove_list.append(use)
 
             # check
-            if len(remove_list) == len(
-                    set(remove_list)) and len(remove_list) != 1:
+            if len(remove_list) != len(
+                    set(remove_list)) and len(remove_list) > 1:
                 logger.warning(
                     f"same element in the remove list: {remove_list}")
                 for l in remove_list:

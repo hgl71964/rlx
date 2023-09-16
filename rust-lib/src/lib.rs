@@ -16,9 +16,10 @@ use pyo3::{
     types::{PyList, PyString, PyTuple, PyType, PyBytes, PyLong},
 };
 
+
 // to pickle
-use bincode::{deserialize, serialize};
-use serde::{Deserialize, Serialize};
+// use bincode::{deserialize, serialize};
+// use serde::{Deserialize, Serialize};
 
 
 
@@ -409,7 +410,7 @@ impl EGraph {
         iter_limit: usize,
         time_limit: f64,
         node_limit: usize,
-        use_backoff: bool
+        use_backoff: bool,
     ) -> PyResult<Vec<PyObject>> {
         let refs = rewrites
             .iter()
@@ -505,11 +506,23 @@ impl EGraph {
 
         ids.iter()
             .map(|&id| {
-                // greedy extraction
                 let (cost, recexpr) = extractor.find_best(id);
                 (cost, reconstruct(py, &recexpr))
             })
             .collect()
+    }
+
+    #[args(exprs = "*", timeout = "30.0")]
+    fn lp_extract(&mut self, py: Python, exprs: &PyTuple, timeout: f64) -> (usize, PyObject) {
+        self.egraph.rebuild();
+        let ids: Vec<egg::Id> = exprs.iter().map(|expr| self.add(expr).0).collect();
+        assert_eq!(ids.len(), 1);
+
+        let mut lp_extractor = LpExtractor::new(&self.egraph, MathCost);
+        lp_extractor.timeout(timeout);
+
+        let (recexpr, _) = lp_extractor.solve_multiple(&ids[..]);
+        (0, reconstruct(py, &recexpr))
     }
 
     #[args(exprs = "*")]
@@ -712,6 +725,37 @@ impl egg::CostFunction<PyLang> for MathCost {
         enode.fold(op_cost, |sum, id| sum + costs(id))
     }
 }
+
+impl egg::LpCostFunction<PyLang, ()> for MathCost {
+    fn node_cost(&mut self, _egraph: &egg::EGraph<PyLang, ()>, _eclass: egg::Id, enode: &PyLang) -> f64 {
+        let op_cost = match enode.name.as_str() {
+            // Math
+            "Diff" => 100,
+            "Integral" => 100,
+            "Add" => 2,
+            "Sub" => 2,
+            "Mul" => 4,
+            "Div" => 8,
+            "Pow" => 10,
+            // "Ln" => 1,
+            "Sqrt" => 10,
+            "Sin" => 5,
+            "Cos" => 5,
+            "int" => 1,
+
+            // Prop
+            "And" => 1,
+            "Not" => 1,
+            "Or" => 1,
+            "Implies" =>1,
+
+            _ => panic!("unknown op {}", enode.name),
+        };
+        op_cost as f64
+    }
+}
+
+
 
 #[pyfunction]
 fn print_id(expr: &PyAny) {
