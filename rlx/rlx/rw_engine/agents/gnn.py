@@ -1,5 +1,3 @@
-import time
-import datetime
 import numpy as np
 from typing import Union
 
@@ -74,24 +72,24 @@ class GATNetwork(nn.Module):
     """A Graph Attentional Network (GAT)
     https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html
     """
-    def __init__(self,
-                 num_node_features: int,
-                 num_edge_features: int,
-                 n_actions: int,
-                 n_layers: int,
-                 hidden_size: int,
-                 num_head: int,
-                 vgat: int,
-                 out_std: float = np.sqrt(2),
-                 dropout=0.0,
-                 use_edge_attr=True,
-                 add_self_loops=False,
-                 edge_dim=None):
+    def __init__(
+        self,
+        num_node_features: int,
+        num_edge_features: int,
+        n_actions: int,
+        n_layers: int,
+        hidden_size: int,
+        num_head: int,
+        vgat: int,
+        out_std: float = np.sqrt(2),
+        dropout=0.0,
+        use_edge_attr=True,
+        add_self_loops=False,
+    ):
         super().__init__()
         self.n_actions = n_actions
         self.use_edge_attr = use_edge_attr
         if use_edge_attr:
-            assert (edge_dim is not None), "use edge attr but edge_dim is None"
             self.edge_layer = MetaLayer(
                 EdgeModel(2 * num_node_features + num_edge_features,
                           num_edge_features), None, None)
@@ -99,17 +97,18 @@ class GATNetwork(nn.Module):
                 EdgeModel(2 * n_actions + num_edge_features, n_actions), None,
                 None)
 
-        self.gnn = GAT(in_channels=num_node_features,
-                       hidden_channels=hidden_size,
-                       out_channels=hidden_size,
-                       heads=num_head,
-                       num_layers=n_layers,
-                       add_self_loops=add_self_loops,
-                       dropout=dropout,
-                       norm=pyg.nn.GraphNorm(in_channels=hidden_size),
-                       act="leaky_relu",
-                       v2=True if vgat == 2 else False,
-                       edge_dim=(edge_dim if self.use_edge_attr else None))
+        self.gnn = GAT(
+            in_channels=num_node_features,
+            hidden_channels=hidden_size,
+            out_channels=hidden_size,
+            heads=num_head,
+            num_layers=n_layers,
+            add_self_loops=add_self_loops,
+            dropout=dropout,
+            norm=pyg.nn.GraphNorm(in_channels=hidden_size),
+            act="leaky_relu",
+            v2=True if vgat == 2 else False,
+            edge_dim=(num_edge_features if self.use_edge_attr else None))
 
         if dropout == 0.0:
             self.head = nn.Sequential(
@@ -163,38 +162,39 @@ class GATNetwork(nn.Module):
 
 
 class GATNetwork_with_global(nn.Module):
-    def __init__(self,
-                 num_node_features: int,
-                 num_edge_features: int,
-                 n_actions: int,
-                 n_layers: int,
-                 hidden_size: int,
-                 num_head: int,
-                 vgat: int,
-                 out_std: float = np.sqrt(2),
-                 dropout=0.0,
-                 use_edge_attr=True,
-                 add_self_loops=False,
-                 edge_dim=None):
+    def __init__(
+        self,
+        num_node_features: int,
+        num_edge_features: int,
+        n_actions: int,
+        n_layers: int,
+        hidden_size: int,
+        num_head: int,
+        vgat: int,
+        out_std: float = np.sqrt(2),
+        dropout=0.0,
+        use_edge_attr=True,
+        add_self_loops=False,
+    ):
         super().__init__()
         self.use_edge_attr = use_edge_attr
         if use_edge_attr:
-            assert (edge_dim is not None), "use edge attr but edge_dim is None"
             self.edge_layer = MetaLayer(
                 EdgeModel(2 * num_node_features + num_edge_features,
                           num_edge_features), None, None)
 
-        self.gnn = GAT(in_channels=num_node_features,
-                       hidden_channels=hidden_size,
-                       out_channels=hidden_size,
-                       heads=num_head,
-                       num_layers=n_layers,
-                       add_self_loops=add_self_loops,
-                       dropout=dropout,
-                       norm=pyg.nn.GraphNorm(in_channels=hidden_size),
-                       act="leaky_relu",
-                       v2=True if vgat == 2 else False,
-                       edge_dim=(edge_dim if self.use_edge_attr else None))
+        self.gnn = GAT(
+            in_channels=num_node_features,
+            hidden_channels=hidden_size,
+            out_channels=hidden_size,
+            heads=num_head,
+            num_layers=n_layers,
+            add_self_loops=add_self_loops,
+            dropout=dropout,
+            norm=pyg.nn.GraphNorm(in_channels=hidden_size),
+            act="leaky_relu",
+            v2=True if vgat == 2 else False,
+            edge_dim=(num_edge_features if self.use_edge_attr else None))
 
         if dropout == 0.0:
             self.head = nn.Sequential(

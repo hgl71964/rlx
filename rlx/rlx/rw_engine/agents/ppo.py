@@ -48,8 +48,8 @@ class PPO(nn.Module):
             vgat=vgat,
             dropout=(0.3 if use_dropout else 0.0),
             use_edge_attr=use_edge_attr,
-            edge_dim=n_edge_features,
-            out_std=1.)
+            out_std=1.,
+        )
 
         self.actor = GATNetwork_with_global(
             num_node_features=n_node_features,
@@ -63,7 +63,7 @@ class PPO(nn.Module):
             use_edge_attr=use_edge_attr,
             # make init action similar
             out_std=0.001,
-            edge_dim=n_edge_features)
+        )
 
     def get_value(self, x):
         vf, _ = self.critic(x)
@@ -212,8 +212,8 @@ def env_loop(envs, config):
 
             # TRY NOT TO MODIFY: execute the game and log data.
             # gh512
-            a = [int(i) for i in action.cpu()]
-            next_obs, reward, terminated, truncated, infos = envs.step(a)
+            next_obs, reward, terminated, truncated, infos = envs.step(
+                action.cpu().numpy())
             done = np.logical_or(terminated, truncated)
             rewards[step] = torch.tensor(reward).to(device).view(-1)
 

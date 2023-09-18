@@ -52,7 +52,7 @@ class Agent(nn.Module):
             vgat=vgat,
             dropout=(0.3 if use_dropout else 0.0),
             use_edge_attr=use_edge_attr,
-            edge_dim=n_edge_features)
+        )
 
         self.actor = GATNetwork_with_global(
             num_node_features=n_node_features,
@@ -66,7 +66,7 @@ class Agent(nn.Module):
             use_edge_attr=use_edge_attr,
             # make init action similar
             out_std=0.01,
-            edge_dim=n_edge_features)
+        )
 
     def get_value(self, x):
         vf, _ = self.critic(x)
@@ -74,7 +74,6 @@ class Agent(nn.Module):
 
     def get_action_and_value(self,
                              x: pyg.data.Batch,
-                             batch_pattern_map: list[list[MatchDict]],
                              invalid_rule_mask: torch.Tensor,
                              invalid_loc_mask: torch.Tensor,
                              action=None):
@@ -183,7 +182,6 @@ def env_loop(envs, config):
     # gh512
     # next_obs = torch.Tensor(envs.reset()).to(device)
     next_obs = pyg.data.Batch.from_data_list([i[0] for i in state]).to(device)
-    pattern_map = [i[1] for i in state]  # list[]
     next_done = torch.zeros(config.num_envs).to(device)
     invalid_rule_mask = torch.cat([i[2] for i in state]).reshape(
         (config.num_envs, -1)).to(device)
@@ -219,14 +217,12 @@ def env_loop(envs, config):
         # ==== rollouts ====
         # gh512, reset;
         obs = []  # list[pyg.Data]; reset each update
-        pattern_maps = []  # list[]; reset each update
         for step in range(0, config.num_steps):
             global_step += 1 * config.num_envs
             # gh512
             # obs[step] = next_obs
             obs.append(next_obs)
             dones[step] = next_done
-            pattern_maps.append(pattern_map)
 
             # print(invalid_rule_masks.shape)
             # print(invalid_rule_masks[step].shape)
@@ -238,7 +234,6 @@ def env_loop(envs, config):
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(
                     next_obs,
-                    batch_pattern_map=pattern_map,
                     invalid_rule_mask=invalid_rule_mask,
                     invalid_loc_mask=invalid_loc_mask)
                 values[step] = value.flatten()
@@ -256,7 +251,6 @@ def env_loop(envs, config):
             # next_obs, next_done = torch.Tensor(next_obs).to(
             #     device), torch.Tensor(done).to(device)
             next_done = torch.Tensor(done).to(device)
-            pattern_map = [i[1] for i in next_obs]  # list[]
             invalid_rule_mask = torch.cat([i[2] for i in next_obs]).reshape(
                 (config.num_envs, -1)).to(device)
             invalid_loc_mask = torch.cat([
@@ -291,7 +285,6 @@ def env_loop(envs, config):
             next_value = agent.get_value(next_obs).reshape(1, -1)
             # _, _, _, next_value = agent.get_action_and_value(
             #     next_obs,
-            #     batch_pattern_map=pattern_map,
             #     invalid_rule_mask=invalid_rule_mask,
             #     invalid_loc_mask=invalid_loc_mask)
             # next_value = next_value.reshape(1, -1)
@@ -334,11 +327,6 @@ def env_loop(envs, config):
             for per_step_per_env_graph in per_step_graphs:
                 b_obs.append(per_step_per_env_graph)
 
-        b_pattern_maps = []
-        for per_step_patter_maps in pattern_maps:
-            for per_step_per_env_pmap in per_step_patter_maps:
-                b_pattern_maps.append(per_step_per_env_pmap)
-
         # those buffers are in device
         b_logprobs = logprobs.reshape(-1)
         b_actions = actions.reshape((-1, ) + envs.single_action_space.shape)
@@ -375,7 +363,6 @@ def env_loop(envs, config):
                     # b_obs[mb_inds],
                     pyg.data.Batch.from_data_list([b_obs[i] for i in mb_inds]
                                                   ).to(device),
-                    batch_pattern_map=[b_pattern_maps[i] for i in mb_inds],
                     invalid_rule_mask=b_invalid_rule_masks[mb_inds],
                     invalid_loc_mask=b_invalid_loc_masks[mb_inds],
                     action=b_actions[mb_inds])
@@ -494,7 +481,6 @@ def inference(env, config):
     agent.to(device)
 
     next_obs = state[0].to(device)
-    pattern_map = state[1]
     invalid_rule_mask = state[2].reshape(1, -1).to(device)
     invalid_loc_mask = state[3].reshape(
         [config.num_envs] + env.action_space.nvec.tolist()).to(device)
@@ -507,7 +493,6 @@ def inference(env, config):
         with torch.no_grad():
             action, _, _, _ = agent.get_action_and_value(
                 next_obs,
-                batch_pattern_map=pattern_map,
                 invalid_rule_mask=invalid_rule_mask,
                 invalid_loc_mask=invalid_loc_mask)
 
@@ -516,7 +501,6 @@ def inference(env, config):
         a = [action[0], action[1]]
         next_obs, reward, terminated, truncated, _ = env.step(a)
         done = np.logical_or(terminated, truncated)
-        pattern_map = next_obs[1]
         invalid_rule_mask = next_obs[2].reshape(1, -1).to(device)
         invalid_loc_mask = next_obs[3].reshape(
             [config.num_envs] + env.action_space.nvec.tolist()).to(device)
