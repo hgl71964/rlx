@@ -330,7 +330,7 @@ class Env(gym.Env):
                 #         logger.critical(f"inp's use: {use.get_idx()} | {use._rlx_idx}, {use.get_type()}")
 
             if isinstance(obj, Edge):
-                dfs_rebuild(obj.trace)
+                dfs_rebuild(obj.get_trace())
                 obj._rlx_idx = edge_cnt
                 edge_cnt += 1
                 visited.add(obj)

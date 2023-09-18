@@ -12,7 +12,7 @@ from torch import Tensor
 import torch_geometric as pyg
 
 from rlx.frontend.registry import get_node_type
-from rlx.frontend.graph import Graph, Node, Edge
+from rlx.frontend.graph import Node, Edge
 from rlx.frontend.rewrite_rule import PATTERN_ID_MAP
 from rlx.rw_engine.parser import Parser
 from rlx.utils.common import get_logger
@@ -115,8 +115,7 @@ class Env(gym.Env):
                 if node._rlx_idx not in self.node_map:
                     self.node_map[node._rlx_idx] = node
 
-    def step(self, action: tuple[Tensor]):
-        assert len(action) == 2, f"{len(action)}??"
+    def step(self, action):
         rule_id, loc_id = action
         rule_id = int(rule_id)
         loc_id = int(loc_id)
@@ -128,13 +127,10 @@ class Env(gym.Env):
         if rule_id == self.n_rewrite_rules:
             terminated = True
         else:
-            matched = self.pattern_map[rule_id][loc_id]
+            matched_list = self.pattern_map[rule_id][loc_id]
             rw = self.rewrite_rules[rule_id]
-            ban = self._substitute(rw, matched)
+            self._substitute(rw, matched_list)
             self._build_mapping()
-            # check
-            nodes = [v for _, v in self.node_map.items()]
-            self._check_nodes(rw, matched, nodes, ban)
 
         reward = self._call_reward_func(False, terminated)
         if terminated:
@@ -146,152 +142,33 @@ class Env(gym.Env):
         self.cnt += 1
         return next_state, reward, terminated, truncated, info
 
-    def _substitute(self, rw, matched: MatchDict):
+    def _substitute(self, rw, matched_list: list[MatchDict]):
         """
-        The input and output to the subgraph must be there before/after the substitution
-            the input's uses may change
-            the output's trace may change
+        Apply substitution to all matched subgraph
         """
-        self._check_edges(rw, matched, False)
-        # self._detect_uses(rw, matched)
-        self._detect_circle()
-        ############################################
-        # apply graph transformation
-        ############################################
-        matched_mapping = {}  # pattern -> Node/Edge
-        old_subgraph_outputs = []
-        old_subgraph_inputs = []
-        old_subgraph_objs = set()
+        bans = set()
+        all_new_subgraph_outputs = []
+        for _, matched in enumerate(matched_list):
+            # if any matched items already in bans, skip
+            ok = True
+            for _, v in matched.items():
+                obj = None
+                if v[0] == 0:  # edge
+                    edge_rlx_idx = v[1]
+                    obj = self.edge_map[edge_rlx_idx]
+                elif v[0] == 1:  # node
+                    node_rlx_idx = v[1]
+                    obj = self.node_map[node_rlx_idx]
+                else:
+                    raise RuntimeError(f"{v[0]}")
 
-        # get actual mapping
-        for pattern_id, v in matched.items():
-            pat = PATTERN_ID_MAP[pattern_id]
-            obj = None
-            if v[0] == 0:  # edge
-                edge_rlx_idx = v[1]
-                obj = self.edge_map[edge_rlx_idx]
-                if len(pat.uses) == 0:
-                    old_subgraph_outputs.append(obj)
-                if pat.trace is None:
-                    old_subgraph_inputs.append(obj)
-            elif v[0] == 1:  # node
-                node_rlx_idx = v[1]
-                obj = self.node_map[node_rlx_idx]
-
-                # check
-                # for inp in obj.get_inputs():
-                #     print(f"me: {obj.get_idx()}|{node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
-                # print()
-
-            else:
-                raise RuntimeError(f"{v[0]}")
-            matched_mapping[pat] = obj
-            old_subgraph_objs.add(obj)
-
-        ban_objs = set()  # old_subgraph_objs except inputs
-        for obj in old_subgraph_objs:
-            if obj not in old_subgraph_inputs:
-                ban_objs.add(obj)
-
-        # get new subgraph from users;
-        new_subgraph_outputs = rw.target_pattern(matched_mapping)
-        assert isinstance(
-            new_subgraph_outputs,
-            list), f"expect list, got {type(new_subgraph_outputs)}"
-        assert len(old_subgraph_outputs) == len(
-            new_subgraph_outputs
-        ), f"subgraph outputs must be 1-to-1, but {len(old_subgraph_outputs)} != {len(new_subgraph_outputs)}"
-
-        # change inputs' uses
-        for old in old_subgraph_inputs:
-            remove_list = []
-            for use in old.get_uses():
-                if use in ban_objs:
-                    remove_list.append(use)
-
-            # check
-            if len(remove_list) != len(
-                    set(remove_list)) and len(remove_list) > 1:
-                logger.warning(
-                    f"same element in the remove list: {remove_list}")
-
-            # if multiple-uses, it will appear multiple times in the remove_list
-            # so will remove all
-            for use in remove_list:
-                use.get_inputs().remove(old)
-                old.get_uses().remove(use)
-
-        # change outputs' uses
-        output_maps = {}
-        for old, new in zip(old_subgraph_outputs, new_subgraph_outputs):
-            output_maps[old] = new
-
-        for old, new in zip(old_subgraph_outputs, new_subgraph_outputs):
-            old_uses = old.get_uses()
-
-            for use in old_uses:
-                # print(f"uses: {use.get_idx()}|{use._rlx_idx}")
-                for inp_idx, inp in enumerate(use.get_inputs()):
-                    if inp in output_maps:
-                        # use.inputs[inp_idx] = output_maps[inp]  # for now
-                        use.get_inputs()[inp_idx] = output_maps[inp]
-
-            # sanity check
-            for use in old_uses:
-                for inp_idx, inp in enumerate(use.get_inputs()):
-                    assert inp not in output_maps, f"{inp} in {output_maps}"
-                    assert inp not in ban_objs, f"{inp} in {ban_objs}"
-
-            # set new uses
-            new_use = new.get_uses()
-            new.set_uses(new_use + old_uses)
-
-            # clear old news
-            old.set_uses([])
-
-            # sanity check
-            for use in new.get_uses():
-                for inp_idx, inp in enumerate(use.get_inputs()):
-                    assert inp not in output_maps, f"{inp} in {output_maps}"
-                    assert inp not in ban_objs, f"{inp} in {ban_objs}"
-
-        # more check
-        for _, n in self.node_map.items():
-            error = False
-            for inp in n.get_inputs():
-                if inp in old_subgraph_outputs:  # it should be unreachable from node's input
-                    logger.error(f"{inp.get_idx()} | {n.get_idx()} | ")
-                    error = True
-
-            if error:
-                for inp in n.get_inputs():
-                    logger.critical(f"n: {inp.get_idx()}")
-
-                    for o in inp.get_uses():
-                        logger.critical(f"o: {o.get_idx()}")
-
-                logger.critical(f"new: {new.get_idx()}")
-                for o in new.get_uses():
-                    logger.critical(f"new out: {o.get_idx()}")
-                if new.get_trace() is not None:
-                    logger.critical(f"new trace: {new.get_trace().get_idx()}")
-
-        # more check
-        # for _, v in matched.items():
-        #     if v[0] == 0:  # edge
-        #         pass
-        #     elif v[0] == 1:  # node
-        #         node_rlx_idx = v[1]
-        #         obj = self.node_map[node_rlx_idx]
-
-        #         for inp in obj.get_inputs():
-        #             # TODO inp should only be internal edges
-        #             print(f"me after: {node_rlx_idx}; {inp.get_idx()}|{inp._rlx_idx}", end='; ')
-        #             assert inp in ban_objs, "inp should only be ban objs"
-        #         print()
-
-        # self._detect_uses(rw, matched, ban_objs)
-        self._detect_ban(rw, matched, ban_objs)
+                assert obj is not None, f"obj is None"
+                if obj in bans:
+                    ok = False
+                    break
+            if ok:
+                new_subgraph_outputs = self._substitute_one(rw, matched, bans)
+                all_new_subgraph_outputs.extend(new_subgraph_outputs)
         ############################################
         ## rebuild continuous index and self.edges##
         ############################################
@@ -320,51 +197,124 @@ class Env(gym.Env):
                 node_cnt += 1
                 visited.add(obj)
 
-                # if obj.get_idx() == 1194:
-                #     n = obj
-                #     logger.critical(
-                #         f"Catch Node: {n.get_idx()} | {n._rlx_idx}, {n.get_type()}"
-                #     )
-                #     logger.critical(f"inp: {inp.get_idx()} | {inp._rlx_idx}, {inp.get_type()}")
-                #     for use in inp.get_uses():
-                #         logger.critical(f"inp's use: {use.get_idx()} | {use._rlx_idx}, {use.get_type()}")
-
             if isinstance(obj, Edge):
-                dfs_rebuild(obj.trace)
+                dfs_rebuild(obj.get_trace())
                 obj._rlx_idx = edge_cnt
                 edge_cnt += 1
                 visited.add(obj)
                 self.edges.append(obj)
 
         for out in self.output_edge:
-            # output_edge is (almost) up-to-update,
-            # unless the substituted graph has new outputs
-            # this dfs should cover ALMOST all nodes and edges
-            if out not in ban_objs:
+            if out not in bans:
                 dfs_rebuild(out)
 
-        for out in new_subgraph_outputs:
-            # in case the new graph has new outputs
+        for out in all_new_subgraph_outputs:
             dfs_rebuild(out)
 
-        # logger.warning(f"{node_cnt} nodes | {edge_cnt} edges")
+    def _substitute_one(self, rw, matched: MatchDict, bans: set) -> list[Edge]:
         self._check_edges(rw, matched, False)
+        self._detect_circle()
+        ############################################
+        # apply graph transformation
+        ############################################
+        matched_mapping = {}  # pattern -> Node/Edge
+        old_subgraph_outputs = []
+        old_subgraph_inputs = []
+        old_subgraph_objs = set()
 
-        # check
-        # for e in self.edges:
-        #     if e in ban_objs:
-        #         print(e.get_idx())
-        #         raise
-        #     if e.get_idx() == 1195:
-        #         print(e.get_idx())
-        #         logger.critical(
-        #             f"Catch Node: {n.get_idx()} | {n._rlx_idx}, {n.get_type()}"
-        #         )
-        #         logger.critical(f"inp: {inp.get_idx()} | {inp._rlx_idx}, {inp.get_type()}")
-        #         for use in inp.get_uses():
-        #             logger.critical(f"inp's use: {use.get_idx()} | {use._rlx_idx}, {use.get_type()}")
+        # get actual mapping
+        for pattern_id, v in matched.items():
+            pat = PATTERN_ID_MAP[pattern_id]
+            obj = None
+            if v[0] == 0:  # edge
+                edge_rlx_idx = v[1]
+                obj = self.edge_map[edge_rlx_idx]
+                if len(pat.uses) == 0:
+                    old_subgraph_outputs.append(obj)
+                if pat.trace is None:
+                    old_subgraph_inputs.append(obj)
+            elif v[0] == 1:  # node
+                node_rlx_idx = v[1]
+                obj = self.node_map[node_rlx_idx]
+            else:
+                raise RuntimeError(f"{v[0]}")
+            matched_mapping[pat] = obj
+            old_subgraph_objs.add(obj)
 
-        return ban_objs
+        ban_objs = set()  # old_subgraph_objs except inputs
+        for obj in old_subgraph_objs:
+            if obj not in old_subgraph_inputs:
+                ban_objs.add(obj)
+                bans.add(obj)
+
+        # get new subgraph from users
+        new_subgraph_outputs = rw.target_pattern(matched_mapping)
+        assert isinstance(
+            new_subgraph_outputs,
+            list), f"expect list, got {type(new_subgraph_outputs)}"
+        assert len(old_subgraph_outputs) == len(
+            new_subgraph_outputs
+        ), f"subgraph outputs must be 1-to-1, but {len(old_subgraph_outputs)} != {len(new_subgraph_outputs)}"
+
+        # change inputs' uses
+        for old in old_subgraph_inputs:
+            remove_list = []
+            for use in old.get_uses():
+                if use in ban_objs:
+                    remove_list.append(use)
+
+            # if multiple-uses, it will appear multiple times in the remove_list
+            # so will remove all
+            for use in remove_list:
+                use.get_inputs().remove(old)
+                old.get_uses().remove(use)
+
+        # change outputs' uses
+        output_maps = {}
+        for old, new in zip(old_subgraph_outputs, new_subgraph_outputs):
+            output_maps[old] = new
+
+        for old, new in zip(old_subgraph_outputs, new_subgraph_outputs):
+            old_uses = old.get_uses()
+
+            for use in old_uses:
+                # print(f"uses: {use.get_idx()}|{use._rlx_idx}")
+                for inp_idx, inp in enumerate(use.get_inputs()):
+                    if inp in output_maps:
+                        # use.inputs[inp_idx] = output_maps[inp]  # for now
+                        use.get_inputs()[inp_idx] = output_maps[inp]
+
+            # set new uses
+            new_use = new.get_uses()
+            new.set_uses(new_use + old_uses)
+
+            # clear old news
+            old.set_uses([])
+
+        # more check
+        for _, n in self.node_map.items():
+            error = False
+            for inp in n.get_inputs():
+                if inp in old_subgraph_outputs:  # it should be unreachable from node's input
+                    logger.error(f"{inp.get_idx()} | {n.get_idx()} | ")
+                    error = True
+
+            if error:
+                for inp in n.get_inputs():
+                    logger.critical(f"n: {inp.get_idx()}")
+
+                    for o in inp.get_uses():
+                        logger.critical(f"o: {o.get_idx()}")
+
+                logger.critical(f"new: {new.get_idx()}")
+                for o in new.get_uses():
+                    logger.critical(f"new out: {o.get_idx()}")
+                if new.get_trace() is not None:
+                    logger.critical(f"new trace: {new.get_trace().get_idx()}")
+
+        self._detect_ban(rw, matched, ban_objs)
+        self._check_edges(rw, matched, False)
+        return new_subgraph_outputs
 
     def _build_state(self):
         # get MatchDict
@@ -414,7 +364,7 @@ class Env(gym.Env):
         edge_index = torch.tensor(edge_index,
                                   dtype=torch.long).t().contiguous()
 
-        if n_edge != 0:  # n_edge == 0, if only one node graph
+        if n_edge != 0:  # n_edge == 0 => one node graph
             assert edge_index.shape[
                 1] == n_edge, f"{edge_index.shape[1]} != {n_edge}"
 
@@ -694,43 +644,6 @@ class Env(gym.Env):
             print("iter: ", self.cnt)
             print(e)
             raise RuntimeError()
-
-    # def _detect_uses(self, rw, matched, ban=None):
-    #     try:
-    #         for edge in self.edges:
-    #             n = len(edge.get_uses())
-    #             if n == 0:
-    #                 # if not sink
-    #                 if edge not in self.output_edge:
-    #                     # ok if edge is in the old graph, which is substituted
-    #                     if ban is not None and edge in ban:
-    #                         continue
-
-    #                     logger.critical(
-    #                         f"neither sink or ban? {n}, {edge.get_idx()} | {edge._rlx_idx}"
-    #                     )
-    #                     raise Exception
-
-    #             # e.g. r23 introduces multi-uses
-    #             # if n > 1:
-    #             #     logger.critical(f"error: more than 1 uses {n}, {edge.idx}")
-    #             #     raise Exception
-
-    #     except Exception as e:
-    #         print("EEEEEEEEEEE")
-    #         self.parser.viz(self.edges, f"graph_multi_edge{self.cnt}", False)
-    #         print(rw.name)
-    #         for pattern_id, v in matched.items():
-    #             if v[0] == 0:
-    #                 # edge
-    #                 print("e: ", v[1])
-    #             elif v[0] == 1:
-    #                 # node
-    #                 print("n: ", v[1])
-
-    #         print("iter: ", self.cnt)
-    #         print(e)
-    #         raise
 
     def _call_reward_func(self, init: bool, terminated: bool) -> float:
         g = rlx_Graph([v for _, v in self.node_map.items()],

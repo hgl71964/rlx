@@ -43,7 +43,7 @@ flags.DEFINE_integer("seed", 3407, "")
 flags.DEFINE_integer("ver", 0, "verbose")
 flags.DEFINE_string("plot", None, "path to plot the initial graph")
 # env
-flags.DEFINE_string("env_id", "env-v0", "")
+flags.DEFINE_string("env_id", "env_multi-v0", "")
 flags.DEFINE_integer("a", 0, "whether to AsyncEnv?")
 flags.DEFINE_integer("total_timesteps", int(1e6), "1e6 = 1 million")
 flags.DEFINE_integer("num_envs", 4, "")

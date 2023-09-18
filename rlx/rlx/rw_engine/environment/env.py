@@ -7,12 +7,12 @@ from rlx.utils.common import get_logger
 logger = get_logger(__name__)
 
 register(
-    id="env-v0",
+    id="env_multi-v0",
     entry_point="rlx.rw_engine.environment.env_multi:Env",
 )
 
 register(
-    id="env-v1",
+    id="env_single-v0",
     entry_point="rlx.rw_engine.environment.env_single:Env",
 )
 
