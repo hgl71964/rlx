@@ -70,7 +70,7 @@ class Env(gym.Env):
             node_space=Box(low=-1, high=1, shape=(self.n_node_feat, )),
             edge_space=Box(low=-1, high=1, shape=(self.n_edge_feat, )),
         )
-        # 1st -> which rule to apply; 2nd -> which location to apply
+        # 1st -> which rule to apply; 2nd -> no meaning
         self.action_space = MultiDiscrete([self.n_rewrite_rules + 1, max_loc])
         self.max_loc = max_loc
 
@@ -116,9 +116,7 @@ class Env(gym.Env):
                     self.node_map[node._rlx_idx] = node
 
     def step(self, action):
-        rule_id, loc_id = action
-        rule_id = int(rule_id)
-        loc_id = int(loc_id)
+        rule_id = action
 
         truncated = False  # done by env wrapper
         terminated = False
@@ -127,7 +125,7 @@ class Env(gym.Env):
         if rule_id == self.n_rewrite_rules:
             terminated = True
         else:
-            matched_list = self.pattern_map[rule_id][loc_id]
+            matched_list = self.pattern_map[rule_id]
             rw = self.rewrite_rules[rule_id]
             self._substitute(rw, matched_list)
             self._build_mapping()

@@ -5,7 +5,6 @@ from typing import Union
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 from torch.distributions.categorical import Categorical
 
 import torch_geometric as pyg

@@ -78,9 +78,6 @@ flags.DEFINE_integer("use_dropout", 0, "")
 flags.DEFINE_integer("use_edge_attr", 1, "")
 flags.DEFINE_integer("vgat", 2, "version of gat")
 
-## for score-based ppo
-flags.DEFINE_integer("out_node_features", 16, "output node features")
-
 # logger
 logger = get_logger(__name__)
 # yapf: enable

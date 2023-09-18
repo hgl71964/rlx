@@ -5,6 +5,9 @@ from rlx.rw_engine.environment.env import make_env
 from rlx.rw_engine.agents.multi_output_ppo import env_loop as multi_output_ppo
 from rlx.rw_engine.agents.multi_output_ppo import inference as multi_output_ppo_inference
 
+from rlx.rw_engine.agents.ppo import env_loop as ppo_env_loop
+from rlx.rw_engine.agents.ppo import inference as ppo_inference
+
 import gymnasium as gym
 
 
@@ -32,6 +35,8 @@ class RewriteEngine:
         # ===== dispatch to agent training loop =====
         if self.config.agent == "multi_output_ppo":
             multi_output_ppo_inference(env, self.config)
+        elif self.config.agent == "ppo":
+            ppo_inference(env, self.config)
         else:
             raise RuntimeError(f"fail to dispatch {self.config.agent}")
 
@@ -71,5 +76,7 @@ class RewriteEngine:
         # ===== dispatch to agent training loop =====
         if self.config.agent == "multi_output_ppo":
             multi_output_ppo(envs, self.config)
+        elif self.config.agent == "ppo":
+            ppo_env_loop(envs, self.config)
         else:
             raise RuntimeError(f"fail to dispatch {self.config.agent}")
