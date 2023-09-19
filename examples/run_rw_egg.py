@@ -72,10 +72,10 @@ flags.DEFINE_float("target_kl", None, "")
 
 # GNN
 flags.DEFINE_integer("num_head", 8, "num of heads in GAT")
-flags.DEFINE_integer("n_layers", 5, "")
+flags.DEFINE_integer("n_layers", 3, "num of GAT layers")
 flags.DEFINE_integer("hidden_size", 128, "")
 flags.DEFINE_integer("use_dropout", 0, "")
-flags.DEFINE_integer("use_edge_attr", 1, "")
+flags.DEFINE_integer("use_edge_attr", 1, "whether to use edge attr")
 flags.DEFINE_integer("vgat", 2, "version of gat")
 
 # logger

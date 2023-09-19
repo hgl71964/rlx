@@ -6,6 +6,7 @@ import torch.nn as nn
 from torch.distributions.categorical import Categorical
 
 import torch_geometric as pyg
+from torch_geometric.utils import scatter
 from torch_geometric.nn import MetaLayer
 from torch_geometric.nn.models.basic_gnn import GAT
 
@@ -49,15 +50,16 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 
 
 ##############################
-############ GNNs ############
+########## MetaLayer #########
 ##############################
+# see: torch_geometric/nn/models/meta.py
 class EdgeModel(torch.nn.Module):
-    def __init__(self, hidden_size, out):
+    def __init__(self, in_size, hidden_size, out_size):
         super().__init__()
         self.head = nn.Sequential(
-            nn.Linear(hidden_size, 2 * hidden_size),
+            nn.Linear(in_size, hidden_size),
             nn.LeakyReLU(),
-            nn.Linear(2 * hidden_size, out),
+            nn.Linear(hidden_size, out_size),
         )
 
     def forward(self, src, dest, edge_attr, u, batch):
@@ -68,6 +70,66 @@ class EdgeModel(torch.nn.Module):
         return self.head(torch.cat([src, dest, edge_attr], dim=1))
 
 
+class NodeModel(torch.nn.Module):
+    def __init__(self, num_node_features, num_edge_features, final_out_size):
+        super().__init__()
+        in_size = num_node_features + num_edge_features
+        hidden_size = in_size * 2
+        out_size = hidden_size // 2
+        self.node_mlp_1 = nn.Sequential(
+            nn.Linear(in_size, hidden_size),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_size, out_size),
+        )
+
+        in_size = out_size + num_node_features
+        hidden_size = in_size * 2
+        self.node_mlp_2 = nn.Sequential(
+            nn.Linear(in_size, hidden_size),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_size, final_out_size),
+        )
+
+    def forward(self, x, edge_index, edge_attr, u, batch):
+        # x: [N, F_x], where N is the number of nodes.
+        # edge_index: [2, E] with max entry N - 1.
+        # edge_attr: [E, F_e]
+        # u: [B, F_u]
+        # batch: [N] with max entry B - 1.
+        row, col = edge_index
+        out = torch.cat([x[row], edge_attr], dim=1)
+        out = self.node_mlp_1(out)
+        out = scatter(out, col, dim=0, dim_size=x.size(0), reduce='mean')
+        # out = torch.cat([x, out, u[batch]], dim=1)
+        out = torch.cat([x, out], dim=1)
+        return self.node_mlp_2(out)
+
+
+class GlobalModel(torch.nn.Module):
+    def __init__(self, hidden_size, out):
+        super().__init__()
+        self.global_mlp = nn.Sequential(
+            nn.Linear(hidden_size, 2 * hidden_size),
+            nn.LeakyReLU(),
+            nn.Linear(2 * hidden_size, out),
+        )
+
+    def forward(self, x, edge_index, edge_attr, u, batch):
+        # x: [N, F_x], where N is the number of nodes.
+        # edge_index: [2, E] with max entry N - 1.
+        # edge_attr: [E, F_e]
+        # u: [B, F_u]
+        # batch: [N] with max entry B - 1.
+        out = torch.cat([
+            u,
+            scatter(x, batch, dim=0, reduce='mean'),
+        ], dim=1)
+        return self.global_mlp(out)
+
+
+##############################
+############ GNNs ############
+##############################
 class GATNetwork(nn.Module):
     """A Graph Attentional Network (GAT)
     https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html
@@ -87,17 +149,25 @@ class GATNetwork(nn.Module):
         add_self_loops=False,
     ):
         super().__init__()
+        assert use_edge_attr
         self.n_actions = n_actions
         self.use_edge_attr = use_edge_attr
         if use_edge_attr:
-            self.edge_layer = MetaLayer(
-                EdgeModel(2 * num_node_features + num_edge_features,
-                          num_edge_features), None, None)
-            self.edge_layer2 = MetaLayer(
-                EdgeModel(2 * n_actions + num_edge_features, n_actions), None,
-                None)
+            in_size = 2 * num_node_features + num_edge_features
+            self.edge_and_node_layer = MetaLayer(
+                EdgeModel(in_size, 2 * in_size, num_edge_features),
+                NodeModel(num_node_features, num_edge_features,
+                          num_node_features),
+                None,
+            )
+            in_size = 2 * hidden_size + num_edge_features
+            self.edge_and_node_layer_2 = MetaLayer(
+                EdgeModel(in_size, 2 * in_size, num_edge_features),
+                NodeModel(hidden_size, num_edge_features, hidden_size),
+                None,
+            )
 
-        self.gnn = GAT(
+        self.gat = GAT(
             in_channels=num_node_features,
             hidden_channels=hidden_size,
             out_channels=hidden_size,
@@ -133,31 +203,41 @@ class GATNetwork(nn.Module):
         )
 
     def forward(self, data: Union[pyg.data.Data, pyg.data.Batch]):
-        # 1. update edges if possible
+        # 1. update edges and nodes
         edge_index = data.edge_index
         if self.use_edge_attr:
-            x, edge_attr, _ = self.edge_layer(data.x, data.edge_index,
-                                              data.edge_attr, None, None)
+            x, edge_attr, _ = self.edge_and_node_layer(
+                data.x,
+                edge_index,
+                data.edge_attr,
+                None,
+                None,
+            )
         else:
             x = data.x
             edge_attr = None
 
         # 2. update nodes
-        x = self.gnn(
+        x = self.gat(
             x=x,
             edge_index=edge_index,
             edge_attr=edge_attr,
         )
+        # 3. update edges and nodes
+        if self.use_edge_attr:
+            x, edge_attr, _ = self.edge_and_node_layer_2(
+                x,
+                edge_index,
+                edge_attr,
+                None,
+                None,
+            )
+        # 4. final layer
         # print("[GATNetwork] ", x.shape)
         x = self.head(x)
         # ff will weight nodes differently
         x = self.ff(x)
         # print("[GATNetwork] ", x.shape)
-
-        # 3. update edge in the end
-        if self.use_edge_attr:
-            x, edge_attr, _ = self.edge_layer2(x, edge_index, edge_attr, None,
-                                               None)
         return x, edge_attr
 
 
@@ -177,13 +257,24 @@ class GATNetwork_with_global(nn.Module):
         add_self_loops=False,
     ):
         super().__init__()
+        assert use_edge_attr
         self.use_edge_attr = use_edge_attr
         if use_edge_attr:
-            self.edge_layer = MetaLayer(
-                EdgeModel(2 * num_node_features + num_edge_features,
-                          num_edge_features), None, None)
+            in_size = 2 * num_node_features + num_edge_features
+            self.edge_and_node_layer = MetaLayer(
+                EdgeModel(in_size, 2 * in_size, num_edge_features),
+                NodeModel(num_node_features, num_edge_features,
+                          num_node_features),
+                None,
+            )
+            in_size = 2 * hidden_size + num_edge_features
+            self.edge_and_node_layer_2 = MetaLayer(
+                EdgeModel(in_size, 2 * in_size, num_edge_features),
+                NodeModel(hidden_size, num_edge_features, hidden_size),
+                None,
+            )
 
-        self.gnn = GAT(
+        self.gat = GAT(
             in_channels=num_node_features,
             hidden_channels=hidden_size,
             out_channels=hidden_size,
@@ -212,24 +303,41 @@ class GATNetwork_with_global(nn.Module):
                 layer_init(nn.Linear(2 * hidden_size, n_actions), std=out_std))
 
     def forward(self, data: Union[pyg.data.Data, pyg.data.Batch]):
-        # 1. update edges if possible
+        # 1. update edges and nodes
         edge_index = data.edge_index
         if self.use_edge_attr:
-            x, edge_attr, _ = self.edge_layer(data.x, data.edge_index,
-                                              data.edge_attr, None, None)
+            x, edge_attr, _ = self.edge_and_node_layer(
+                data.x,
+                edge_index,
+                data.edge_attr,
+                None,
+                None,
+            )
         else:
             x = data.x
             edge_attr = None
 
         # 2. update nodes
-        x = self.gnn(
+        x = self.gat(
             x=x,
             edge_index=edge_index,
             edge_attr=edge_attr,
         )
+        # 3. pooling
         # print("[GNN global] ", x.shape)
-        x = pyg.nn.global_add_pool(x=x, batch=data.batch)
+        if self.use_edge_attr:
+            x, edge_attr, _ = self.edge_and_node_layer_2(
+                x,
+                edge_index,
+                edge_attr,
+                None,
+                None,
+            )
+        # x = pyg.nn.global_add_pool(x=x, batch=data.batch)
+        x = pyg.nn.global_mean_pool(x=x, batch=data.batch)
         # print("[GNN global] ", x.shape)
+
+        # 4. fial output
         x = self.head(x)
         # print("[GNN global] ", x.shape)
         return x, edge_attr

@@ -1,11 +1,11 @@
 import os
 import time
 import datetime
-from typing import Union, Dict
+from typing import Dict
 import numpy as np
 
 from rlx.utils.common import get_logger
-from rlx.rw_engine.agents.gnn import GATNetwork, GATNetwork_with_global, CategoricalMasked
+from rlx.rw_engine.agents.gnn import GATNetwork, GATNetwork_with_global, CategoricalMasked, layer_init
 
 import torch
 import torch.nn as nn
@@ -20,7 +20,7 @@ MatchDict = Dict[int, tuple[int, int]]  # pattern_id -> bool, edge_id/node_id
 logger = get_logger(__name__)
 
 
-class MultiOutputPPO(nn.Module):
+class MultiOutputGraphGlobalPPO(nn.Module):
     def __init__(self,
                  nvec,
                  n_node_features: int,
@@ -54,18 +54,27 @@ class MultiOutputPPO(nn.Module):
             use_edge_attr=use_edge_attr,
         )
 
-        self.actor = GATNetwork_with_global(
+        self.hidden = GATNetwork(
             num_node_features=n_node_features,
             num_edge_features=n_edge_features,
-            n_actions=sum(self.nvec),
+            n_actions=hidden_size,
             n_layers=n_layers,
             hidden_size=hidden_size,
             num_head=num_head,
             vgat=vgat,
             dropout=(0.3 if use_dropout else 0.0),
             use_edge_attr=use_edge_attr,
-            # make init action similar
-            out_std=0.01,
+        )
+
+        self.actor1 = nn.Sequential(
+            nn.Linear(hidden_size, 2 * self.nvec[0]),
+            nn.Tanh(),
+            layer_init(nn.Linear(2 * self.nvec[0], self.nvec[0]), std=0.001),
+        )
+        self.actor2 = nn.Sequential(
+            nn.Linear(hidden_size, 2 * self.nvec[1]),
+            nn.Tanh(),
+            layer_init(nn.Linear(2 * self.nvec[1], self.nvec[1]), std=0.001),
         )
 
     def get_value(self, x):
@@ -77,15 +86,16 @@ class MultiOutputPPO(nn.Module):
                              invalid_rule_mask: torch.Tensor,
                              invalid_loc_mask: torch.Tensor,
                              action=None):
-        logits, _ = self.actor(x)
+        hidden, _ = self.hidden(x)
         vf, _ = self.critic(x)
         # logger.warning(f"{logits.shape}, {vf.shape}")
         # logger.warning(f"{invalid_rule_mask.shape}, {invalid_loc_mask.shape}")
         # for l in split_logits:
         #     logger.warning(f"l: {l.shape}")
 
-        split_logits = torch.split(logits, self.nvec, dim=1)
-        c1 = CategoricalMasked(logits=split_logits[0],
+        logits_1 = self.actor1(hidden)
+
+        c1 = CategoricalMasked(logits=logits_1,
                                mask=invalid_rule_mask,
                                device=self.device)
         if action is None:
@@ -96,6 +106,8 @@ class MultiOutputPPO(nn.Module):
             loc_mask = invalid_loc_mask[
                 torch.arange(invalid_loc_mask.shape[0]), a1]
             # print("loc_mask", loc_mask.shape)
+
+            # TODO get logits_2 from actor2
 
             c2 = CategoricalMasked(logits=split_logits[1],
                                    mask=loc_mask,
@@ -141,7 +153,7 @@ def env_loop(envs, config):
         logger.info(f"[ENV_LOOP]save path: {save_path}")
 
     # ===== agent =====
-    agent = MultiOutputPPO(
+    agent = MultiOutputGraphGlobalPPO(
         nvec=envs.single_action_space.nvec,
         n_node_features=envs.single_observation_space.node_space.shape[0],
         n_edge_features=envs.single_observation_space.edge_space.shape[0],
@@ -466,7 +478,7 @@ def inference(env, config):
     agent_id = config.agent_id if config.agent_id is not None else "agent-final"
     fn = os.path.join(f"{config.default_out_path}/runs/", config.weights_path,
                       f"{agent_id}.pt")
-    agent = MultiOutputPPO(
+    agent = MultiOutputGraphGlobalPPO(
         nvec=env.action_space.nvec,
         n_node_features=env.observation_space.node_space.shape[0],
         n_edge_features=env.observation_space.edge_space.shape[0],
