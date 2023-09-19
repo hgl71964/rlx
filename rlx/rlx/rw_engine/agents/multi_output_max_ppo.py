@@ -1,4 +1,3 @@
-import os
 import time
 import datetime
 from typing import Union, Dict
@@ -20,9 +19,10 @@ MatchDict = Dict[int, tuple[int, int]]  # pattern_id -> bool, edge_id/node_id
 logger = get_logger(__name__)
 
 
-class MultiOutputPPO(nn.Module):
+class MaxPPO(nn.Module):
     def __init__(self,
-                 nvec,
+                 actor_n_action: int,
+                 critic_n_action: int,
                  n_node_features: int,
                  n_edge_features: int,
                  num_head: int,
@@ -33,19 +33,19 @@ class MultiOutputPPO(nn.Module):
                  use_edge_attr=True,
                  device=torch.device("cpu")):
         super().__init__()
-        logger.info(f"nvec: {nvec}")
-        logger.info(f"actor_n_action: {nvec}")
-        logger.info(f"critic_n_action: 1")
+        logger.info("[MaxPPO] init::")
+        logger.info(f"actor_n_action: {actor_n_action}")
+        logger.info(f"critic_n_action: {critic_n_action}")
         logger.info(f"use_edge_attr: {use_edge_attr}")
         logger.info(f"use_dropout: {use_dropout}")
         assert vgat == 1 or vgat == 2, f"vgat must be 1 or 2, got {vgat}"
-        self.nvec = nvec.tolist()  # list[int]
+        self.actor_n_action = actor_n_action
         self.device = device
-
-        self.critic = GATNetwork_with_global(
+        # node-level decision
+        self.critic = GATNetwork(
             num_node_features=n_node_features,
             num_edge_features=n_edge_features,
-            n_actions=1,
+            n_actions=critic_n_action,  # the ouput node features
             n_layers=n_layers,
             hidden_size=hidden_size,
             num_head=num_head,
@@ -54,10 +54,11 @@ class MultiOutputPPO(nn.Module):
             use_edge_attr=use_edge_attr,
         )
 
+        # graph-level decision (map to which rule to use)
         self.actor = GATNetwork_with_global(
             num_node_features=n_node_features,
             num_edge_features=n_edge_features,
-            n_actions=sum(self.nvec),
+            n_actions=actor_n_action,
             n_layers=n_layers,
             hidden_size=hidden_size,
             num_head=num_head,
@@ -68,61 +69,133 @@ class MultiOutputPPO(nn.Module):
             out_std=0.001,
         )
 
-    def get_value(self, x):
-        vf, _ = self.critic(x)
-        return vf
-
     def get_action_and_value(self,
                              x: pyg.data.Batch,
+                             batch_pattern_map: list[list[MatchDict]],
                              invalid_rule_mask: torch.Tensor,
-                             invalid_loc_mask: torch.Tensor,
                              action=None):
+        # shape: (num_of_graph_in_the_batch, actor_n_action)
         logits, _ = self.actor(x)
-        vf, _ = self.critic(x)
-        # logger.warning(f"{logits.shape}, {vf.shape}")
-        # logger.warning(f"{invalid_rule_mask.shape}, {invalid_loc_mask.shape}")
-        # for l in split_logits:
-        #     logger.warning(f"l: {l.shape}")
+        node_vf, edge_vf = self.critic(x)
+        # print(logits.shape)
+        # print(probs.sample().shape)  # shape: (num_of_graph_in_the_batch, )
+        # print(node_vf.shape)
 
-        split_logits = torch.split(logits, self.nvec, dim=1)
-        c1 = CategoricalMasked(logits=split_logits[0],
-                               mask=invalid_rule_mask,
-                               device=self.device)
-        if action is None:
-            # inference
-            a1 = c1.sample()
-
-            # shape: [batch_size, max_loc]
-            loc_mask = invalid_loc_mask[
-                torch.arange(invalid_loc_mask.shape[0]), a1]
-            # print("loc_mask", loc_mask.shape)
-
-            c2 = CategoricalMasked(logits=split_logits[1],
-                                   mask=loc_mask,
-                                   device=self.device)
-            a2 = c2.sample()
-            action = torch.stack([a1, a2], dim=0)  # transpose later
-            #print(a1, a2)
-            #print(action)
+        if invalid_rule_mask is not None:
+            probs = CategoricalMasked(logits=logits,
+                                      mask=invalid_rule_mask,
+                                      device=self.device)
         else:
-            # training
-            loc_mask = invalid_loc_mask[
-                torch.arange(invalid_loc_mask.shape[0]), action[:, 0]]
-            c2 = CategoricalMasked(logits=split_logits[1],
-                                   mask=loc_mask,
-                                   device=self.device)
-            action = action.T
+            probs = Categorical(logits=logits)
 
-        log_prob = torch.stack(
-            [c.log_prob(a) for a, c in zip(action, [c1, c2])])
-        # print([c.log_prob(a) for a, c in zip(action, [c1, c2])])
-        # print(log_prob)
+        # inference
+        if action is None:
+            sampled_actor_action = probs.sample()
+            actor_action = [int(a) for a in sampled_actor_action.cpu()]
+            n_actor_action = len(actor_action)
+            assert n_actor_action == x.num_graphs, f"{n_actor_action} | {x.num_graphs}"
 
-        entropy = torch.stack([c.entropy() for c in [c1, c2]])
-        return action.T, log_prob.sum(0), entropy.sum(0), vf
+            # use pattern_map to find out the highest scored region per graph
+            output_action = []
+            output_vf = []
+            for idx, a in enumerate(actor_action):
+                assert a < self.actor_n_action, f"{a} | {self.actor_n_action}"
+                if a == self.actor_n_action - 1:
+                    # No-Op
+                    tmp_a = (a, -1)
+                    # TODO how to compute value in this case?
+                    best_score = 0.
+                else:
+                    # pmaps: list[MatchDict]; a is rule id;
+                    pmaps = batch_pattern_map[idx][a]
+                    best_loc = -1
+                    best_score = -float("inf")
+                    for loc_id, pmap in enumerate(pmaps):
+                        # pmap: MatchDict
+                        loc_score = 0.
+                        for _, v in pmap.items():
+                            if v[0] == 0:
+                                # edge FIXME rlx edge index != graph edge index, env returns rlx_to_ ... to resolve graph edge idx
+                                edge_id = v[1]
+                                loc_score += edge_vf[edge_id].cpu()
+                            elif v[0] == 1:
+                                # node
+                                node_id = v[1]
+                                loc_score += node_vf[node_id].cpu()
+                            else:
+                                raise RuntimeError(f"type error {v[0]}")
+
+                        loc_score = float(loc_score.mean())
+                        if best_score < loc_score:
+                            best_score = loc_score
+                            best_loc = loc_id
+
+                    assert (best_loc != -1), f"{invalid_rule_mask}"
+                    tmp_a = (a, best_loc)
+
+                output_action.append(tmp_a)
+                output_vf.append(best_score)
+
+            output_action = torch.tensor(output_action,
+                                         dtype=torch.long).to(self.device)
+            output_vf = torch.tensor(output_vf,
+                                     dtype=torch.float32).to(self.device)
+            return (
+                output_action,
+                probs.log_prob(sampled_actor_action),
+                None,
+                output_vf,
+            )
+
+        # training
+        else:
+            bs = action.shape[0]
+            b_pattern_map = len(batch_pattern_map)
+            assert bs == x.num_graphs == b_pattern_map, f"{action.shape} != {x.num_graphs} | {b_pattern_map}"
+
+            # compute node_vf TODO some masking mechanism should be added?
+            output_vf = []
+            for idx in range(bs):
+                rule_id, loc_id = action[idx]
+                rule_id, loc_id = int(rule_id), int(loc_id)
+                best_score = 0.
+                if rule_id == self.actor_n_action - 1:
+                    # No-Op TODO how to compute value in this case?
+                    pass
+                else:
+                    pmap = batch_pattern_map[idx][rule_id][loc_id]
+                    for _, v in pmap.items():
+                        if v[0] == 0:
+                            # edge
+                            edge_id = v[1]
+                            best_score += edge_vf[edge_id].cpu()
+                        elif v[0] == 1:
+                            # node
+                            node_id = v[1]
+                            best_score += node_vf[node_id].cpu()
+                        else:
+                            raise RuntimeError(f"type error {v[0]}")
+
+                    best_score = float(best_score.mean())
+
+                output_vf.append(best_score)
+
+            output_vf = torch.tensor(output_vf,
+                                     dtype=torch.float32).to(self.device)
+            return (
+                None,
+                probs.log_prob(action[:, 0]),
+                probs.entropy(),
+                output_vf,
+            )
 
 
+# https://github.com/vwxyzjn/cleanrl
 def env_loop(envs, config):
+    """
+    The env_loop is coupled with specific algorithm (e.g. PPO <=> on-policy),
+        so each agent should implement their env_loop
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # ===== env =====
     state, _ = envs.reset(seed=config.seed)
@@ -141,8 +214,11 @@ def env_loop(envs, config):
         logger.info(f"[ENV_LOOP]save path: {save_path}")
 
     # ===== agent =====
-    agent = MultiOutputPPO(
-        nvec=envs.single_action_space.nvec,
+    agent = MaxPPO(
+        # the last action is No-Op as terminate (n_rewrite_rule+1)
+        actor_n_action=envs.single_action_space.nvec[0],
+        # output node hidden size
+        critic_n_action=config.hidden_size,
         n_node_features=envs.single_observation_space.node_space.shape[0],
         n_edge_features=envs.single_observation_space.edge_space.shape[0],
         num_head=config.num_head,
@@ -170,11 +246,6 @@ def env_loop(envs, config):
     invalid_rule_masks = torch.zeros(
         (config.num_steps, config.num_envs, envs.single_action_space.nvec[0]),
         dtype=torch.long).to(device)
-    invalid_loc_masks = torch.zeros(([
-        config.num_steps,
-        config.num_envs,
-    ] + envs.single_action_space.nvec.tolist()),
-                                    dtype=torch.long).to(device)
 
     # TRY NOT TO MODIFY: start the game
     global_step = 0
@@ -182,13 +253,10 @@ def env_loop(envs, config):
     # gh512
     # next_obs = torch.Tensor(envs.reset()).to(device)
     next_obs = pyg.data.Batch.from_data_list([i[0] for i in state]).to(device)
+    pattern_map = [i[1] for i in state]  # list[]
     next_done = torch.zeros(config.num_envs).to(device)
     invalid_rule_mask = torch.cat([i[2] for i in state]).reshape(
         (config.num_envs, -1)).to(device)
-    invalid_loc_mask = torch.cat([
-        i[3] for i in state
-    ]).reshape([config.num_envs] +
-               envs.single_action_space.nvec.tolist()).to(device)
 
     # batch size
     batch_size = int(config.num_envs * config.num_steps)
@@ -217,25 +285,26 @@ def env_loop(envs, config):
         # ==== rollouts ====
         # gh512, reset;
         obs = []  # list[pyg.Data]; reset each update
+        pattern_maps = []  # list[]; reset each update
         for step in range(0, config.num_steps):
             global_step += 1 * config.num_envs
             # gh512
             # obs[step] = next_obs
             obs.append(next_obs)
             dones[step] = next_done
+            pattern_maps.append(pattern_map)
 
             # print(invalid_rule_masks.shape)
             # print(invalid_rule_masks[step].shape)
             # print(invalid_rule_mask.shape)
             invalid_rule_masks[step] = invalid_rule_mask
-            invalid_loc_masks[step] = invalid_loc_mask
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(
                     next_obs,
-                    invalid_rule_mask=invalid_rule_mask,
-                    invalid_loc_mask=invalid_loc_mask)
+                    batch_pattern_map=pattern_map,
+                    invalid_rule_mask=invalid_rule_mask)
                 values[step] = value.flatten()
             actions[step] = action
             logprobs[step] = logprob
@@ -251,13 +320,9 @@ def env_loop(envs, config):
             # next_obs, next_done = torch.Tensor(next_obs).to(
             #     device), torch.Tensor(done).to(device)
             next_done = torch.Tensor(done).to(device)
+            pattern_map = [i[1] for i in next_obs]  # list[]
             invalid_rule_mask = torch.cat([i[2] for i in next_obs]).reshape(
                 (config.num_envs, -1)).to(device)
-            invalid_loc_mask = torch.cat([
-                i[3] for i in next_obs
-            ]).reshape([config.num_envs] +
-                       envs.single_action_space.nvec.tolist()).to(device)
-
             next_obs = pyg.data.Batch.from_data_list([i[0] for i in next_obs
                                                       ]).to(device)
 
@@ -282,12 +347,12 @@ def env_loop(envs, config):
         # bootstrap value if not done
         # print(f"[gae] {update}", end="\t")
         with torch.no_grad():
-            next_value = agent.get_value(next_obs).reshape(1, -1)
-            # _, _, _, next_value = agent.get_action_and_value(
-            #     next_obs,
-            #     invalid_rule_mask=invalid_rule_mask,
-            #     invalid_loc_mask=invalid_loc_mask)
-            # next_value = next_value.reshape(1, -1)
+            # next_value = agent.get_value(next_obs).reshape(1, -1)
+            _, _, _, next_value = agent.get_action_and_value(
+                next_obs,
+                batch_pattern_map=pattern_map,
+                invalid_rule_mask=invalid_rule_mask)
+            next_value = next_value.reshape(1, -1)
             if gae:
                 advantages = torch.zeros_like(rewards).to(device)
                 lastgaelam = 0
@@ -327,6 +392,11 @@ def env_loop(envs, config):
             for per_step_per_env_graph in per_step_graphs:
                 b_obs.append(per_step_per_env_graph)
 
+        b_pattern_maps = []
+        for per_step_patter_maps in pattern_maps:
+            for per_step_per_env_pmap in per_step_patter_maps:
+                b_pattern_maps.append(per_step_per_env_pmap)
+
         # those buffers are in device
         b_logprobs = logprobs.reshape(-1)
         b_actions = actions.reshape((-1, ) + envs.single_action_space.shape)
@@ -335,9 +405,6 @@ def env_loop(envs, config):
         b_values = values.reshape(-1)
         b_invalid_rule_masks = invalid_rule_masks.reshape(
             config.num_steps * config.num_envs, -1)
-        b_invalid_loc_masks = invalid_loc_masks.reshape(
-            [config.num_steps * config.num_envs] +
-            envs.single_action_space.nvec.tolist())
 
         # Optimizing the policy and value network
         b_inds = np.arange(batch_size)
@@ -363,9 +430,9 @@ def env_loop(envs, config):
                     # b_obs[mb_inds],
                     pyg.data.Batch.from_data_list([b_obs[i] for i in mb_inds]
                                                   ).to(device),
+                    batch_pattern_map=[b_pattern_maps[i] for i in mb_inds],
                     invalid_rule_mask=b_invalid_rule_masks[mb_inds],
-                    invalid_loc_mask=b_invalid_loc_masks[mb_inds],
-                    action=b_actions[mb_inds])
+                    action=b_actions.long()[mb_inds])
 
                 logratio = newlogprob - b_logprobs[mb_inds]
                 ratio = logratio.exp()
@@ -445,14 +512,13 @@ def env_loop(envs, config):
             writer.add_scalar("charts/SPS", t, global_step)
 
         if log and update % save_freq == 0:
-            torch.save(agent.state_dict(),
-                       f"{save_path}/agent-{global_step}.pt")
+            torch.save(agent.state_dict(), f"{save_path}/agent-{global_step}")
 
     # ===== STOP =====
     envs.close()
     if log:
         # save
-        torch.save(agent.state_dict(), f"{save_path}/agent-final.pt")
+        torch.save(agent.state_dict(), f"{save_path}/agent-final")
         writer.close()
 
 
@@ -463,28 +529,26 @@ def inference(env, config):
 
     # ===== agent =====
     assert config.weights_path is not None, "weights_path must be set"
-    agent_id = config.agent_id if config.agent_id is not None else "agent-final"
-    fn = os.path.join(f"{config.default_out_path}/runs/", config.weights_path,
-                      f"{agent_id}.pt")
-    agent = MultiOutputPPO(
-        nvec=env.action_space.nvec,
-        n_node_features=env.observation_space.node_space.shape[0],
-        n_edge_features=env.observation_space.edge_space.shape[0],
+    agent = MaxPPO(
+        # the last action is No-Op as terminate (n_rewrite_rule+1)
+        actor_n_action=env.single_action_space.nvec[0],
+        # output node hidden size
+        critic_n_action=config.hidden_size,
+        n_node_features=env.single_observation_space.node_space.shape[0],
+        n_edge_features=env.single_observation_space.edge_space.shape[0],
         num_head=config.num_head,
         n_layers=config.n_layers,
         hidden_size=config.hidden_size,
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
         use_edge_attr=bool(config.use_edge_attr),
-        device=device)
-    agent_state_dict = torch.load(fn, map_location=device)
-    agent.load_state_dict(agent_state_dict)
-    agent.to(device)
+        device=device).to(device)
+    optimizer = optim.Adam(agent.parameters(), lr=config.lr, eps=1e-5)
 
-    next_obs = state[0].to(device)
-    invalid_rule_mask = state[2].reshape(1, -1).to(device)
-    invalid_loc_mask = state[3].reshape(
-        [config.num_envs] + env.action_space.nvec.tolist()).to(device)
+    next_obs = pyg.data.Batch.from_data_list([i[0] for i in state]).to(device)
+    pattern_map = [i[1] for i in state]  # list[]
+    invalid_rule_mask = torch.cat([i[2] for i in state]).reshape(
+        (-1, )).to(device)
 
     # ==== rollouts ====
     cnt = 0
@@ -494,20 +558,19 @@ def inference(env, config):
         with torch.no_grad():
             action, _, _, _ = agent.get_action_and_value(
                 next_obs,
-                invalid_rule_mask=invalid_rule_mask,
-                invalid_loc_mask=invalid_loc_mask)
+                batch_pattern_map=pattern_map,
+                invalid_rule_mask=invalid_rule_mask)
 
         # TRY NOT TO MODIFY: execute the game and log data.
-        action = action[0].cpu()
-        a = [action[0], action[1]]
-        next_obs, reward, terminated, truncated, _ = env.step(a)
+        a = [tuple(i) for i in action.cpu()]
+        next_obs, reward, terminated, truncated, info = env.step(a)
         done = np.logical_or(terminated, truncated)
-        invalid_rule_mask = next_obs[2].reshape(1, -1).to(device)
-        invalid_loc_mask = next_obs[3].reshape(
-            [config.num_envs] + env.action_space.nvec.tolist()).to(device)
-        next_obs = next_obs[0].to(device)
+
+        pattern_map = [i[1] for i in next_obs]  # list[]
+        invalid_rule_mask = torch.cat([i[2] for i in next_obs]).reshape(
+            (-1, )).to(device)
+        next_obs = pyg.data.Batch.from_data_list([i[0] for i in next_obs
+                                                  ]).to(device)
 
         logger.info(f"iter {cnt}; reward: {reward}")
-
-    print(terminated, truncated)
-    #print(info)
+        print(info)
