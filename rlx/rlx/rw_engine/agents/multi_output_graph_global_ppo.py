@@ -5,7 +5,7 @@ from typing import Dict
 import numpy as np
 
 from rlx.utils.common import get_logger
-from rlx.rw_engine.agents.gnn import GATNetwork, GATNetwork_with_global, CategoricalMasked, layer_init
+from rlx.rw_engine.agents.gnn import GATNetwork, GATNetwork_with_global, CategoricalMasked, layer_init, GlobalLayer, PoolingLayer
 
 import torch
 import torch.nn as nn
@@ -54,7 +54,7 @@ class MultiOutputGraphGlobalPPO(nn.Module):
             use_edge_attr=use_edge_attr,
         )
 
-        self.hidden = GATNetwork(
+        self.gnn = GATNetwork(
             num_node_features=n_node_features,
             num_edge_features=n_edge_features,
             n_actions=hidden_size,
@@ -65,16 +65,15 @@ class MultiOutputGraphGlobalPPO(nn.Module):
             dropout=(0.3 if use_dropout else 0.0),
             use_edge_attr=use_edge_attr,
         )
-
-        self.actor1 = nn.Sequential(
-            nn.Linear(hidden_size, 2 * self.nvec[0]),
-            nn.Tanh(),
-            layer_init(nn.Linear(2 * self.nvec[0], self.nvec[0]), std=0.001),
+        self.actor1 = PoolingLayer(
+            hidden_size,
+            self.nvec[0],
+            out_std=0.001,
         )
-        self.actor2 = nn.Sequential(
-            nn.Linear(hidden_size, 2 * self.nvec[1]),
-            nn.Tanh(),
-            layer_init(nn.Linear(2 * self.nvec[1], self.nvec[1]), std=0.001),
+        self.actor2 = GlobalLayer(
+            hidden_size,
+            self.nvec[1],
+            out_std=0.001,
         )
 
     def get_value(self, x):
@@ -86,15 +85,14 @@ class MultiOutputGraphGlobalPPO(nn.Module):
                              invalid_rule_mask: torch.Tensor,
                              invalid_loc_mask: torch.Tensor,
                              action=None):
-        hidden, _ = self.hidden(x)
+        hidden, _ = self.gnn(x)
         vf, _ = self.critic(x)
-        # logger.warning(f"{logits.shape}, {vf.shape}")
-        # logger.warning(f"{invalid_rule_mask.shape}, {invalid_loc_mask.shape}")
-        # for l in split_logits:
-        #     logger.warning(f"l: {l.shape}")
 
-        logits_1 = self.actor1(hidden)
+        num_graphs = x.num_graphs
+        batch = x.batch
+        # print(f"numGraph: {num_graphs}")
 
+        logits_1 = self.actor1(hidden, batch)
         c1 = CategoricalMasked(logits=logits_1,
                                mask=invalid_rule_mask,
                                device=self.device)
@@ -107,20 +105,36 @@ class MultiOutputGraphGlobalPPO(nn.Module):
                 torch.arange(invalid_loc_mask.shape[0]), a1]
             # print("loc_mask", loc_mask.shape)
 
-            # TODO get logits_2 from actor2
-
-            c2 = CategoricalMasked(logits=split_logits[1],
+            # a1 is used as graph global features
+            logits_2 = self.actor2(
+                hidden,
+                x.edge_index,
+                None,
+                a1.reshape(num_graphs, 1),
+                batch,
+            )
+            c2 = CategoricalMasked(logits=logits_2,
                                    mask=loc_mask,
                                    device=self.device)
             a2 = c2.sample()
+            # print(a1.shape, a2.shape, logits_2.shape)
             action = torch.stack([a1, a2], dim=0)  # transpose later
             #print(a1, a2)
             #print(action)
         else:
             # training
+            a1 = action[:, 0]
             loc_mask = invalid_loc_mask[
-                torch.arange(invalid_loc_mask.shape[0]), action[:, 0]]
-            c2 = CategoricalMasked(logits=split_logits[1],
+                torch.arange(invalid_loc_mask.shape[0]), a1]
+
+            logits_2 = self.actor2(
+                hidden,
+                x.edge_index,
+                None,
+                a1.reshape(num_graphs, 1),
+                batch,
+            )
+            c2 = CategoricalMasked(logits=logits_2,
                                    mask=loc_mask,
                                    device=self.device)
             action = action.T

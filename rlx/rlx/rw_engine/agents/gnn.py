@@ -106,12 +106,12 @@ class NodeModel(torch.nn.Module):
 
 
 class GlobalModel(torch.nn.Module):
-    def __init__(self, hidden_size, out):
+    def __init__(self, in_size, hidden_size, out_size):
         super().__init__()
         self.global_mlp = nn.Sequential(
-            nn.Linear(hidden_size, 2 * hidden_size),
+            nn.Linear(in_size, hidden_size),
             nn.LeakyReLU(),
-            nn.Linear(2 * hidden_size, out),
+            nn.Linear(hidden_size, out_size),
         )
 
     def forward(self, x, edge_index, edge_attr, u, batch):
@@ -120,6 +120,9 @@ class GlobalModel(torch.nn.Module):
         # edge_attr: [E, F_e]
         # u: [B, F_u]
         # batch: [N] with max entry B - 1.
+        # print(u.shape)
+        # print(x.shape)
+        # print(scatter(x, batch, dim=0, reduce='mean').shape)
         out = torch.cat([
             u,
             scatter(x, batch, dim=0, reduce='mean'),
@@ -150,7 +153,6 @@ class GATNetwork(nn.Module):
     ):
         super().__init__()
         assert use_edge_attr
-        self.n_actions = n_actions
         self.use_edge_attr = use_edge_attr
         if use_edge_attr:
             in_size = 2 * num_node_features + num_edge_features
@@ -197,9 +199,9 @@ class GATNetwork(nn.Module):
 
         # a final layer to transform node features
         self.ff = nn.Sequential(
-            nn.Linear(hidden_size, self.n_actions),
+            nn.Linear(hidden_size, n_actions),
             nn.Tanh(),
-            layer_init(nn.Linear(self.n_actions, self.n_actions), std=out_std),
+            layer_init(nn.Linear(n_actions, n_actions), std=out_std),
         )
 
     def forward(self, data: Union[pyg.data.Data, pyg.data.Batch]):
@@ -341,3 +343,42 @@ class GATNetwork_with_global(nn.Module):
         x = self.head(x)
         # print("[GNN global] ", x.shape)
         return x, edge_attr
+
+
+class PoolingLayer(nn.Module):
+    def __init__(
+        self,
+        hidden_size,
+        out_size,
+        out_std,
+    ):
+        super().__init__()
+        self.head = nn.Sequential(
+            nn.Linear(hidden_size, 2 * hidden_size), nn.Tanh(),
+            layer_init(nn.Linear(2 * hidden_size, out_size), std=out_std))
+
+    def forward(self, x, batch):
+        out = pyg.nn.global_mean_pool(x=x, batch=batch)
+        return self.head(out)
+
+
+class GlobalLayer(nn.Module):
+    def __init__(
+        self,
+        hidden_size,
+        out_size,
+        out_std,
+    ):
+        super().__init__()
+        self.global_layer = MetaLayer(
+            None,
+            None,
+            GlobalModel(1 + hidden_size, hidden_size * 2, hidden_size),
+        )
+        self.head = nn.Sequential(
+            nn.Linear(hidden_size, 2 * hidden_size), nn.Tanh(),
+            layer_init(nn.Linear(2 * hidden_size, out_size), std=out_std))
+
+    def forward(self, x, edge_index, edge_attr, u, batch):
+        x, edge_attr, u = self.global_layer(x, edge_index, edge_attr, u, batch)
+        return self.head(u)
