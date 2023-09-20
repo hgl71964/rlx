@@ -63,7 +63,8 @@ class Env(gym.Env):
         ##############################
         # 1. edge type one-hot encoding
         # 2. each rewrite rule one-hot encoding
-        self.n_edge_feat = 2 + self.n_rewrite_rules
+        # 3. edge position embedding, e.g. we want to distinguish a+b=>b+a
+        self.n_edge_feat = 2 + self.n_rewrite_rules + 1
 
         # gym spaces
         self.observation_space = GraphObsSpace(
@@ -438,10 +439,10 @@ class Env(gym.Env):
             n_loc = len(pmaps)
             if n_loc == 0:
                 rule_mask[rule_id] = 0
-            if n_loc > self.max_loc:
-                logger.critical(
-                    f"ruleID: {rule_id}, n_loc: {n_loc} > max loc: {self.max_loc}"
-                )
+            # if n_loc > self.max_loc:
+            #     logger.critical(
+            #         f"ruleID: {rule_id}, n_loc: {n_loc} > max loc: {self.max_loc}"
+            #     )
             loc_mask[rule_id, :n_loc] = 1
             logger.debug(f"++rule ID: {rule_id};; n_match: {n_loc}++")
             # +++fill mask+++
@@ -457,6 +458,13 @@ class Env(gym.Env):
                         node_feat[idx, node_rule_start + rule_id] = 1.
                     else:
                         raise RuntimeError(f"type error {v[0]}")
+
+        # 3. edge position embedding
+        for _, n in self.node_map.items():
+            for i, e in enumerate(n.get_inputs()):
+                for embed_eid in rlx_idx_to_graph_edge_idx[e._rlx_idx]:
+                    edge_feat[embed_eid, -1] = i
+
         # sort
         edge_index, edge_feat = pyg.utils.sort_edge_index(
             edge_index, edge_feat)

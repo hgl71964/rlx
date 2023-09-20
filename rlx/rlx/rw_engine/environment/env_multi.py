@@ -63,7 +63,8 @@ class Env(gym.Env):
         ##############################
         # 1. edge type one-hot encoding
         # 2. each rewrite rule one-hot encoding
-        self.n_edge_feat = 2 + self.n_rewrite_rules
+        # 3. edge position embedding, e.g. we want to distinguish a+b=>b+a
+        self.n_edge_feat = 2 + self.n_rewrite_rules + 1
 
         # gym spaces
         self.observation_space = GraphObsSpace(
@@ -509,6 +510,13 @@ class Env(gym.Env):
                         node_feat[idx, node_rule_start + rule_id] = 1.
                     else:
                         raise RuntimeError(f"type error {v[0]}")
+
+        # 3. edge position embedding
+        for _, n in self.node_map.items():
+            for i, e in enumerate(n.get_inputs()):
+                for embed_eid in rlx_idx_to_graph_edge_idx[e._rlx_idx]:
+                    edge_feat[embed_eid, -1] = i
+
         # sort
         edge_index, edge_feat = pyg.utils.sort_edge_index(
             edge_index, edge_feat)
