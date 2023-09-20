@@ -114,6 +114,8 @@ def main(_):
     egraph = new_egraph(expr)
     base_cost, _ = egraph.extract(expr)
     print("[EGG] base cost:", base_cost)
+    num_op = cnt_op(expr)
+    print(f"[EGG] num of base ops: {num_op}")
     step_info, best_expr = solve_without_step(expr, lang, egraph, FLAGS)
 
     print("=" * 40)

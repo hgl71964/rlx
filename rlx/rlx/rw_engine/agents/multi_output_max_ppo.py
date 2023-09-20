@@ -30,13 +30,11 @@ class MaxPPO(nn.Module):
                  hidden_size: int,
                  vgat: int,
                  use_dropout=False,
-                 use_edge_attr=True,
                  device=torch.device("cpu")):
         super().__init__()
         logger.info("[MaxPPO] init::")
         logger.info(f"actor_n_action: {actor_n_action}")
         logger.info(f"critic_n_action: {critic_n_action}")
-        logger.info(f"use_edge_attr: {use_edge_attr}")
         logger.info(f"use_dropout: {use_dropout}")
         assert vgat == 1 or vgat == 2, f"vgat must be 1 or 2, got {vgat}"
         self.actor_n_action = actor_n_action
@@ -51,7 +49,6 @@ class MaxPPO(nn.Module):
             num_head=num_head,
             vgat=vgat,
             dropout=(0.3 if use_dropout else 0.0),
-            use_edge_attr=use_edge_attr,
         )
 
         # graph-level decision (map to which rule to use)
@@ -64,7 +61,6 @@ class MaxPPO(nn.Module):
             num_head=num_head,
             vgat=vgat,
             dropout=(0.3 if use_dropout else 0.0),
-            use_edge_attr=use_edge_attr,
             # make init action similar
             out_std=0.001,
         )
@@ -233,7 +229,6 @@ def env_loop(envs, config):
         hidden_size=config.hidden_size,
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
-        use_edge_attr=bool(config.use_edge_attr),
         device=device).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=config.lr, eps=1e-5)
 
@@ -565,7 +560,6 @@ def inference(env, config):
         hidden_size=config.hidden_size,
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
-        use_edge_attr=bool(config.use_edge_attr),
         device=device).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=config.lr, eps=1e-5)
 

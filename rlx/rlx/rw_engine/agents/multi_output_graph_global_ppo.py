@@ -30,13 +30,11 @@ class MultiOutputGraphGlobalPPO(nn.Module):
                  hidden_size: int,
                  vgat: int,
                  use_dropout=False,
-                 use_edge_attr=True,
                  device=torch.device("cpu")):
         super().__init__()
         logger.info(f"nvec: {nvec}")
         logger.info(f"actor_n_action: {nvec}")
         logger.info(f"critic_n_action: 1")
-        logger.info(f"use_edge_attr: {use_edge_attr}")
         logger.info(f"use_dropout: {use_dropout}")
         assert vgat == 1 or vgat == 2, f"vgat must be 1 or 2, got {vgat}"
         self.nvec = nvec.tolist()  # list[int]
@@ -51,7 +49,6 @@ class MultiOutputGraphGlobalPPO(nn.Module):
             num_head=num_head,
             vgat=vgat,
             dropout=(0.3 if use_dropout else 0.0),
-            use_edge_attr=use_edge_attr,
         )
 
         self.gnn = GATNetwork(
@@ -63,7 +60,6 @@ class MultiOutputGraphGlobalPPO(nn.Module):
             num_head=num_head,
             vgat=vgat,
             dropout=(0.3 if use_dropout else 0.0),
-            use_edge_attr=use_edge_attr,
         )
         self.actor1 = PoolingLayer(
             hidden_size,
@@ -176,7 +172,6 @@ def env_loop(envs, config):
         hidden_size=config.hidden_size,
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
-        use_edge_attr=bool(config.use_edge_attr),
         device=device).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=config.lr, eps=1e-5)
 
@@ -501,7 +496,6 @@ def inference(env, config):
         hidden_size=config.hidden_size,
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
-        use_edge_attr=bool(config.use_edge_attr),
         device=device)
     agent_state_dict = torch.load(fn, map_location=device)
     agent.load_state_dict(agent_state_dict)

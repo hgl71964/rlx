@@ -13,6 +13,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string("lang", "MATH", "")
 flags.DEFINE_integer("depth_lim", 5, "depth limit of expression tree")
 flags.DEFINE_integer("l", 0, "whether to log")
+flags.DEFINE_integer("save_len", 400, "length to save")
 
 flags.DEFINE_integer("seed", 42, "")
 flags.DEFINE_string("default_out_path", "data", "output dir")
@@ -47,7 +48,7 @@ def main(_):
 
     # save is OK
     l = bool(FLAGS.l)
-    if l and cnt > 400:
+    if l and cnt > FLAGS.save_len:
         save_expr(expr, tmp_file)
         print(f"Save {FLAGS.seed} OK")
 

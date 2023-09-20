@@ -31,7 +31,7 @@ FLAGS = flags.FLAGS
 # yapf: disable
 # extern
 flags.DEFINE_integer("depth_lim", 2, "expression depth limit")
-flags.DEFINE_string("lang", "MATH", "")
+flags.DEFINE_string("lang", "math", "")
 flags.DEFINE_string("fn", None, "file name of the pre-generated expr")
 flags.DEFINE_string("default_out_path", "data", "output dir")
 # flags.DEFINE_integer("load", 1, "whether to load from pre-generated expr?")
@@ -75,7 +75,6 @@ flags.DEFINE_integer("num_head", 8, "num of heads in GAT")
 flags.DEFINE_integer("n_layers", 3, "num of GAT layers")
 flags.DEFINE_integer("hidden_size", 128, "hidden_size of GNN")
 flags.DEFINE_integer("use_dropout", 0, "")
-flags.DEFINE_integer("use_edge_attr", 1, "whether to use edge attr")
 flags.DEFINE_integer("vgat", 2, "version of gat")
 
 # logger
@@ -105,12 +104,12 @@ def main(_):
     logger.info("=" * 40)
 
     # register
-    if FLAGS.lang == "MATH" or FLAGS.lang == "math":
+    if FLAGS.lang == "math":
         define_types = define_math_node_type
         define_rewrite_rules = math_rewrite_rules
         conversion = rlxGraph2math
         callback_reward_function = math_reward
-    elif FLAGS.lang == "PROP" or FLAGS.lang == "prop":
+    elif FLAGS.lang == "prop":
         define_types = define_prop_node_type
         define_rewrite_rules = prop_rewrite_rules
         conversion = rlxGraph2Prop
@@ -122,7 +121,7 @@ def main(_):
     rewrite_rules = define_rewrite_rules(node_types)
     my_expr_graph = expr_graph(expr, node_types)
 
-    # for plot
+    # for plot initial expr
     if FLAGS.plot is not None:
         parser = Parser(my_expr_graph)
         parser.viz(parser.edges,
