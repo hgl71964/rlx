@@ -38,10 +38,6 @@ from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
 # logger
 logger = get_logger(__name__)
 
-# NOTE: storage cannot be deepcopy neither its attributes
-STORAGE_CACHE = {}
-_storage_id = 0
-
 
 def verify_graph(g1, g2):
     assert isinstance(g1, hidet.FlowGraph), f"g1 is {type(g1)}"
@@ -296,11 +292,7 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
                                   edge_type=edge_type,
                                   trace=trace)
             else:
-                global _storage_id
-                STORAGE_CACHE[_storage_id] = obj.storage
-                storage_id = _storage_id
-                _storage_id += 1
-
+                storage_id = add_storage(obj.storage)
                 tensor = DFG_Edge(cnt,
                                   attr=(
                                       obj.shape,
@@ -365,7 +357,8 @@ def convert_to_hidet_graph(edges: list[Edge]):
                     layout=obj.attr[3],
                     trace=None,
                     storage=None
-                    if obj.attr[4] is None else STORAGE_CACHE[obj.attr[4]],
+                    # if obj.attr[4] is None else STORAGE_CACHE[obj.attr[4]],
+                    if obj.attr[4] is None else get_storage(obj.attr[4]),
                 )
                 built[obj] = tensor
                 return tensor

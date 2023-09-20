@@ -43,6 +43,34 @@ from hidet.graph.ops.definitions.reduce.reduce import ReduceSumOp, ReduceMeanOp
 # logger
 logger = get_logger(__name__)
 
+_hidet_id = 10000
+
+
+def get_id():
+    global _hidet_id
+    local = _hidet_id
+    _hidet_id += 1
+    return local
+
+
+# NOTE: storage cannot be deepcopy neither its attributes
+STORAGE_CACHE = {}
+_storage_id = 0
+
+
+def get_storage(idx):
+    assert idx in STORAGE_CACHE, f"{idx} not in storage cache"
+    return STORAGE_CACHE[idx]
+
+
+def add_storage(storage):
+    global _storage_id
+    local = _storage_id
+    STORAGE_CACHE[local] = storage
+    _storage_id += 1
+    return local
+
+
 OP_MAP = {
     # arithmeticOp
     AddOp: "add",
@@ -167,6 +195,11 @@ class DFG_Op(Node):
     def get_outputs(self):
         return self.outputs
 
+    def out(self, idx=-1, attr=None, edge_type=None):
+        o = expr_edge(idx, attr=attr, edge_type=edge_type, trace=self)
+        self.outputs.append(o)
+        return o
+
 
 class DataflowGraph(Graph):
     def __init__(self, nodes, edges):
@@ -221,42 +254,61 @@ class tr2(RewriteRule):
 class ar1(RewriteRule):
     def __init__(self, node_types):
         self.name = "a + x => x + a"
-        self.a, self.ta = const_pattern()
-        self.x, self.tx = symbol_pattern()
+        self.a = const_pattern()
+        self.x = symbol_pattern()
         self.node_types = node_types
 
     def source_pattern(self):
         add = node_pattern(self.node_types["add"], [self.a, self.x], 1)
         return [add]
 
-    def target_pattern(self):
-        out = node_pattern(self.node_types["add"], [self.tx, self.ta], 1)
+    def target_pattern(self, matched):
+        a, x = [matched[pat] for pat in [self.a, self.x]]
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[x, a],
+        ).out(get_id())
         return [out]
 
 
 class ar2(RewriteRule):
     def __init__(self, node_types):
         self.name = "x - a => x + (-a)"
-        self.a, self.ta = const_pattern()
-        self.x, self.tx = symbol_pattern()
+        self.a = const_pattern()
+        self.x = symbol_pattern()
         self.node_types = node_types
 
     def source_pattern(self):
         sub = node_pattern(self.node_types["sub"], [self.x, self.a], 1)
         return [sub]
 
-    def target_pattern(self):
-        neg = node_pattern(self.node_types["neg"], [self.ta], 1)
-        add = node_pattern(self.node_types["add"], [self.tx, neg], 1)
-        return [add]
+    def target_pattern(self, matched):
+        # neg = node_pattern(self.node_types["neg"], [self.ta], 1)
+        # add = node_pattern(self.node_types["add"], [self.tx, neg], 1)
+        a, x = [matched[pat] for pat in [self.a, self.x]]
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["neg"],
+            inputs=[a],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[x, out],
+        ).out(get_id())
+        return [out]
 
 
 class ar3(RewriteRule):
     def __init__(self, node_types):
         self.name = "(x + a) + b => x + (a + b)"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.x, self.tx = symbol_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.x = symbol_pattern()
         self.node_types = node_types
 
     def source_pattern(self):
@@ -264,18 +316,31 @@ class ar3(RewriteRule):
         add2 = node_pattern(self.node_types["add"], [self.b, add], 1)
         return [add2]
 
-    def target_pattern(self):
-        add = node_pattern(self.node_types["add"], [self.tb, self.ta], 1)
-        out = node_pattern(self.node_types["add"], [self.tx, add], 1)
+    def target_pattern(self, matched):
+        # add = node_pattern(self.node_types["add"], [self.tb, self.ta], 1)
+        # out = node_pattern(self.node_types["add"], [self.tx, add], 1)
+        a, b, x = [matched[pat] for pat in [self.a, self.b, self.x]]
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[a, b],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[x, out],
+        ).out(get_id())
         return [out]
 
 
 class ar4(RewriteRule):
     def __init__(self, node_types):
         self.name = "(x + a) * b => x * b + a * b"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.x, self.tx = symbol_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.x = symbol_pattern()
         self.node_types = node_types
 
     def source_pattern(self):
@@ -283,20 +348,39 @@ class ar4(RewriteRule):
         mul = node_pattern(self.node_types["mul"], [self.b, add], 1)
         return [mul]
 
-    def target_pattern(self):
-        mul1 = node_pattern(self.node_types["mul"], [self.tx, self.tb], 1)
-        mul2 = node_pattern(self.node_types["mul"], [self.ta, self.tb], 1)
-        add = node_pattern(self.node_types["add"], [mul1, mul2], 1)
-        return [add]
+    def target_pattern(self, matched):
+        # mul1 = node_pattern(self.node_types["mul"], [self.tx, self.tb], 1)
+        # mul2 = node_pattern(self.node_types["mul"], [self.ta, self.tb], 1)
+        # add = node_pattern(self.node_types["add"], [mul1, mul2], 1)
+        a, b, x = [matched[pat] for pat in [self.a, self.b, self.x]]
+        mul1 = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["mul"],
+            inputs=[x, b],
+        ).out(get_id())
+        mul2 = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["mul"],
+            inputs=[a, b],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[mul1, mul2],
+        ).out(get_id())
+        return [out]
 
 
 class ar5(RewriteRule):
     def __init__(self, node_types):
         self.name = "(x + a) + (y + b) => (x + y) + (a + b)"
-        self.a, self.ta = const_pattern()
-        self.b, self.tb = const_pattern()
-        self.x, self.tx = symbol_pattern()
-        self.y, self.ty = symbol_pattern()
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.x = symbol_pattern()
+        self.y = symbol_pattern()
         self.node_types = node_types
 
     def source_pattern(self):
@@ -305,11 +389,30 @@ class ar5(RewriteRule):
         add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
         return [add3]
 
-    def target_pattern(self):
-        add1 = node_pattern(self.node_types["add"], [self.tx, self.ty], 1)
-        add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
-        add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
-        return [add3]
+    def target_pattern(self, matched):
+        # add1 = node_pattern(self.node_types["add"], [self.tx, self.ty], 1)
+        # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
+        # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
+        a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
+        xy = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[x, y],
+        ).out(get_id())
+        ab = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[a, b],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[xy, ab],
+        ).out(get_id())
+        return [out]
 
 
 ##### matmul rules ####
