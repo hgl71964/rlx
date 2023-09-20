@@ -1,8 +1,8 @@
+import ast
 from typing import Dict
 
-from rlx.frontend.graph import Node, Edge
-
 from rlx.utils.common import get_logger
+from rlx.frontend.graph import Node, Edge
 from rlx.frontend.registry import get_node_type
 from rlx.frontend.rewrite_rule import EdgePattern, NodePattern, RewriteRule
 
@@ -45,10 +45,11 @@ class PatternMatch:
                 src = rw.source_output[0]  # EdgePattern
 
                 if self.match(src, edge):
-                    if not self._is_incomplete_subgraph(rule_id, rw):
-                        if not self._is_identical_subgraph(visited):
-                            matched = self._obj2idx()
-                            matches.append(matched)
+                    if _check_deps(rw, self.matched):
+                        if not self._is_incomplete_subgraph(rule_id, rw):
+                            if not self._is_identical_subgraph(visited):
+                                matched = self._obj2idx()
+                                matches.append(matched)
 
                 # match or not; clear
                 self.matched.clear()
@@ -293,3 +294,53 @@ def _check_attr(src, tgt) -> bool:
             return True
 
     return False
+
+
+def _check_deps(rw: RewriteRule, matched: dict) -> bool:
+    for _, dep in enumerate(rw.deps):
+        left, right, op = dep
+        left = _fetch_val(left, rw, matched)
+        right = _fetch_val(right, rw, matched)
+        if isinstance(op, ast.Eq):
+            if not left == right:
+                return False
+        elif isinstance(op, ast.NotEq):
+            if not left != right:
+                return False
+        elif isinstance(op, ast.Lt):
+            if not left < right:
+                return False
+        elif isinstance(op, ast.LtE):
+            if not left <= right:
+                return False
+        elif isinstance(op, ast.Gt):
+            if not left > right:
+                return False
+        elif isinstance(op, ast.GtE):
+            if not left >= right:
+                return False
+        else:
+            raise RuntimeError(f"{op} is not supported")
+    return True
+
+
+def _fetch_val(vals: tuple, rw: RewriteRule, matched: dict):
+    assert isinstance(vals, tuple), f"type error {vals}"
+    if len(vals) == 1:
+        if (isinstance(vals[0], int) or isinstance(vals[0], float)):
+            # const val
+            return vals[0]
+
+    # fetch runtime rlx object's attr val
+    v = vals[0]
+    assert isinstance(v, str), f"{v}"
+    obj = getattr(rw, v)
+    assert obj in matched, f"{obj} not in matched"
+    attr = matched[obj].get_attr()
+    for v in vals[1:]:  # to support arbitrary index into `attr`
+        try:
+            attr = attr[v]
+        except Exception as e:
+            logger.critical(f"An exception occurred: {str(e)}")
+            raise RuntimeError(f"An exception occurred: {str(e)}")
+    return attr

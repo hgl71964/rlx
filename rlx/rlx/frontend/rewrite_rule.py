@@ -1,3 +1,7 @@
+import ast
+import inspect
+import textwrap
+
 from abc import ABC, abstractmethod
 from typing import Optional, Any, Union
 
@@ -102,6 +106,18 @@ class RewriteRule(ABC):
     def target_pattern(self) -> list[EdgePattern]:
         pass
 
+    def register_deps(self):
+        """
+        interface to declare dependencies among inputs
+
+        e.g. assume source pattern has self.a and self.b,
+            To declare dependencies among self.a and self.b: 
+            1. self.a.attr == self.b.attr
+            2. self.a.attr[0] < self.b.attr[0]
+            3. self.a.attr[1] != 0
+        """
+        pass
+
     def initialise(self):
         """
         User must NOT override this method!
@@ -124,3 +140,71 @@ class RewriteRule(ABC):
         #     assert isinstance(o, EdgePattern)
         # for o in self.target_output:
         #     assert isinstance(o, EdgePattern)
+        # populate deps
+        self.deps = _resolve_deps(self.register_deps)
+
+
+def _resolve_deps(func):
+    src = inspect.getsource(func)
+    src = textwrap.dedent(src)
+    tree = ast.parse(src)
+    func_bodies = tree.body[0].body
+    deps = []
+    for i, func_body in enumerate(func_bodies):
+        if isinstance(func_body, ast.Expr):
+            func_body = func_body.value
+            if isinstance(func_body, ast.Compare):
+                dep = _resolve_compare(func_body)
+                deps.append(dep)
+    return deps
+
+
+def _resolve_compare(cmp: ast.Compare):
+    assert len(cmp.ops) == 1, "Compare should only have one operator"
+    assert len(cmp.comparators) == 1, "Compare should only have one comparator"
+    left, right, op = cmp.left, cmp.comparators[0], cmp.ops[0]
+    left = tuple(_dfs(left))
+    right = tuple(_dfs(right))
+    return (left, right, op)
+
+
+def _dfs(node: ast.AST) -> list:
+    """
+    Recursively traverses the abstract syntax tree (AST) and extracts constant values.
+
+    Args:
+        node (ast.AST): The root node of the AST.
+
+    Returns:
+        list: A list of constant values extracted from the AST.
+
+    Raises:
+        RuntimeError: If the given node type is not supported.
+
+    Examples:
+        >>> node = ast.Constant(5)
+        >>> _dfs(node)
+        [5]
+
+        >>> node = ast.Attribute(value=ast.Name(id='obj', ctx=ast.Load()), attr='attr', ctx=ast.Load())
+        >>> _dfs(node)
+        ['attr']
+
+        >>> node = ast.Subscript(value=ast.Name(id='var', ctx=ast.Load()), slice=ast.Index(value=ast.Constant('value')))
+        >>> _dfs(node)
+        ['var', 'value']
+    """
+    if isinstance(node, ast.Constant):
+        return [node.value]  # const value
+
+    if isinstance(node, ast.Attribute):
+        assert node.attr == "attr"
+        return [node.value.attr]
+
+    if isinstance(node, ast.Subscript):
+        const = node.slice.value
+        ret = _dfs(node.value)  # can be arbitrarily deep
+        ret.append(const)
+        return ret
+
+    raise RuntimeError(f"{node} is not supported")

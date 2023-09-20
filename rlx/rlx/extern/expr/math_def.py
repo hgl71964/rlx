@@ -475,6 +475,31 @@ class r9(RewriteRule):
         return [out]
 
 
+class r9_v2(RewriteRule):
+    def __init__(self, node_types):
+        # ["cancel-sub", op.sub(a, b), 0], if a==b
+        self.name = "cancel-sub"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        out = node_pattern(self.node_types["Sub"], [self.a, self.b], 1)
+        return [out]
+
+    def target_pattern(self, matched):
+        out = expr_edge(
+            get_id(),
+            attr=0,
+            edge_type=self.node_types["Const"],
+            trace=None,
+        )
+        return [out]
+
+    def register_deps(self):
+        self.a.attr == self.b.attr
+
+
 class r10(RewriteRule):
     def __init__(self, node_types):
         # [ "distribute", op.mul(a, op.add(b, c)), op.add(op.mul(a, b), op.mul(a, c))],
@@ -1138,6 +1163,7 @@ def define_rewrite_rules(node_types):
         r6_v2(node_types),
         r7_v2(node_types),
         r8_v2(node_types),
+        r9_v2(node_types),
         r10_v2(node_types),
         r11_v2(node_types),
         r11_v3(node_types),
