@@ -8,6 +8,9 @@ from rlx.rw_engine.agents.multi_output_ppo import inference as multi_output_ppo_
 from rlx.rw_engine.agents.multi_output_graph_global_ppo import env_loop as multi_output_graph_global_ppo_env_loop
 from rlx.rw_engine.agents.multi_output_graph_global_ppo import inference as multi_output_graph_global_ppo_inference
 
+from rlx.rw_engine.agents.multi_output_max_ppo import env_loop as multi_output_max_ppo_env_loop
+from rlx.rw_engine.agents.multi_output_max_ppo import inference as multi_output_max_ppo_inference
+
 from rlx.rw_engine.agents.ppo import env_loop as ppo_env_loop
 from rlx.rw_engine.agents.ppo import inference as ppo_inference
 
@@ -40,6 +43,8 @@ class RewriteEngine:
             multi_output_ppo_inference(env, self.config)
         elif self.config.agent == "multi_output_graph_global_ppo":
             multi_output_graph_global_ppo_inference(env, self.config)
+        elif self.config.agent == "multi_output_max_ppo":
+            multi_output_max_ppo_inference(env, self.config)
         elif self.config.agent == "ppo":
             ppo_inference(env, self.config)
         else:
@@ -83,6 +88,8 @@ class RewriteEngine:
             multi_output_ppo(envs, self.config)
         elif self.config.agent == "multi_output_graph_global_ppo":
             multi_output_graph_global_ppo_env_loop(envs, self.config)
+        elif self.config.agent == "multi_output_max_ppo":
+            multi_output_max_ppo_env_loop(envs, self.config)
         elif self.config.agent == "ppo":
             ppo_env_loop(envs, self.config)
         else:

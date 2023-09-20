@@ -33,10 +33,12 @@ class GraphObsSpace(GymGraph):
 
         # override to satisfy the type checker; otherwise will warn
         if isinstance(x, tuple):
-            if len(x) == 4:
-                if isinstance(x[0], pyg.data.Data) and isinstance(
-                        x[1], dict) and isinstance(
-                            x[2], Tensor) and isinstance(x[3], Tensor):
+            if len(x) == 5:
+                if isinstance(x[0], pyg.data.Data) and \
+                      isinstance( x[1], dict) and \
+                        isinstance( x[2], Tensor) and \
+                            isinstance(x[3], Tensor) and \
+                                isinstance(x[4], defaultdict):
                     return True
         return False
 
@@ -526,7 +528,7 @@ class Env(gym.Env):
                                    edge_attr=edge_feat)
         if rule_mask.sum() < 2:
             logger.critical(f"rule_mask: {rule_mask} | {rule_mask.shape}")
-        return graph_data, pattern_map, rule_mask, loc_mask
+        return graph_data, pattern_map, rule_mask, loc_mask, rlx_idx_to_graph_edge_idx
 
     def viz(self, path="parser_viz", check=True):
         self.parser.viz(self.edges, path, check)

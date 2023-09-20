@@ -69,11 +69,14 @@ class MaxPPO(nn.Module):
             out_std=0.001,
         )
 
-    def get_action_and_value(self,
-                             x: pyg.data.Batch,
-                             batch_pattern_map: list[list[MatchDict]],
-                             invalid_rule_mask: torch.Tensor,
-                             action=None):
+    def get_action_and_value(
+        self,
+        x: pyg.data.Batch,
+        batch_pattern_map: list[list[MatchDict]],
+        invalid_rule_mask: torch.Tensor,
+        rlx_idx_to_graph_idx: list[dict],
+        action=None,
+    ):
         # shape: (num_of_graph_in_the_batch, actor_n_action)
         logits, _ = self.actor(x)
         node_vf, edge_vf = self.critic(x)
@@ -110,22 +113,24 @@ class MaxPPO(nn.Module):
                     pmaps = batch_pattern_map[idx][a]
                     best_loc = -1
                     best_score = -float("inf")
+                    idx_lookup = rlx_idx_to_graph_idx[idx]
                     for loc_id, pmap in enumerate(pmaps):
                         # pmap: MatchDict
-                        loc_score = 0.
+                        node_score = 0.
+                        edge_score = 0.
                         for _, v in pmap.items():
-                            if v[0] == 0:
-                                # edge FIXME rlx edge index != graph edge index, env returns rlx_to_ ... to resolve graph edge idx
+                            if v[0] == 0:  # edge
                                 edge_id = v[1]
-                                loc_score += edge_vf[edge_id].cpu()
-                            elif v[0] == 1:
-                                # node
+                                for idx in idx_lookup[edge_id]:
+                                    edge_score += edge_vf[edge_id].cpu()
+                            elif v[0] == 1:  # node
                                 node_id = v[1]
-                                loc_score += node_vf[node_id].cpu()
+                                node_score += node_vf[node_id].cpu()
                             else:
                                 raise RuntimeError(f"type error {v[0]}")
 
-                        loc_score = float(loc_score.mean())
+                        loc_score = float(node_score.mean() +
+                                          edge_score.mean())
                         if best_score < loc_score:
                             best_score = loc_score
                             best_loc = loc_id
@@ -153,30 +158,32 @@ class MaxPPO(nn.Module):
             b_pattern_map = len(batch_pattern_map)
             assert bs == x.num_graphs == b_pattern_map, f"{action.shape} != {x.num_graphs} | {b_pattern_map}"
 
-            # compute node_vf TODO some masking mechanism should be added?
+            # compute node_vf
             output_vf = []
             for idx in range(bs):
                 rule_id, loc_id = action[idx]
                 rule_id, loc_id = int(rule_id), int(loc_id)
-                best_score = 0.
+                idx_lookup = rlx_idx_to_graph_idx[idx]
                 if rule_id == self.actor_n_action - 1:
-                    # No-Op TODO how to compute value in this case?
-                    pass
+                    best_score = 0.
                 else:
                     pmap = batch_pattern_map[idx][rule_id][loc_id]
+                    edge_score = 0.
+                    node_score = 0.
                     for _, v in pmap.items():
                         if v[0] == 0:
                             # edge
                             edge_id = v[1]
-                            best_score += edge_vf[edge_id].cpu()
+                            for idx in idx_lookup[edge_id]:
+                                edge_score += edge_vf[edge_id].cpu()
                         elif v[0] == 1:
                             # node
                             node_id = v[1]
-                            best_score += node_vf[node_id].cpu()
+                            node_score += node_vf[node_id].cpu()
                         else:
                             raise RuntimeError(f"type error {v[0]}")
 
-                    best_score = float(best_score.mean())
+                    best_score = float(edge_score.mean() + node_score.mean())
 
                 output_vf.append(best_score)
 
@@ -258,6 +265,8 @@ def env_loop(envs, config):
     invalid_rule_mask = torch.cat([i[2] for i in state]).reshape(
         (config.num_envs, -1)).to(device)
 
+    rlx_idx_to_graph_idx = [i[4] for i in state]
+
     # batch size
     batch_size = int(config.num_envs * config.num_steps)
     minibatch_size = int(batch_size // config.num_mini_batch)
@@ -286,6 +295,7 @@ def env_loop(envs, config):
         # gh512, reset;
         obs = []  # list[pyg.Data]; reset each update
         pattern_maps = []  # list[]; reset each update
+        rlx_idx_to_graph_idx_list = []
         for step in range(0, config.num_steps):
             global_step += 1 * config.num_envs
             # gh512
@@ -298,13 +308,15 @@ def env_loop(envs, config):
             # print(invalid_rule_masks[step].shape)
             # print(invalid_rule_mask.shape)
             invalid_rule_masks[step] = invalid_rule_mask
+            rlx_idx_to_graph_idx_list.append(rlx_idx_to_graph_idx)
 
             # ALGO LOGIC: action logic
             with torch.no_grad():
                 action, logprob, _, value = agent.get_action_and_value(
                     next_obs,
                     batch_pattern_map=pattern_map,
-                    invalid_rule_mask=invalid_rule_mask)
+                    invalid_rule_mask=invalid_rule_mask,
+                    rlx_idx_to_graph_idx=rlx_idx_to_graph_idx)
                 values[step] = value.flatten()
             actions[step] = action
             logprobs[step] = logprob
@@ -323,6 +335,7 @@ def env_loop(envs, config):
             pattern_map = [i[1] for i in next_obs]  # list[]
             invalid_rule_mask = torch.cat([i[2] for i in next_obs]).reshape(
                 (config.num_envs, -1)).to(device)
+            rlx_idx_to_graph_idx = [i[4] for i in next_obs]
             next_obs = pyg.data.Batch.from_data_list([i[0] for i in next_obs
                                                       ]).to(device)
 
@@ -351,7 +364,9 @@ def env_loop(envs, config):
             _, _, _, next_value = agent.get_action_and_value(
                 next_obs,
                 batch_pattern_map=pattern_map,
-                invalid_rule_mask=invalid_rule_mask)
+                invalid_rule_mask=invalid_rule_mask,
+                rlx_idx_to_graph_idx=rlx_idx_to_graph_idx,
+            )
             next_value = next_value.reshape(1, -1)
             if gae:
                 advantages = torch.zeros_like(rewards).to(device)
@@ -397,6 +412,12 @@ def env_loop(envs, config):
             for per_step_per_env_pmap in per_step_patter_maps:
                 b_pattern_maps.append(per_step_per_env_pmap)
 
+        b_rlx_idx_to_graph_idx_list = []
+        for per_step_rlx_idx_to_graph_idx in rlx_idx_to_graph_idx_list:
+            for per_step_per_env_rlx_idx_to_graph_idx in per_step_rlx_idx_to_graph_idx:
+                b_rlx_idx_to_graph_idx_list.append(
+                    per_step_per_env_rlx_idx_to_graph_idx)
+
         # those buffers are in device
         b_logprobs = logprobs.reshape(-1)
         b_actions = actions.reshape((-1, ) + envs.single_action_space.shape)
@@ -432,6 +453,9 @@ def env_loop(envs, config):
                                                   ).to(device),
                     batch_pattern_map=[b_pattern_maps[i] for i in mb_inds],
                     invalid_rule_mask=b_invalid_rule_masks[mb_inds],
+                    rlx_idx_to_graph_idx=[
+                        b_rlx_idx_to_graph_idx_list[i] for i in mb_inds
+                    ],
                     action=b_actions.long()[mb_inds])
 
                 logratio = newlogprob - b_logprobs[mb_inds]
