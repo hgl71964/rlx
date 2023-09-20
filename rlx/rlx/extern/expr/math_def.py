@@ -359,6 +359,23 @@ class r6(RewriteRule):
         return [a]
 
 
+class r6_v2(RewriteRule):
+    def __init__(self, node_types):
+        # ["zero-add", op.add(a, 0), a],
+        self.name = "zero-add"
+        self.a = const_pattern()
+        self.zero = const_pattern(attr=0)
+        self.node_types = node_types
+
+    def source_pattern(self):
+        add = node_pattern(self.node_types["Add"], [self.zero, self.a], 1)
+        return [add]
+
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        return [a]
+
+
 class r7(RewriteRule):
     def __init__(self, node_types):
         # ["zero-mul", op.mul(a, 0), 0],
@@ -381,6 +398,28 @@ class r7(RewriteRule):
         return [out]
 
 
+class r7_v2(RewriteRule):
+    def __init__(self, node_types):
+        # ["zero-mul", op.mul(a, 0), 0],
+        self.name = "zero-mul"
+        self.a = const_pattern()
+        self.zero = const_pattern(attr=0)
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul = node_pattern(self.node_types["Mul"], [self.zero, self.a], 1)
+        return [mul]
+
+    def target_pattern(self, matched):
+        out = expr_edge(
+            get_id(),
+            attr=0,
+            edge_type=self.node_types["Const"],
+            trace=None,
+        )
+        return [out]
+
+
 class r8(RewriteRule):
     def __init__(self, node_types):
         # ["one-mul", op.mul(a, 1), a],
@@ -391,6 +430,23 @@ class r8(RewriteRule):
 
     def source_pattern(self):
         mul = node_pattern(self.node_types["Mul"], [self.a, self.one], 1)
+        return [mul]
+
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        return [a]
+
+
+class r8_v2(RewriteRule):
+    def __init__(self, node_types):
+        # ["one-mul", op.mul(a, 1), a],
+        self.name = "one-mul"
+        self.a = const_pattern()
+        self.one = const_pattern(attr=1)
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul = node_pattern(self.node_types["Mul"], [self.one, self.a], 1)
         return [mul]
 
     def target_pattern(self, matched):
@@ -456,6 +512,43 @@ class r10(RewriteRule):
         return [out3]
 
 
+class r10_v2(RewriteRule):
+    def __init__(self, node_types):
+        # [ "distribute", op.mul(a, op.add(b, c)), op.add(op.mul(a, b), op.mul(a, c))],
+        self.name = "distribute"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        add = node_pattern(self.node_types["Add"], [self.b, self.c], 1)
+        mul = node_pattern(self.node_types["Mul"], [add, self.a], 1)
+        return [mul]
+
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, b],
+        ).out(get_id())
+        out2 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, c],
+        ).out(get_id())
+        out3 = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[out, out2],
+        ).out(get_id())
+        return [out3]
+
+
 class r11(RewriteRule):
     def __init__(self, node_types):
         # [ "factor", op.add(op.mul(a, b), op.mul(a, c)), op.mul(a, op.add(b, c)) ],
@@ -467,6 +560,99 @@ class r11(RewriteRule):
 
     def source_pattern(self):
         mul1 = node_pattern(self.node_types["Mul"], [self.b, self.a], 1)
+        mul2 = node_pattern(self.node_types["Mul"], [self.c, self.a], 1)
+        add = node_pattern(self.node_types["Add"], [mul1, mul2], 1)
+        return [add]
+
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[b, c],
+        ).out(get_id())
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, out],
+        ).out(get_id())
+        return [out]
+
+
+class r11_v2(RewriteRule):
+    def __init__(self, node_types):
+        self.name = "factor_v2"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul1 = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
+        mul2 = node_pattern(self.node_types["Mul"], [self.a, self.c], 1)
+        add = node_pattern(self.node_types["Add"], [mul1, mul2], 1)
+        return [add]
+
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[b, c],
+        ).out(get_id())
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, out],
+        ).out(get_id())
+        return [out]
+
+
+class r11_v3(RewriteRule):
+    def __init__(self, node_types):
+        self.name = "factor_v3"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul1 = node_pattern(self.node_types["Mul"], [self.b, self.a], 1)
+        mul2 = node_pattern(self.node_types["Mul"], [self.a, self.c], 1)
+        add = node_pattern(self.node_types["Add"], [mul1, mul2], 1)
+        return [add]
+
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Add"],
+            inputs=[b, c],
+        ).out(get_id())
+        out = expr_node(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["Mul"],
+            inputs=[a, out],
+        ).out(get_id())
+        return [out]
+
+
+class r11_v4(RewriteRule):
+    def __init__(self, node_types):
+        self.name = "factor_v4"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul1 = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
         mul2 = node_pattern(self.node_types["Mul"], [self.c, self.a], 1)
         add = node_pattern(self.node_types["Add"], [mul1, mul2], 1)
         return [add]
@@ -947,4 +1133,13 @@ def define_rewrite_rules(node_types):
         r22(node_types),
         r23(node_types),
         r24(node_types),
+
+        # asymmetric
+        r6_v2(node_types),
+        r7_v2(node_types),
+        r8_v2(node_types),
+        r10_v2(node_types),
+        r11_v2(node_types),
+        r11_v3(node_types),
+        r11_v4(node_types),
     ]
