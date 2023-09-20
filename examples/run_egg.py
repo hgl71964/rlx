@@ -6,7 +6,7 @@ import pandas as pd
 
 from rlx.extern.expr.expr_utils import (get_lang, new_egraph, add_df_meta,
                                         step, load_expr, cnt_op,
-                                        solve_without_step)
+                                        solve_without_step, plot_expr)
 
 from rust_lib import print_id
 
@@ -21,68 +21,12 @@ flags.DEFINE_integer("backoff", 1, "")
 flags.DEFINE_integer("seed", 0, "")
 flags.DEFINE_integer("l", 0, "whether to log")
 
+flags.DEFINE_integer("plot", 0, "whether to plot")
+
 flags.DEFINE_string("lang", None, "")
 flags.DEFINE_string("e", "greedy", "extractor; greedy or ilp")
 flags.DEFINE_string("fn", None, "file name of the pre-generated expr")
 flags.DEFINE_string("default_out_path", "data", "output dir")
-flags.DEFINE_integer("ver", 0, "verbose")
-
-
-def solve_expr_egg(lang, expr, node_lim):
-    """
-    Emulate egg's solver but WITHOUT an iteration limit.
-    This will keep running until saturation,
-        until a node limit, or time limit is reached.
-    """
-    egraph = new_egraph(expr)
-    base_cost, _ = egraph.extract(expr)
-    best_expr = expr
-    print("[EGG] base cost:", base_cost)
-
-    steps = []
-
-    i = 0
-    sat_counter = 0
-    verbose = bool(FLAGS.ver)
-
-    while True:
-        action_to_apply = i % lang.num_rules
-        if action_to_apply == 0:
-            sat_counter = 0
-
-        result, best_expr = step(action_to_apply, expr, lang, egraph, node_lim)
-        steps.append(result)
-
-        if verbose:
-            print("=" * 40)
-            print(result.stop_reason, result.num_applications,
-                  result.num_enodes, result.num_eclasses)
-
-        # normally it hits iter-limit and stop, thus apply rule one-step
-        if result.stop_reason == 'NODE_LIMIT':
-            print("***NODE limit***")
-            break
-        elif result.stop_reason == 'TIME_LIMIT':
-            print("***TIME limit***")
-            break  # egg stops optimizing
-        elif result.stop_reason == 'SATURATED':
-            sat_counter += 1
-
-        if sat_counter == lang.num_rules:
-            break  # egg has achieved saturation
-
-        i += 1
-
-    steps_df = pd.DataFrame(steps)
-    steps_df = add_df_meta(steps_df, lang.name, "egg", base_cost, FLAGS.seed,
-                           FLAGS.node_lim)
-
-    print("=" * 40)
-    print(f"[EGG] iter: {i}")
-    # TODO add ILP extraction?
-    print("greedy cost:", steps_df["cost"].iloc[-1])
-    print("=" * 40)
-    return steps_df, best_expr
 
 
 def main(_):
@@ -110,6 +54,12 @@ def main(_):
     print("=" * 40)
     # egg_df, best_expr = solve_expr_egg(lang, expr, FLAGS.node_lim)
 
+    plot = bool(FLAGS.plot)
+    if plot:
+        plot_expr(
+            expr,
+            os.path.join(FLAGS.default_out_path, "viz", "initial_" + FLAGS.fn))
+
     # solve without step
     egraph = new_egraph(expr)
     base_cost, _ = egraph.extract(expr)
@@ -125,6 +75,11 @@ def main(_):
     # cost = cnt_op_cost(best_expr)
     # print(f"[EGG] cost: {cost}")
     print("=" * 40)
+
+    if plot:
+        plot_expr(
+            best_expr,
+            os.path.join(FLAGS.default_out_path, "viz", "final_" + FLAGS.fn))
 
     # save
     log = bool(FLAGS.l)

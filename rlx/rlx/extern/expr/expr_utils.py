@@ -99,7 +99,7 @@ class expr_graph(Graph):
             nonlocal cnt
 
             # leaf
-            if isinstance(node, int or bool):
+            if isinstance(node, int) or isinstance(node, bool):
                 e = expr_edge(cnt,
                               attr=int(node),
                               edge_type=node_types["Const"],
@@ -179,6 +179,43 @@ def load_expr(lang, path: str) -> list:
     with open(path, "rb") as f:
         data = pickle.load(f)
     return data
+
+
+def plot_expr(expr, path):
+    """expr is a tree"""
+    import graphviz  # type: ignore
+    g = graphviz.Digraph("egg_expr", filename=f"{path}")
+
+    cnt = 0
+
+    def dfs(node):
+        nonlocal cnt
+
+        # leaf
+        if isinstance(node, int) or isinstance(node, bool):
+            e_name = f"Input_{int(node)}_{cnt}"
+            e_label = f"Input_{int(node)}"
+            g.node(e_name, e_label, **{"shape": "rectangle"})
+            cnt += 1
+            return e_name
+
+        inputs = []
+        for child in node._fields:
+            inp = dfs(getattr(node, str(child)))
+            inputs.append(inp)
+
+        my_type = type(node).__name__
+        my_name = f"{my_type}_{cnt}"
+        my_label = f"{my_type}"
+        g.node(my_name, my_label, **{"shape": "circle"})
+        for inp in inputs:
+            g.edge(inp, my_name)  # child -> me
+
+        cnt += 1
+        return my_name
+
+    dfs(expr)
+    g.render(cleanup=True, format="pdf")
 
 
 def new_egraph(expr):

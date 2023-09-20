@@ -40,7 +40,6 @@ flags.DEFINE_integer("t", 1, "whether to train?")
 flags.DEFINE_integer("l", 1, "whether to log")
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
-flags.DEFINE_integer("ver", 0, "verbose")
 flags.DEFINE_string("plot", None, "path to plot the initial graph")
 # env
 flags.DEFINE_string("env_id", "env_multi-v0", "")
