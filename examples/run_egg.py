@@ -35,22 +35,18 @@ def main(_):
 
     # load
     lang = get_lang(FLAGS.lang)()
-    print("=" * 40)
     if FLAGS.fn is None:
         expr = lang.gen_example_expr()
-        print("Generated expression: ", expr)
     else:
         fn = f"{FLAGS.default_out_path}/rlx/inputs/"
         fn += FLAGS.fn
         expr = load_expr(lang, fn)
-        print("Loaded expression: ", expr)
-    print("=" * 40)
 
     #########################
     ####### solver ##########
     #########################
     print("=" * 40)
-    print("[EGG] Solving expression", expr)
+    print("[EGG] Solving expression: ", expr)
     print("=" * 40)
     # egg_df, best_expr = solve_expr_egg(lang, expr, FLAGS.node_lim)
 
@@ -66,7 +62,15 @@ def main(_):
     print("[EGG] base cost:", base_cost)
     num_op = cnt_op(expr)
     print(f"[EGG] num of base ops: {num_op}")
-    step_info, best_expr = solve_without_step(expr, lang, egraph, FLAGS)
+    step_info, best_expr = solve_without_step(
+        expr,
+        lang,
+        egraph,
+        FLAGS.iter_lim,
+        FLAGS.node_lim,
+        FLAGS.time_lim,
+        bool(FLAGS.backoff),
+    )
 
     print("=" * 40)
     print(f"best cost {step_info.cost:.2f}")
@@ -74,7 +78,12 @@ def main(_):
     print(f"[EGG] num of ops: {num_op}")
     # cost = cnt_op_cost(best_expr)
     # print(f"[EGG] cost: {cost}")
+    print("[EGG] Opt expression: ", best_expr)
     print("=" * 40)
+
+    # does use the same egraph to prove equivs make sense?
+    # ok = egraph.equiv(expr, best_expr)
+    # print(f"[EGG] verification: {ok}")
 
     if plot:
         plot_expr(

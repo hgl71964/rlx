@@ -218,9 +218,10 @@ def plot_expr(expr, path):
     g.render(cleanup=True, format="pdf")
 
 
-def new_egraph(expr):
+def new_egraph(expr=None):
     egraph = EGraph()
-    egraph.add(expr)
+    if expr is not None:
+        egraph.add(expr)
     return egraph
 
 
@@ -275,13 +276,14 @@ def step(action: int, expr_to_extract, lang: Language, egraph: EGraph,
                      extract_time=t1 - t0), best_expr
 
 
-def solve_without_step(expr_to_extract, lang, egraph, flags):
+def solve_without_step(expr_to_extract, lang, egraph, iter_lim, node_lim,
+                       time_lim, backoff):
     stop_reason, num_applications, num_enodes, num_eclasses = egraph.run(
         lang.rewrite_rules(),
-        iter_limit=flags.iter_lim,
-        node_limit=flags.node_lim,
-        time_limit=flags.time_lim,
-        use_backoff=bool(flags.backoff),
+        iter_limit=iter_lim,
+        node_limit=node_lim,
+        time_limit=time_lim,
+        use_backoff=backoff,
     )
     t0 = time.perf_counter()
     best_cost, best_expr = egraph.extract(expr_to_extract)
