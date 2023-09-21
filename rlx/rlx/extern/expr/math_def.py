@@ -498,6 +498,7 @@ class r9_v2(RewriteRule):
 
     def register_deps(self):
         self.a.attr == self.b.attr
+        self.a.attr != None
 
 
 class r10(RewriteRule):
@@ -1148,16 +1149,16 @@ def define_rewrite_rules(node_types):
         r12(node_types),
         r13(node_types),
         r14(node_types),
-        r15(node_types),
-        r16(node_types),
-        r17(node_types),
-        r18(node_types),
-        r19(node_types),
-        r20(node_types),
-        r21(node_types),
-        r22(node_types),
-        r23(node_types),
-        r24(node_types),
+        # r15(node_types),
+        # r16(node_types),
+        # r17(node_types),
+        # r18(node_types),
+        # r19(node_types),
+        # r20(node_types),
+        # r21(node_types),
+        # r22(node_types),
+        # r23(node_types),
+        # r24(node_types),
 
         # asymmetric
         r6_v2(node_types),

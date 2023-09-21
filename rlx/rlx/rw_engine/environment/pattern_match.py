@@ -331,9 +331,12 @@ def _fetch_val(vals: tuple, rw: RewriteRule, matched: dict):
             # const val
             return vals[0]
 
-    # fetch runtime rlx object's attr val
+        if vals[0] is None:
+            return None
+
+    # fetch runtime object's attr val
     v = vals[0]
-    assert isinstance(v, str), f"{v}"
+    assert isinstance(v, str), f"{v} | {type(v)}"
     obj = getattr(rw, v)
     assert obj in matched, f"{obj} not in matched"
     attr = matched[obj].get_attr()

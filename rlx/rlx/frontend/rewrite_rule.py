@@ -111,7 +111,7 @@ class RewriteRule(ABC):
         interface to declare dependencies among inputs
 
         e.g. assume source pattern has self.a and self.b,
-            To declare dependencies among self.a and self.b: 
+            To declare dependencies among self.a and self.b:
             1. self.a.attr == self.b.attr
             2. self.a.attr[0] < self.b.attr[0]
             3. self.a.attr[1] != 0
@@ -198,7 +198,7 @@ def _dfs(node: ast.AST) -> list:
         return [node.value]  # const value
 
     if isinstance(node, ast.Attribute):
-        assert node.attr == "attr"
+        assert node.attr == "attr", "must declare deps via pattern's attr"
         return [node.value.attr]
 
     if isinstance(node, ast.Subscript):

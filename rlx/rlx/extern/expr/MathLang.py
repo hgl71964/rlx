@@ -60,17 +60,17 @@ class MathLang(Language):
         ["pow1", op.pow(x, 1), x],
         ["pow2", op.pow(x, 2), op.mul(x, x)],
 
-        ["d-add", op.diff(x, op.add(a, b)), op.add(op.diff(x, a), op.diff(x, b))],
-        ["d-mul", op.diff(x, op.mul(a, b)), op.add(op.mul(a, op.diff(x, b)), op.mul(b, op.diff(x, a)))],
-        ["d-sin", op.diff(x, op.sin(x)), op.cos(x)],
-        ["d-cos", op.diff(x, op.cos(x)), op.mul(-1, op.sin(x))],
-        ["i-one", op.integral(1, x), x],
-        ["i-cos", op.integral(op.cos(x), x), op.sin(x)],
-        ["i-sin", op.integral(op.sin(x), x), op.mul(-1, op.cos(x))],
-        ["i-sum", op.integral(op.add(f, g), x), op.add(op.integral(f, x), op.integral(g, x))],
-        ["i-dif", op.integral(op.sub(f, g), x), op.sub(op.integral(f, x), op.integral(g, x))],
-        ["i-parts", op.integral(op.mul(a, b), x),
-        op.sub(op.mul(a, op.integral(b, x)), op.integral(op.mul(op.diff(x, a), op.integral(b, x)), x))],
+        # ["d-add", op.diff(x, op.add(a, b)), op.add(op.diff(x, a), op.diff(x, b))],
+        # ["d-mul", op.diff(x, op.mul(a, b)), op.add(op.mul(a, op.diff(x, b)), op.mul(b, op.diff(x, a)))],
+        # ["d-sin", op.diff(x, op.sin(x)), op.cos(x)],
+        # ["d-cos", op.diff(x, op.cos(x)), op.mul(-1, op.sin(x))],
+        # ["i-one", op.integral(1, x), x],
+        # ["i-cos", op.integral(op.cos(x), x), op.sin(x)],
+        # ["i-sin", op.integral(op.sin(x), x), op.mul(-1, op.cos(x))],
+        # ["i-sum", op.integral(op.add(f, g), x), op.add(op.integral(f, x), op.integral(g, x))],
+        # ["i-dif", op.integral(op.sub(f, g), x), op.sub(op.integral(f, x), op.integral(g, x))],
+        # ["i-parts", op.integral(op.mul(a, b), x),
+        # op.sub(op.mul(a, op.integral(b, x)), op.integral(op.mul(op.diff(x, a), op.integral(b, x)), x))],
         ]
         # yapf: enable
 
