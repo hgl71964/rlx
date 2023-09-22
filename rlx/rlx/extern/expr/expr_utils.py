@@ -1,3 +1,4 @@
+import os
 import math
 import time
 import pickle
@@ -179,6 +180,22 @@ def load_expr(lang, path: str) -> list:
     with open(path, "rb") as f:
         data = pickle.load(f)
     return data
+
+
+def load_all_exprs(lang, path: str):
+    lang.all_operators()
+    loaded_objects = []
+    loaded_files = []
+    for filename in os.listdir(path):
+        if filename.endswith(".pkl"):
+            file_path = os.path.join(path, filename)
+            loaded_files.append(file_path)
+            with open(file_path, 'rb') as file:
+                loaded_object = pickle.load(file)
+
+            # Append the loaded object to the list
+            loaded_objects.append(loaded_object)
+    return loaded_objects, loaded_files
 
 
 def plot_expr(expr, path):

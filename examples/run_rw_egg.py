@@ -10,7 +10,7 @@ from rlx.rw_engine.parser import Parser
 from rlx.rw_engine import RewriteEngine
 from rlx.utils.common import get_logger
 
-from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, cnt_op
+from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, cnt_op, load_all_exprs
 
 from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
 from rlx.extern.expr.math_def import verify as math_verify
@@ -33,6 +33,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer("depth_lim", 2, "expression depth limit")
 flags.DEFINE_string("lang", "math", "")
 flags.DEFINE_string("fn", None, "file name of the pre-generated expr")
+flags.DEFINE_string("dir", None, "directory pre-generated expr")
 flags.DEFINE_string("default_out_path", "data", "output dir")
 # flags.DEFINE_integer("load", 1, "whether to load from pre-generated expr?")
 # common
@@ -91,15 +92,21 @@ def main(_):
     # ===== load =====
     lang = get_lang(FLAGS.lang)()
     logger.info("=" * 40)
-    if FLAGS.fn is None:
-        expr = lang.gen_expr(p_leaf=0., depth_limit=FLAGS.depth_lim)
-        logger.info("Generated expression: %s", pformat(expr))
-        logger.info("Depth: %d", FLAGS.depth_lim)
-    else:
+    if FLAGS.fn is None and FLAGS.dir is None:
+        raise RuntimeError(f"either fn or dir should be set")
+    elif FLAGS.fn is not None and FLAGS.dir is not None:
+        raise RuntimeError(f"only set fn or dir")
+    elif FLAGS.dir is not None:
         fn = f"{FLAGS.default_out_path}/rlx/inputs/"
-        fn += FLAGS.fn
+        fn = os.path.join(fn, FLAGS.dir)
+        exprs, files = load_all_exprs(lang, fn)
+        logger.info(f"Loaded exprs from files: {files}")
+    elif FLAGS.fn is not None:
+        fn = f"{FLAGS.default_out_path}/rlx/inputs/"
+        fn = os.path.join(fn, FLAGS.fn)
         expr = load_expr(lang, fn)
-        logger.info("Loaded expression: %s", pformat(expr))
+        exprs = [expr]
+        logger.info("Loaded expr: %s", pformat(expr))
     logger.info("=" * 40)
 
     # register
@@ -118,11 +125,12 @@ def main(_):
 
     node_types, _, _ = define_types()
     rewrite_rules = define_rewrite_rules(node_types)
-    my_expr_graph = expr_graph(expr, node_types)
+    expr_graphs = [expr_graph(expr, node_types) for expr in exprs]
 
     # for plot initial expr
     if FLAGS.plot is not None:
-        parser = Parser(my_expr_graph)
+        logger.warning("only plotting the first graph")
+        parser = Parser(expr_graphs[0])  # ONLY plot the first graph
         parser.viz(parser.edges,
                    os.path.join(FLAGS.default_out_path, "viz", FLAGS.plot),
                    check=False)
@@ -135,7 +143,7 @@ def main(_):
 
     # rewrite engine
     rw_eng = RewriteEngine(
-        my_expr_graph,
+        expr_graphs,
         rewrite_rules,
         callback_reward_function,
         FLAGS,
@@ -146,6 +154,7 @@ def main(_):
     if t:
         rw_eng.train()
     else:
+        assert FLAGS.fn is not None, "inference must set fn"
         opt_graph = rw_eng.run()
         opt_expr = conversion(lang.all_operators(), opt_graph)
         logger.info("opt expression: %s", pformat(opt_expr))

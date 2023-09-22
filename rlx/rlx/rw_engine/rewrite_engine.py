@@ -18,8 +18,9 @@ import gymnasium as gym
 
 
 class RewriteEngine:
-    def __init__(self, graph, rewrite_rules, callback_reward_function, config):
-        self.graph = graph
+    def __init__(self, graphs, rewrite_rules, callback_reward_function,
+                 config):
+        self.graphs = graphs
         self.callback_reward_function = callback_reward_function
         for rule in rewrite_rules:
             rule.initialise()
@@ -27,9 +28,9 @@ class RewriteEngine:
         self.config = config
 
     def run(self):
-        """run inference to transform the target graph"""
+        """run inference to transform the target graphs"""
         # ===== Internal IR =====
-        parser = Parser(self.graph)
+        parser = Parser(self.graphs)
 
         # ===== env =====
         env = make_env(env_id=self.config.env_id,
@@ -55,7 +56,7 @@ class RewriteEngine:
     def train(self):
         """train the RL given a batch of training graphs"""
         # ===== Internal IR =====
-        parser = Parser(self.graph)
+        parser = Parser(self.graphs)
 
         # ===== env ===== (SyncVectorEnv, AsyncVectorEnv)
         async_env = bool(self.config.a)

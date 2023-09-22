@@ -1,4 +1,5 @@
 import sys
+import random
 from copy import deepcopy
 
 from collections import defaultdict
@@ -88,8 +89,13 @@ class Env(gym.Env):
         self.stats = {}
 
     def reset(self, seed=None, options=None):
+        # sample a graph
+        e = random.choice(self.parser.all_edges)
+
         # deepcopy the graph
-        self.edges = deepcopy(self.parser.edges)
+        # self.edges = deepcopy(self.parser.edges)
+        self.edges = deepcopy(e)
+
         self._build_mapping()
         self.stats = {}
         _ = self._call_reward_func(True, False)
@@ -687,9 +693,9 @@ class Env(gym.Env):
         try:
             for out in self.output_edge:
                 if out in ban:
-                    logger.warning(
-                        f"output edge in ban! {out.get_idx()} | {out._rlx_idx}"
-                    )
+                    # logger.warning(
+                    #     f"output edge in ban! {out.get_idx()} | {out._rlx_idx}"
+                    # )
                     continue
                 dfs(out)
         except Exception as e:

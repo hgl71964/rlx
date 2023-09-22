@@ -20,17 +20,23 @@ class rlx_Graph(Graph):
 
 
 class Parser:
-    def __init__(self, graph: Graph):
-        self.edges = graph.get_edges()
-        self.nodes = graph.get_nodes()
+    def __init__(self, graphs: list[Graph]):
+        self.all_edges = []  # list[list[Edge]]
+        self.all_nodes = []
+        for graph in graphs:
+            edges = graph.get_edges()
+            nodes = graph.get_nodes()
 
-        # run some checks
-        output_edges = [e for e in self.edges if len(e.get_uses()) == 0]
-        self._check_edges(self.edges)
-        self._check_nodes(self.nodes)
-        self._detect_circle(output_edges)
-        self._check_uses(self.edges)
-        self._infer_edge_type(output_edges)
+            # run some checks
+            output_edges = [e for e in edges if len(e.get_uses()) == 0]
+            self._check_edges(edges)
+            self._check_nodes(nodes)
+            self._detect_circle(output_edges)
+            self._check_uses(edges)
+            self._infer_edge_type(output_edges)
+
+            self.all_edges.append(edges)
+            self.all_nodes.append(nodes)
 
     def _detect_circle(self, output_edges: list[Edge]):
         visited, path = set(), set()
@@ -138,11 +144,12 @@ class Parser:
             dfs(e)
 
     def _build_mapping(self):
+        logger.warning("only building mapping for first graph")
         self.edge_map = {}
         self.node_map = {}
-        for e in self.edges:
+        for e in self.all_edges[0]:
             self.edge_map[e.get_idx()] = e
-        for n in self.nodes:
+        for n in self.all_nodes[0]:
             self.node_map[n.get_idx()] = n
 
     def viz(self, edges, path="rlx_graph_viz", check=True):
