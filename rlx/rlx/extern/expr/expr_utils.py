@@ -242,6 +242,24 @@ def new_egraph(expr=None):
     return egraph
 
 
+def verify_by_egraph(lang, expr, opt_expr):
+    iter_lim = 100
+    node_lim = 10000
+    time_lim = 100
+    egraph = new_egraph(expr)
+    step_info, _ = solve_without_step(
+        expr,
+        lang,
+        egraph,
+        iter_lim,
+        node_lim,
+        time_lim,
+        backoff=True,
+    )
+    ok = egraph.equiv(expr, opt_expr)
+    return ok
+
+
 def add_df_meta(df: pd.DataFrame,
                 lang_name: str,
                 solver_name: str,

@@ -1,6 +1,6 @@
 import os
+import time
 import random
-import logging
 from pprint import pformat
 
 import numpy as np
@@ -10,7 +10,7 @@ from rlx.rw_engine.parser import Parser
 from rlx.rw_engine import RewriteEngine
 from rlx.utils.common import get_logger
 
-from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, cnt_op, load_all_exprs
+from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, cnt_op, load_all_exprs, verify_by_egraph
 
 from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
 from rlx.extern.expr.math_def import verify as math_verify
@@ -155,12 +155,19 @@ def main(_):
         rw_eng.train()
     else:
         assert FLAGS.fn is not None, "inference must set fn"
+        print("=" * 40)
+        t1 = time.perf_counter()
         opt_graph = rw_eng.run()
+        t2 = time.perf_counter()
         opt_expr = conversion(lang.all_operators(), opt_graph)
-        logger.info("opt expression: %s", pformat(opt_expr))
         original_num_op = cnt_op(expr)
         num_op = cnt_op(opt_expr)
+        logger.info("opt expression: %s", pformat(opt_expr))
         print(f"num of ops: {original_num_op} -> {num_op}")
+        print(f"opt time {t2 - t1:.4f}s")
+        ok = verify_by_egraph(lang, expr, opt_expr)
+        print(f"verification: {ok}")
+        print("=" * 40)
 
         # v1 = verify(opt_expr)
         # v2 = verify(expr)
