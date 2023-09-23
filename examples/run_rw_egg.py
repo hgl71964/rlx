@@ -2,6 +2,7 @@ import os
 import time
 import random
 from pprint import pformat
+from collections import namedtuple
 
 import numpy as np
 import torch
@@ -81,6 +82,12 @@ flags.DEFINE_integer("vgat", 2, "version of gat")
 logger = get_logger(__name__)
 # yapf: enable
 
+Result = namedtuple("result", [
+    "cost",
+    "time",
+    "verification",
+])
+
 
 def main(_):
     # ===== seed =====
@@ -149,12 +156,10 @@ def main(_):
         FLAGS,
     )
 
-    # rw_eng.viz_graph("graph")
     t = bool(FLAGS.t)
     if t:
         rw_eng.train()
     else:
-        assert FLAGS.fn is not None, "inference must set fn"
         print("=" * 40)
         t1 = time.perf_counter()
         opt_graph = rw_eng.run()
@@ -168,6 +173,15 @@ def main(_):
         ok = verify_by_egraph(lang, expr, opt_expr)
         print(f"verification: {ok}")
         print("=" * 40)
+
+        # TODO save results
+        resule = Result(
+            cost=0,
+            time=0,
+            verification=0,
+        )
+        with open(save_path, "wb") as f:
+            pickle.dump(step_info._asdict(), f)
 
         # v1 = verify(opt_expr)
         # v2 = verify(expr)

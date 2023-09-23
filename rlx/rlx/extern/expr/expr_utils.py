@@ -1,5 +1,4 @@
 import os
-import math
 import time
 import pickle
 import pandas as pd
@@ -164,7 +163,8 @@ def cnt_op(expr):
 
 step_info = namedtuple("StepInfo", [
     "action", "action_name", "stop_reason", "cost", "num_applications",
-    "num_enodes", "num_eclasses", "best_expr", "init_expr", "extract_time"
+    "num_enodes", "num_eclasses", "best_expr", "init_expr", "build_time",
+    "extract_time"
 ])
 
 
@@ -242,10 +242,14 @@ def new_egraph(expr=None):
     return egraph
 
 
-def verify_by_egraph(lang, expr, opt_expr):
-    iter_lim = 100
-    node_lim = 10000
-    time_lim = 100
+def verify_by_egraph(
+    lang,
+    expr,
+    opt_expr,
+    iter_lim=100,
+    node_lim=10000,
+    time_lim=100,
+):
     egraph = new_egraph(expr)
     step_info, _ = solve_without_step(
         expr,
@@ -288,31 +292,9 @@ def get_lang(name: str) -> Language:
     }[name]
 
 
-def step(action: int, expr_to_extract, lang: Language, egraph: EGraph,
-         node_lim):
-    rw_rules = lang.rewrite_rules()
-    rewrite_to_apply = [rw_rules[action]]
-    stop_reason, num_applications, num_enodes, num_eclasses = egraph.run(
-        rewrite_to_apply, iter_limit=1, node_limit=node_lim)
-    t0 = time.perf_counter()
-    best_cost, best_expr = egraph.extract(expr_to_extract)
-    t1 = time.perf_counter()
-    # print("entry: ", egraph.extraction_entry_point(expr_to_extract))
-    # print("all eid", egraph.eclass_ids())
-    return step_info(action=action,
-                     action_name=lang.rule_names[action],
-                     num_applications=num_applications,
-                     stop_reason=stop_reason,
-                     cost=float(best_cost),
-                     best_expr=str(best_expr),
-                     num_eclasses=num_eclasses,
-                     num_enodes=num_enodes,
-                     init_expr=str(expr_to_extract),
-                     extract_time=t1 - t0), best_expr
-
-
 def solve_without_step(expr_to_extract, lang, egraph, iter_lim, node_lim,
                        time_lim, backoff):
+    t0 = time.perf_counter()
     stop_reason, num_applications, num_enodes, num_eclasses = egraph.run(
         lang.rewrite_rules(),
         iter_limit=iter_lim,
@@ -320,18 +302,21 @@ def solve_without_step(expr_to_extract, lang, egraph, iter_lim, node_lim,
         time_limit=time_lim,
         use_backoff=backoff,
     )
-    t0 = time.perf_counter()
-    best_cost, best_expr = egraph.extract(expr_to_extract)
     t1 = time.perf_counter()
+    best_cost, best_expr = egraph.extract(expr_to_extract)
+    t2 = time.perf_counter()
     # print("entry: ", egraph.extraction_entry_point(expr_to_extract))
     # print("all eid", egraph.eclass_ids())
-    return step_info(action=-1,
-                     action_name="NaN",
-                     num_applications=num_applications,
-                     stop_reason=stop_reason,
-                     cost=float(best_cost),
-                     best_expr=str(best_expr),
-                     num_eclasses=num_eclasses,
-                     num_enodes=num_enodes,
-                     init_expr=str(expr_to_extract),
-                     extract_time=t1 - t0), best_expr
+    return step_info(
+        action=-1,
+        action_name="NaN",
+        num_applications=num_applications,
+        stop_reason=stop_reason,
+        cost=float(best_cost),
+        best_expr=str(best_expr),
+        num_eclasses=num_eclasses,
+        num_enodes=num_enodes,
+        init_expr=str(expr_to_extract),
+        build_time=t1 - t0,
+        extract_time=t2 - t1,
+    ), best_expr

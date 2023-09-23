@@ -1,14 +1,11 @@
 import os
 import random
-import datetime
 import numpy as np
-import pandas as pd
+import pickle
 
 from rlx.extern.expr.expr_utils import (get_lang, new_egraph, add_df_meta,
-                                        step, load_expr, cnt_op,
-                                        solve_without_step, plot_expr)
-
-from rust_lib import print_id
+                                        load_expr, cnt_op, solve_without_step,
+                                        plot_expr)
 
 from absl import app
 from absl import flags
@@ -90,22 +87,22 @@ def main(_):
             best_expr,
             os.path.join(FLAGS.default_out_path, "viz", "final_" + FLAGS.fn))
 
-    # save
     log = bool(FLAGS.l)
     if log:
         print("[LOG]:: ")
         source = f"{FLAGS.lang}_gen" if FLAGS.fn is None else FLAGS.fn.split(
             ".")[0]
         # t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        run_name = f"egg_{FLAGS.e}_{FLAGS.node_lim}_{source}"
-        save_path = f"{FLAGS.default_out_path}/rlx/runs/{run_name}"
+        run_name = f"{source}_{FLAGS.e}_{FLAGS.node_lim}"
+        save_path = f"{FLAGS.default_out_path}/rlx/runs/egg/{run_name}"
         print("save path: ", save_path)
 
         if not os.path.exists(save_path):
             os.mkdir(save_path)
         # https://github.com/abseil/abseil-py/issues/57
         FLAGS.append_flags_into_file(save_path + "/hyperparams.txt")
-        # egg_df.to_csv(f"{save_path}/egg.csv")
+        with open(save_path, "wb") as f:
+            pickle.dump(step_info._asdict(), f)
 
 
 if __name__ == "__main__":
