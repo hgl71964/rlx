@@ -88,17 +88,33 @@ def main(_):
         print(base_cost, step_info.cost)
 
     t2 = time.perf_counter()
+    print(f"opt time {t2-t1:.4f}s")
 
     # result
     if len(opt_costs) == 1:
         logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
     else:
+
+        results = {}
         for i, (name, old, new) in enumerate(zip(files, old_costs, opt_costs)):
             name = name.split("/")[-1]
             print(f"expr{i}: {name}; Costs: {old} -> {new}")
+            results[name] = (old, new, True)
 
-    print(f"opt time {t2-t1:.4f}s")
+        results["opt_time"] = t2 - t1
+        run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}_{FLAGS.fn}.pkl"
+        result_path = f"{FLAGS.default_out_path}/rlx/runs/egg/{run_name}"
+
+        # https://github.com/abseil/abseil-py/issues/57
+        # FLAGS.append_flags_into_file(save_path + "/hyperparams.txt")
+        # with open(save_path, "wb") as f:
+        #     pickle.dump(step_info._asdict(), f)
+
+        if not os.path.exists(result_path):
+            os.mkdir(result_path)
+        with open(result_path, "wb") as f:
+            pickle.dump(results, f)
 
     # TODO does use the same egraph to prove equivs make sense?
     # ok = egraph.equiv(expr, best_expr)
@@ -109,23 +125,6 @@ def main(_):
         plot_expr(
             best_exprs[0],
             os.path.join(FLAGS.default_out_path, "viz", "final_" + FLAGS.fn))
-
-    # log = bool(FLAGS.l)
-    # if log:
-    #     print("[LOG]:: ")
-    #     source = f"{FLAGS.lang}_gen" if FLAGS.fn is None else FLAGS.fn.split(
-    #         ".")[0]
-    #     # t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    #     run_name = f"{source}_{FLAGS.e}_{FLAGS.node_lim}"
-    #     save_path = f"{FLAGS.default_out_path}/rlx/runs/egg/{run_name}"
-    #     print("save path: ", save_path)
-
-    #     if not os.path.exists(save_path):
-    #         os.mkdir(save_path)
-    #     # https://github.com/abseil/abseil-py/issues/57
-    #     FLAGS.append_flags_into_file(save_path + "/hyperparams.txt")
-    #     with open(save_path, "wb") as f:
-    #         pickle.dump(step_info._asdict(), f)
 
 
 if __name__ == "__main__":

@@ -81,12 +81,6 @@ flags.DEFINE_integer("vgat", 2, "version of gat")
 logger = get_logger(__name__)
 # yapf: enable
 
-Result = namedtuple("result", [
-    "cost",
-    "time",
-    "verification",
-])
-
 
 def main(_):
     # ===== seed =====
@@ -126,6 +120,7 @@ def main(_):
         define_rewrite_rules = prop_rewrite_rules
         conversion = rlxGraph2Prop
         callback_reward_function = prop_reward
+        raise NotImplementedError(f"Need to redo")
     else:
         raise NotImplementedError(f"Unsupported lang: {FLAGS.lang}")
 
@@ -161,33 +156,38 @@ def main(_):
     else:
         opt_time = rw_eng.run()
 
+        # result
         print("=" * 40)
         opt_exprs = conversion(lang.all_operators(), rw_eng.envs)
         old_costs = [expr_cost(expr) for expr in exprs]
         opt_costs = [expr_cost(expr) for expr in opt_exprs]
-
-        if len(opt_costs) == 1:
-            logger.info("opt expression: %s", pformat(opt_exprs[0]))
-            print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
-        else:
-            for i, (name, old,
-                    new) in enumerate(zip(files, old_costs, opt_costs)):
-                name = name.split("/")[-1]
-                print(f"expr{i}: {name}; Costs: {old} -> {new}")
 
         print(f"opt time {opt_time:.4f}s")
         oks = verify_by_egraph(lang, exprs, opt_exprs)
         print(f"verification: {oks}")
         print("=" * 40)
 
-        # TODO save results
-        # resule = Result(
-        #     cost=0,
-        #     time=0,
-        #     verification=0,
-        # )
-        # with open(save_path, "wb") as f:
-        #     pickle.dump(step_info._asdict(), f)
+        if len(opt_costs) == 1:
+            logger.info("opt expression: %s", pformat(opt_exprs[0]))
+            print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
+        else:
+
+            results = {}
+            for i, (name, old,
+                    new) in enumerate(zip(files, old_costs, opt_costs)):
+                name = name.split("/")[-1]
+                print(f"expr{i}: {name}; Costs: {old} -> {new}")
+
+                results[name] = (old, new, oks[i])
+
+            results["opt_time"] = opt_time
+            result_path = os.path.join(
+                f"{config.default_out_path}/runs/",
+                FLAGS.weights_path,
+                "results.pkl",
+            )
+            with open(result_path, "wb") as f:
+                pickle.dump(results, f)
 
         # v1 = verify(opt_expr)
         # v2 = verify(expr)
