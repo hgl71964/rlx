@@ -397,15 +397,73 @@ def env_loop(envs, config):
             writer.add_scalar("charts/SPS", t, global_step)
 
         if log and update % save_freq == 0:
-            torch.save(agent.state_dict(), f"{save_path}/agent-{global_step}")
+            torch.save(agent.state_dict(),
+                       f"{save_path}/agent-{global_step}.pt")
 
     # ===== STOP =====
     envs.close()
     if log:
         # save
-        torch.save(agent.state_dict(), f"{save_path}/agent-final")
+        torch.save(agent.state_dict(), f"{save_path}/agent-final.pt")
         writer.close()
 
 
 def inference(env, config):
-    raise NotImplementedError()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # ===== env =====
+    state, _ = env.reset(seed=config.seed)
+
+    # ===== agent =====
+    assert config.weights_path is not None, "weights_path must be set"
+    agent_id = config.agent_id if config.agent_id is not None else "agent-final"
+    fn = os.path.join(f"{config.default_out_path}/runs/", config.weights_path,
+                      f"{agent_id}.pt")
+    agent = PPO(
+        actor_n_action=env.single_action_space.nvec[0],
+        n_node_features=env.single_observation_space.node_space.shape[0],
+        n_edge_features=env.single_observation_space.edge_space.shape[0],
+        num_head=config.num_head,
+        n_layers=config.n_layers,
+        hidden_size=config.hidden_size,
+        vgat=config.vgat,
+        use_dropout=bool(config.use_dropout),
+        device=device,
+    ).to(device)
+    agent_state_dict = torch.load(fn, map_location=device)
+    agent.load_state_dict(agent_state_dict)
+    agent.to(device)
+
+    next_obs = state[0].to(device)
+    invalid_rule_mask = state[2].reshape(1, -1).to(device)
+    invalid_loc_mask = state[3].reshape(
+        [config.num_envs] + env.action_space.nvec.tolist()).to(device)
+
+    # ==== rollouts ====
+    cnt = 0
+    done = False
+    t1 = time.perf_counter()
+    while not done:
+        cnt += 1
+        with torch.no_grad():
+            action, _, _, _ = agent.get_action_and_value(
+                next_obs,
+                invalid_rule_mask=invalid_rule_mask,
+                invalid_loc_mask=invalid_loc_mask)
+
+        # TRY NOT TO MODIFY: execute the game and log data.
+        action = action[0].cpu()
+        a = [action[0], action[1]]
+        next_obs, reward, terminated, truncated, _ = env.step(a)
+        done = np.logical_or(terminated, truncated)
+        if done:
+            break
+        invalid_rule_mask = next_obs[2].reshape(1, -1).to(device)
+        invalid_loc_mask = next_obs[3].reshape(
+            [config.num_envs] + env.action_space.nvec.tolist()).to(device)
+        next_obs = next_obs[0].to(device)
+
+        logger.info(f"iter {cnt}; reward: {reward}")
+
+    t2 = time.perf_counter()
+    print(terminated, truncated)
+    return t2 - t1

@@ -1,6 +1,7 @@
 import os
 import time
 import random
+import pickle
 from pprint import pformat
 from collections import namedtuple
 
@@ -161,15 +162,13 @@ def main(_):
         rw_eng.train()
     else:
         print("=" * 40)
-        t1 = time.perf_counter()
-        opt_graph = rw_eng.run()
-        t2 = time.perf_counter()
+        t = rw_eng.run()
         opt_expr = conversion(lang.all_operators(), opt_graph)
         original_num_op = cnt_op(expr)
         num_op = cnt_op(opt_expr)
         logger.info("opt expression: %s", pformat(opt_expr))
         print(f"num of ops: {original_num_op} -> {num_op}")
-        print(f"opt time {t2 - t1:.4f}s")
+        print(f"opt time {t:.4f}s")
         ok = verify_by_egraph(lang, expr, opt_expr)
         print(f"verification: {ok}")
         print("=" * 40)

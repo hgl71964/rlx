@@ -483,6 +483,7 @@ def inference(env, config):
     # ==== rollouts ====
     cnt = 0
     done = False
+    t1 = time.perf_counter()
     while not done:
         cnt += 1
         with torch.no_grad():
@@ -496,12 +497,15 @@ def inference(env, config):
         a = [action[0], action[1]]
         next_obs, reward, terminated, truncated, _ = env.step(a)
         done = np.logical_or(terminated, truncated)
+        if done:
+            break
         invalid_rule_mask = next_obs[2].reshape(1, -1).to(device)
         invalid_loc_mask = next_obs[3].reshape(
             [config.num_envs] + env.action_space.nvec.tolist()).to(device)
         next_obs = next_obs[0].to(device)
 
         logger.info(f"iter {cnt}; reward: {reward}")
+    t2 = time.perf_counter()
 
     print(terminated, truncated)
-    #print(info)
+    return t2 - t1

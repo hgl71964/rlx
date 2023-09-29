@@ -748,6 +748,17 @@ class Env(gym.Env):
     #         print(e)
     #         raise
 
+    def dummy(self):
+        node_feat = torch.zeros([2, self.n_node_feat], dtype=torch.float)
+        edge_feat = torch.zeros([1, self.n_edge_feat], dtype=torch.float)
+        graph_data = pyg.data.Data(
+            x=node_feat,
+            edge_index=torch.tensor([0, 1],
+                                    dtype=torch.long).reshape(1,
+                                                              2).contiguous(),
+            edge_attr=edge_feat)
+        return graph_data
+
     def _call_reward_func(self, init: bool, terminated: bool) -> float:
         g = rlx_Graph([v for _, v in self.node_map.items()],
                       [v for _, v in self.edge_map.items()])

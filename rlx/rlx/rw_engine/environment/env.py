@@ -1,5 +1,10 @@
+from copy import deepcopy
+
+import numpy as np
+
 import gymnasium as gym
 from gymnasium.envs.registration import register
+from gymnasium.vector.utils import concatenate
 
 from rlx.rw_engine.parser import Parser
 from rlx.utils.common import get_logger
@@ -46,3 +51,43 @@ def make_env(
         return env
 
     return thunk
+
+
+class InferenceVecEnv(gym.vector.SyncVectorEnv):
+    """Vectorized environment's step will automatically reset
+    At inference time, we don't want that
+    """
+    def step_wait(self):
+        """Steps through each of the environments returning the batched results.
+
+        Returns:
+            The batched environment step results
+        """
+        observations, infos = [], {}
+        for i, (env, action) in enumerate(zip(self.envs, self._actions)):
+            # if done; just sample dummy
+            if self._terminateds[i] or self._truncateds[i]:
+                observation = env.dummy()
+                info = {}
+            else:
+                (
+                    observation,
+                    self._rewards[i],
+                    self._terminateds[i],
+                    self._truncateds[i],
+                    info,
+                ) = env.step(action)
+
+            observations.append(observation)
+            infos = self._add_info(infos, info, i)
+
+        self.observations = concatenate(self.single_observation_space,
+                                        observations, self.observations)
+
+        return (
+            deepcopy(self.observations) if self.copy else self.observations,
+            np.copy(self._rewards),
+            np.copy(self._terminateds),
+            np.copy(self._truncateds),
+            infos,
+        )
