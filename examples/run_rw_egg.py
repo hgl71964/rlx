@@ -109,7 +109,7 @@ def main(_):
         logger.info("Loaded expr: %s", pformat(expr))
     logger.info("=" * 40)
 
-    # register
+    # ===== register domain =====
     if FLAGS.lang == "math":
         define_types = define_math_node_type
         define_rewrite_rules = math_rewrite_rules
@@ -142,7 +142,7 @@ def main(_):
     # v1 = verify(round_trip)
     # assert np.isclose(v1, v2), f"verify failed: {v1}, {v2}"
 
-    # rewrite engine
+    # ===== rewrite engine =====
     rw_eng = RewriteEngine(
         expr_graphs,
         rewrite_rules,
@@ -150,6 +150,7 @@ def main(_):
         FLAGS,
     )
 
+    # ===== train or inference =====
     t = bool(FLAGS.t)
     if t:
         rw_eng.train()

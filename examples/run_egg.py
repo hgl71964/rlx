@@ -15,9 +15,8 @@ FLAGS = flags.FLAGS
 flags.DEFINE_integer("node_lim", 10000, "enode limit")
 flags.DEFINE_integer("iter_lim", 100, "")
 flags.DEFINE_integer("time_lim", 100, "")
-flags.DEFINE_integer("backoff", 1, "")
+flags.DEFINE_integer("backoff", 1, "whether to use backoff scheduler")
 flags.DEFINE_integer("seed", 0, "")
-flags.DEFINE_integer("l", 0, "whether to log")
 
 flags.DEFINE_integer("plot", 0, "whether to plot")
 
@@ -85,7 +84,6 @@ def main(_):
         old_costs.append(base_cost)
         opt_exprs.append(best_expr)
         opt_costs.append(step_info.cost)
-        print(base_cost, step_info.cost)
 
     t2 = time.perf_counter()
     print(f"opt time {t2-t1:.4f}s")
