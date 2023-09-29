@@ -70,7 +70,6 @@ flags.DEFINE_float("ent_coef", 0.01, "")
 flags.DEFINE_float("vf_coef", 0.5, "")
 flags.DEFINE_float("max_grad_norm", 0.5, "")
 flags.DEFINE_float("target_kl", None, "")
-
 # GNN
 flags.DEFINE_integer("num_head", 8, "num of heads in GAT")
 flags.DEFINE_integer("n_layers", 3, "num of GAT layers")
@@ -166,14 +165,19 @@ def main(_):
         opt_exprs = conversion(lang.all_operators(), rw_eng.envs)
         old_costs = [expr_cost(expr) for expr in exprs]
         opt_costs = [expr_cost(expr) for expr in opt_exprs]
-        for i, (name, old, new) in enumerate(zip(files, old_costs, opt_costs)):
-            name = name.split("/")[-1]
-            print(f"expr{i}: {name}; Costs: {old} -> {new}")
+
+        if len(opt_costs) == 1:
+            logger.info("opt expression: %s", pformat(opt_exprs[0]))
+            print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
+        else:
+            for i, (name, old,
+                    new) in enumerate(zip(files, old_costs, opt_costs)):
+                name = name.split("/")[-1]
+                print(f"expr{i}: {name}; Costs: {old} -> {new}")
+
         print(f"opt time {opt_time:.4f}s")
         oks = verify_by_egraph(lang, exprs, opt_exprs)
         print(f"verification: {oks}")
-        if len(opt_costs) == 1:
-            logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print("=" * 40)
 
         # TODO save results
