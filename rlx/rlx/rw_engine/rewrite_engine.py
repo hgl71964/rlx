@@ -32,17 +32,18 @@ class RewriteEngine:
         self.rewrite_rules = rewrite_rules
         self.config = config
 
-    def run(self):
+    def run(self, use_reward=False):
         """run inference to transform the target graphs"""
         # ===== Internal IR =====
         parsers = [Parser([g]) for g in self.graphs]
 
-        # ===== env ===== (each env has a parser)
+        # ===== env ===== (each env has one parser with one graph)
         envs = InferenceVecEnv(
             [
                 make_env(env_id=self.config.env_id,
                          parser=p,
-                         callback_reward_function=lambda x, y, z, _: 0,
+                         callback_reward_function=self.callback_reward_function
+                         if use_reward else lambda x, y, z, _: 0,
                          rewrite_rules=self.rewrite_rules,
                          seed=self.config.seed,
                          config=self.config) for p in parsers

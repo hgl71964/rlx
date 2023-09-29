@@ -35,12 +35,12 @@ class GraphObsSpace(GymGraph):
         # override to satisfy the type checker; otherwise will warn
         if isinstance(x, tuple):
             if len(x) == 5:
-                if isinstance(x[0], pyg.data.Data) and \
-                      isinstance( x[1], dict) and \
-                        isinstance( x[2], Tensor) and \
-                            isinstance(x[3], Tensor) and \
-                                isinstance(x[4], defaultdict):
-                    return True
+                # if isinstance(x[0], pyg.data.Data) and \
+                #       isinstance( x[1], dict) and \
+                #         isinstance( x[2], Tensor) and \
+                #             isinstance(x[3], Tensor) and \
+                #                 isinstance(x[4], defaultdict):
+                return True
         return False
 
 
@@ -149,7 +149,7 @@ class Env(gym.Env):
         if terminated:
             # this is will be reset immediately:
             # https://github.com/Farama-Foundation/Gymnasium/blob/5799984991d16b4f6f923900d70bf1d750c97391/gymnasium/vector/sync_vector_env.py#L153
-            next_state = None
+            next_state = self.build_dummy()
         else:
             next_state = self._build_state()
         self.cnt += 1
@@ -748,16 +748,21 @@ class Env(gym.Env):
     #         print(e)
     #         raise
 
-    def dummy(self):
+    def build_dummy(self):
         node_feat = torch.zeros([2, self.n_node_feat], dtype=torch.float)
         edge_feat = torch.zeros([1, self.n_edge_feat], dtype=torch.float)
-        graph_data = pyg.data.Data(
-            x=node_feat,
-            edge_index=torch.tensor([0, 1],
-                                    dtype=torch.long).reshape(1,
-                                                              2).contiguous(),
-            edge_attr=edge_feat)
-        return graph_data
+        edge_index = torch.tensor([[0, 1]], dtype=torch.long).t().contiguous()
+        graph_data = pyg.data.Data(x=node_feat,
+                                   edge_index=edge_index,
+                                   edge_attr=edge_feat)
+
+        pattern_map = None
+        rule_mask = torch.ones(self.n_rewrite_rules + 1, dtype=torch.long)
+        loc_mask = torch.zeros((self.n_rewrite_rules + 1, self.max_loc),
+                               dtype=torch.long)
+        rlx_idx_to_graph_edge_idx = None
+
+        return graph_data, pattern_map, rule_mask, loc_mask, rlx_idx_to_graph_edge_idx
 
     def _call_reward_func(self, init: bool, terminated: bool) -> float:
         g = rlx_Graph([v for _, v in self.node_map.items()],

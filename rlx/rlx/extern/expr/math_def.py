@@ -113,6 +113,14 @@ def cnt_op_cost(expr):
     return cnt
 
 
+def convert_rlxGraphs(ops, envs):
+    opt_exprs = []
+    for i, edges in enumerate(envs.get_attr("edges")):
+        expr = rlxGraph2math(ops, edges)
+        opt_exprs.append(expr)
+    return opt_exprs
+
+
 def rlxGraph2math(ops, edges: list[Edge]):
     # find outputs
     outputs = []

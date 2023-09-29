@@ -18,7 +18,7 @@ from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
 from rlx.extern.expr.math_def import verify as math_verify
 from rlx.extern.expr.math_def import define_node_type as define_math_node_type
 from rlx.extern.expr.math_def import reward_func as math_reward
-from rlx.extern.expr.math_def import rlxGraph2math
+from rlx.extern.expr.math_def import convert_rlxGraphs
 
 from rlx.extern.expr.prop_def import define_rewrite_rules as prop_rewrite_rules
 from rlx.extern.expr.prop_def import verify as prop_verify
@@ -121,7 +121,7 @@ def main(_):
     if FLAGS.lang == "math":
         define_types = define_math_node_type
         define_rewrite_rules = math_rewrite_rules
-        conversion = rlxGraph2math
+        conversion = convert_rlxGraphs
         callback_reward_function = math_reward
     elif FLAGS.lang == "prop":
         define_types = define_prop_node_type
@@ -162,15 +162,17 @@ def main(_):
         rw_eng.train()
     else:
         print("=" * 40)
-        t = rw_eng.run()
-        opt_expr = conversion(lang.all_operators(), opt_graph)
-        original_num_op = cnt_op(expr)
-        num_op = cnt_op(opt_expr)
-        logger.info("opt expression: %s", pformat(opt_expr))
-        print(f"num of ops: {original_num_op} -> {num_op}")
-        print(f"opt time {t:.4f}s")
-        ok = verify_by_egraph(lang, expr, opt_expr)
-        print(f"verification: {ok}")
+        opt_time = rw_eng.run()
+        opt_exprs = conversion(lang.all_operators(), rw_eng.envs)
+
+        original_num_ops = [cnt_op(expr) for expr in exprs]
+        num_ops = [cnt_op(expr) for expr in opt_exprs]
+        print(f"num of ops: {original_num_ops} -> {num_ops}")
+        print(f"opt time {opt_time:.4f}s")
+        oks = verify_by_egraph(lang, exprs, opt_exprs)
+        print(f"verification: {oks}")
+        if len(num_ops) == 1:
+            logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print("=" * 40)
 
         # TODO save results

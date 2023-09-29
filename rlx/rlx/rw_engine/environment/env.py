@@ -67,7 +67,7 @@ class InferenceVecEnv(gym.vector.SyncVectorEnv):
         for i, (env, action) in enumerate(zip(self.envs, self._actions)):
             # if done; just sample dummy
             if self._terminateds[i] or self._truncateds[i]:
-                observation = env.dummy()
+                observation = env.unwrapped.build_dummy()
                 info = {}
             else:
                 (
