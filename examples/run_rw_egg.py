@@ -12,16 +12,15 @@ from rlx.rw_engine.parser import Parser
 from rlx.rw_engine import RewriteEngine
 from rlx.utils.common import get_logger
 
-from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, cnt_op, load_all_exprs, verify_by_egraph
+from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, load_all_exprs, verify_by_egraph
 
 from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
-from rlx.extern.expr.math_def import verify as math_verify
 from rlx.extern.expr.math_def import define_node_type as define_math_node_type
 from rlx.extern.expr.math_def import reward_func as math_reward
 from rlx.extern.expr.math_def import convert_rlxGraphs
+from rlx.extern.expr.math_def import expr_cost
 
 from rlx.extern.expr.prop_def import define_rewrite_rules as prop_rewrite_rules
-from rlx.extern.expr.prop_def import verify as prop_verify
 from rlx.extern.expr.prop_def import define_node_type as define_prop_node_type
 from rlx.extern.expr.prop_def import reward_func as prop_reward
 from rlx.extern.expr.prop_def import rlxGraph2Prop
@@ -161,28 +160,30 @@ def main(_):
     if t:
         rw_eng.train()
     else:
-        print("=" * 40)
         opt_time = rw_eng.run()
-        opt_exprs = conversion(lang.all_operators(), rw_eng.envs)
 
-        original_num_ops = [cnt_op(expr) for expr in exprs]
-        num_ops = [cnt_op(expr) for expr in opt_exprs]
-        print(f"num of ops: {original_num_ops} -> {num_ops}")
+        print("=" * 40)
+        opt_exprs = conversion(lang.all_operators(), rw_eng.envs)
+        old_costs = [expr_cost(expr) for expr in exprs]
+        opt_costs = [expr_cost(expr) for expr in opt_exprs]
+        for i, (name, old, new) in enumerate(zip(files, old_costs, opt_costs)):
+            name = name.split("/")[-1]
+            print(f"expr{i}: {name}; Costs: {old} -> {new}")
         print(f"opt time {opt_time:.4f}s")
         oks = verify_by_egraph(lang, exprs, opt_exprs)
         print(f"verification: {oks}")
-        if len(num_ops) == 1:
+        if len(opt_costs) == 1:
             logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print("=" * 40)
 
         # TODO save results
-        resule = Result(
-            cost=0,
-            time=0,
-            verification=0,
-        )
-        with open(save_path, "wb") as f:
-            pickle.dump(step_info._asdict(), f)
+        # resule = Result(
+        #     cost=0,
+        #     time=0,
+        #     verification=0,
+        # )
+        # with open(save_path, "wb") as f:
+        #     pickle.dump(step_info._asdict(), f)
 
         # v1 = verify(opt_expr)
         # v2 = verify(expr)

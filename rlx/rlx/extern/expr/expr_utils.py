@@ -144,23 +144,6 @@ class expr_graph(Graph):
 #########################################
 ################ utility ################
 #########################################
-def cnt_op(expr):
-    cnt = 0
-
-    def dfs(node):
-        nonlocal cnt
-        if isinstance(node, int):
-            cnt += 1
-            return
-
-        cnt += 1
-        for child in node._fields:
-            dfs(getattr(node, str(child)))
-
-    dfs(expr)
-    return cnt
-
-
 step_info = namedtuple("StepInfo", [
     "action", "action_name", "stop_reason", "cost", "num_applications",
     "num_enodes", "num_eclasses", "best_expr", "init_expr", "build_time",

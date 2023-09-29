@@ -85,32 +85,22 @@ def reward_func(
     return reward
 
 
-def cnt_op_cost(expr):
-    raise
-    # m = {
-    #     "Add": 2,
-    #     "Sub": 2,
-    #     "Mul": 4,
-    #     "Div": 4,
-    #     "Pow": 6,
-    #     "Sqrt": 2,
-    #     "Sin": 2,
-    #     "Cos": 2,
-    # }
-    # cnt = 0
+def expr_cost(expr):
+    cost = 0
 
-    # def dfs(node):
-    #     nonlocal cnt
-    #     if isinstance(node, int):
-    #         return
+    def dfs(node):
+        nonlocal cost
+        if isinstance(node, int):
+            cost += 1
+            return
 
-    #     my_type = type(node).__name__
-    #     cnt += m[my_type]
-    #     for child in node._fields:
-    #         dfs(getattr(node, str(child)))
+        my_type = type(node).__name__
+        cost += OP_COST[my_type]
+        for child in node._fields:
+            dfs(getattr(node, str(child)))
 
-    # dfs(expr)
-    return cnt
+    dfs(expr)
+    return cost
 
 
 def convert_rlxGraphs(ops, envs):
@@ -174,45 +164,45 @@ def rlxGraph2math(ops, edges: list[Edge]):
     return dfs(output)
 
 
-def verify(expr):
-    def dfs(node):
-        # leaf
-        if isinstance(node, int):
-            return node
-
-        children = []
-        for child in node._fields:
-            child_node = dfs(getattr(node, str(child)))
-            children.append(child_node)
-
-        my_type = type(node).__name__
-        if my_type == "Add":
-            ret = children[0] + children[1]
-        elif my_type == "Sub":
-            ret = children[0] - children[1]
-        elif my_type == "Mul":
-            ret = children[0] * children[1]
-        elif my_type == "Div":
-            assert (children[1] != 0), "Div by zero"
-            ret = children[0] / children[1]
-        elif my_type == "Pow":
-            assert (children[0] > 0), "Pow by negative"
-            try:
-                ret = math.pow(children[0], children[1])
-            except:
-                raise RuntimeError(f"pow: {children[0]}, {children[1]}")
-        elif my_type == "Sqrt":
-            assert (children[0] >= 0)
-            ret = math.sqrt(children[0])
-        elif my_type == "Sin":
-            ret = math.sin(children[0])
-        elif my_type == "Cos":
-            ret = math.cos(children[0])
-        else:
-            raise RuntimeError(f"Unsupport Op {my_type}")
-        return ret
-
-    return dfs(expr)
+# def verify(expr):
+#     def dfs(node):
+#         # leaf
+#         if isinstance(node, int):
+#             return node
+#
+#         children = []
+#         for child in node._fields:
+#             child_node = dfs(getattr(node, str(child)))
+#             children.append(child_node)
+#
+#         my_type = type(node).__name__
+#         if my_type == "Add":
+#             ret = children[0] + children[1]
+#         elif my_type == "Sub":
+#             ret = children[0] - children[1]
+#         elif my_type == "Mul":
+#             ret = children[0] * children[1]
+#         elif my_type == "Div":
+#             assert (children[1] != 0), "Div by zero"
+#             ret = children[0] / children[1]
+#         elif my_type == "Pow":
+#             assert (children[0] > 0), "Pow by negative"
+#             try:
+#                 ret = math.pow(children[0], children[1])
+#             except:
+#                 raise RuntimeError(f"pow: {children[0]}, {children[1]}")
+#         elif my_type == "Sqrt":
+#             assert (children[0] >= 0)
+#             ret = math.sqrt(children[0])
+#         elif my_type == "Sin":
+#             ret = math.sin(children[0])
+#         elif my_type == "Cos":
+#             ret = math.cos(children[0])
+#         else:
+#             raise RuntimeError(f"Unsupport Op {my_type}")
+#         return ret
+#
+#     return dfs(expr)
 
 
 #########################################
