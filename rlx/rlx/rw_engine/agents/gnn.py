@@ -15,6 +15,7 @@ from torch_geometric.nn.models.basic_gnn import GAT
 ############ Utils ###########
 ##############################
 class CategoricalMasked(Categorical):
+
     def __init__(self,
                  probs=None,
                  logits=None,
@@ -54,6 +55,7 @@ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
 ##############################
 # see: torch_geometric/nn/models/meta.py
 class EdgeModel(torch.nn.Module):
+
     def __init__(self, in_size, hidden_size, out_size):
         super().__init__()
         self.head = nn.Sequential(
@@ -71,6 +73,7 @@ class EdgeModel(torch.nn.Module):
 
 
 class NodeModel(torch.nn.Module):
+
     def __init__(self, num_node_features, num_edge_features, final_out_size):
         super().__init__()
         in_size = num_node_features + num_edge_features
@@ -106,6 +109,7 @@ class NodeModel(torch.nn.Module):
 
 
 class GlobalModel(torch.nn.Module):
+
     def __init__(self, in_size, hidden_size, out_size):
         super().__init__()
         self.global_mlp = nn.Sequential(
@@ -137,6 +141,7 @@ class GATNetwork(nn.Module):
     """A Graph Attentional Network (GAT)
     https://pytorch-geometric.readthedocs.io/en/latest/modules/nn.html
     """
+
     def __init__(
             self,
             num_node_features: int,
@@ -234,6 +239,7 @@ class GATNetwork(nn.Module):
 
 
 class GATNetwork_with_global(nn.Module):
+
     def __init__(
             self,
             num_node_features: int,
@@ -325,6 +331,7 @@ class GATNetwork_with_global(nn.Module):
 
 
 class PoolingLayer(nn.Module):
+
     def __init__(
         self,
         hidden_size,
@@ -342,6 +349,7 @@ class PoolingLayer(nn.Module):
 
 
 class GlobalLayer(nn.Module):
+
     def __init__(
         self,
         hidden_size,

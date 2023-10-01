@@ -26,6 +26,7 @@ FLAGS = flags.FLAGS
 #### Test 1
 ###############
 class G1(Graph):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -53,6 +54,7 @@ def rw1(node_types):
 
 
 class G2(Graph):
+
     def __init__(self, node_types):
         # ((t + tw) * x + b * x) + more
         self.nodes = []
@@ -100,6 +102,7 @@ def rw2(node_types):
 
 
 class G3(Graph):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -132,7 +135,9 @@ class G3(Graph):
 
 
 def rw3(node_types):
+
     class r1(RewriteRule):
+
         def __init__(self):
             self.name = "pow(x, b) + pow(x, c) => pow(x, b+c)"
             self.x, self.tx = symbol_pattern()
@@ -157,6 +162,7 @@ def rw3(node_types):
 
 
 class G4(Graph):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -181,6 +187,7 @@ class G4(Graph):
 
 
 class G4_alter(Graph):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -205,6 +212,7 @@ class G4_alter(Graph):
 
 
 class G4_cancel_sub(Graph):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -224,7 +232,9 @@ class G4_cancel_sub(Graph):
 
 
 def rw4(node_types):
+
     class r1(RewriteRule):
+
         def __init__(self):
             self.name = "x + 0 => x"
             self.x, self.tx = symbol_pattern()
@@ -239,6 +249,7 @@ def rw4(node_types):
             return [self.tx]
 
     class r2(RewriteRule):
+
         def __init__(self):
             self.name = "x - x = 0"
             self.x, self.tx = symbol_pattern()
@@ -256,6 +267,7 @@ def rw4(node_types):
 
 
 class G5_eq(Graph):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -276,6 +288,7 @@ class G5_eq(Graph):
 
 
 class G5_partial_eq(Graph):
+
     def __init__(self, node_types):
         self.nodes = []
         self.edges = []
@@ -296,7 +309,9 @@ class G5_partial_eq(Graph):
 
 
 def rw5(node_types):
+
     class r(RewriteRule):
+
         def __init__(self):
             self.name = "a + b = b + a"
             self.a, self.ta = const_pattern()
@@ -313,18 +328,22 @@ def rw5(node_types):
             return [out]
 
     class r_eq(r):
+
         def register_deps(self):
             self.a.attr == self.b.attr
 
     class r_paritial_eq1(r):
+
         def register_deps(self):
             self.a.attr[0][1] == self.b.attr[0][1]
 
     class r_paritial_eq2(r):
+
         def register_deps(self):
             self.a.attr[0][0] == self.b.attr[0][0]
 
     class r_const(r):
+
         def register_deps(self):
             self.a.attr[1] == 3
 

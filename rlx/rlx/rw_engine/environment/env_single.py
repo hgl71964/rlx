@@ -28,6 +28,7 @@ sys.setrecursionlimit(10**5)
 
 
 class GraphObsSpace(GymGraph):
+
     def contains(self, x) -> bool:
         if x is None:
             return True
@@ -44,6 +45,7 @@ class GraphObsSpace(GymGraph):
 
 
 class Env(gym.Env):
+
     def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc):
         super().__init__()
         self.parser = parser

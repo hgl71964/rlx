@@ -1,9 +1,11 @@
 import os
 import time
 import random
-import numpy as np
 import pickle
+import numpy as np
+from pprint import pformat
 
+from rlx.utils.common import get_logger
 from rlx.extern.expr.expr_utils import (get_lang, new_egraph, load_expr,
                                         solve_without_step, plot_expr,
                                         load_all_exprs)
@@ -26,6 +28,8 @@ flags.DEFINE_string("default_out_path", "data", "output dir")
 
 flags.DEFINE_string("fn", None, "file name of the pre-generated expr")
 flags.DEFINE_string("dir", None, "directory pre-generated expr")
+
+logger = get_logger(__name__)
 
 
 def main(_):
@@ -51,9 +55,9 @@ def main(_):
     #########################
     ####### solver ##########
     #########################
-    if len(exprs) == 1:
+    if FLAGS.fn is not None:
         print("=" * 40)
-        print("[EGG] Solving expression: ", exprs[0])
+        print("[EGG] Solving expression: ", expr)
         print("=" * 40)
     # egg_df, best_expr = solve_expr_egg(lang, expr, FLAGS.node_lim)
 
@@ -61,7 +65,7 @@ def main(_):
     if plot:
         print(f"[WARNING] only plotting the first expr")
         plot_expr(
-            expr[0],
+            exprs[0],
             os.path.join(FLAGS.default_out_path, "viz", "initial_" + FLAGS.fn))
 
     # solve without step
@@ -84,16 +88,15 @@ def main(_):
         old_costs.append(base_cost)
         opt_exprs.append(best_expr)
         opt_costs.append(step_info.cost)
-
     t2 = time.perf_counter()
     print(f"opt time {t2-t1:.4f}s")
 
     # result
-    if len(opt_costs) == 1:
+    if FLAGS.fn is not None:
         logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
-    else:
 
+    elif FLAGS.dir is not None:
         results = {}
         for i, (name, old, new) in enumerate(zip(files, old_costs, opt_costs)):
             name = name.split("/")[-1]
@@ -101,7 +104,7 @@ def main(_):
             results[name] = (old, new, True)
 
         results["opt_time"] = t2 - t1
-        run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}_{FLAGS.fn}.pkl"
+        run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}.pkl"
         result_path = f"{FLAGS.default_out_path}/rlx/runs/egg/{run_name}"
 
         # https://github.com/abseil/abseil-py/issues/57
@@ -121,7 +124,7 @@ def main(_):
     if plot:
         print(f"[WARNING] only plotting the first opt expr")
         plot_expr(
-            best_exprs[0],
+            opt_exprs[0],
             os.path.join(FLAGS.default_out_path, "viz", "final_" + FLAGS.fn))
 
 

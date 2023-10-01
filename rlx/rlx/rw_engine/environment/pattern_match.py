@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 
 
 class PatternMatch:
+
     def __init__(self):
         """we need to make sure there is a match if and only if it is valid"""
         self.matched = {}

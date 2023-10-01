@@ -21,6 +21,7 @@ flags.DEFINE_integer("node_lim", 500, "enode limit")
 
 
 class GATNetwork(nn.Module):
+
     def __init__(
             self,
             num_node_features: int,

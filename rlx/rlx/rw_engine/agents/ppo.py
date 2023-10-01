@@ -1,3 +1,4 @@
+import os
 import time
 import datetime
 from typing import Union, Dict
@@ -20,6 +21,7 @@ logger = get_logger(__name__)
 
 
 class PPO(nn.Module):
+
     def __init__(self,
                  actor_n_action: int,
                  n_node_features: int,
@@ -97,7 +99,9 @@ def env_loop(envs, config):
     The env_loop is coupled with specific algorithm (e.g. PPO <=> on-policy),
         so each agent should implement their env_loop
     """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() and bool(config.gpu) else "cpu")
+    logger.info(f"device: {device}")
     # ===== env =====
     state, _ = envs.reset(seed=config.seed)
 
@@ -326,8 +330,8 @@ def env_loop(envs, config):
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfracs += [((ratio - 1.0).abs() >
-                                   config.clip_coef).float().mean().item()]
+                    clipfracs += [((ratio - 1.0).abs()
+                                   > config.clip_coef).float().mean().item()]
 
                 mb_advantages = b_advantages[mb_inds]
                 if norm_adv:
@@ -409,7 +413,9 @@ def env_loop(envs, config):
 
 
 def inference(env, config):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() and bool(config.gpu) else "cpu")
+    logger.info(f"device: {device}")
     # ===== env =====
     state, _ = env.reset(seed=config.seed)
 

@@ -20,6 +20,7 @@ logger = get_logger(__name__)
 
 
 class MaxPPO(nn.Module):
+
     def __init__(self,
                  actor_n_action: int,
                  critic_n_action: int,
@@ -460,8 +461,8 @@ def env_loop(envs, config):
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfracs += [((ratio - 1.0).abs() >
-                                   config.clip_coef).float().mean().item()]
+                    clipfracs += [((ratio - 1.0).abs()
+                                   > config.clip_coef).float().mean().item()]
 
                 mb_advantages = b_advantages[mb_inds]
                 if norm_adv:

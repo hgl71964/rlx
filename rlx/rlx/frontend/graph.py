@@ -8,6 +8,7 @@ class Node:  # for type annotation
 
 
 class Edge(ABC):
+
     @abstractmethod
     def get_idx(self) -> int:
         pass
@@ -42,6 +43,7 @@ class Edge(ABC):
 
 
 class Node(ABC):
+
     @abstractmethod
     def get_idx(self) -> int:
         pass
@@ -72,6 +74,7 @@ class Node(ABC):
 
 
 class Graph(ABC):
+
     @abstractmethod
     def get_nodes(self) -> list[Node]:
         pass

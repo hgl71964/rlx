@@ -30,6 +30,7 @@ def make_env(
     seed: int,
     config,
 ):
+
     def thunk():
         env = gym.make(env_id,
                        parser=parser,
@@ -57,6 +58,7 @@ class InferenceVecEnv(gym.vector.SyncVectorEnv):
     """Vectorized environment's step will automatically reset
     At inference time, we don't want that
     """
+
     def step_wait(self):
         """Steps through each of the environments returning the batched results.
 

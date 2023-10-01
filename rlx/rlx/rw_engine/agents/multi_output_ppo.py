@@ -21,6 +21,7 @@ logger = get_logger(__name__)
 
 
 class MultiOutputPPO(nn.Module):
+
     def __init__(self,
                  nvec,
                  n_node_features: int,
@@ -119,7 +120,9 @@ class MultiOutputPPO(nn.Module):
 
 
 def env_loop(envs, config):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() and bool(config.gpu) else "cpu")
+    logger.info(f"device: {device}")
     # ===== env =====
     state, _ = envs.reset(seed=config.seed)
 
@@ -369,8 +372,8 @@ def env_loop(envs, config):
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-logratio).mean()
                     approx_kl = ((ratio - 1) - logratio).mean()
-                    clipfracs += [((ratio - 1.0).abs() >
-                                   config.clip_coef).float().mean().item()]
+                    clipfracs += [((ratio - 1.0).abs()
+                                   > config.clip_coef).float().mean().item()]
 
                 mb_advantages = b_advantages[mb_inds]
                 if norm_adv:
@@ -452,7 +455,9 @@ def env_loop(envs, config):
 
 
 def inference(envs, config):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() and bool(config.gpu) else "cpu")
+    logger.info(f"device: {device}")
     # ===== env =====
     state, _ = envs.reset(seed=config.seed)
 

@@ -18,6 +18,7 @@ import gymnasium as gym
 
 
 class RewriteEngine:
+
     def __init__(
         self,
         graphs,

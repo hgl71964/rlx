@@ -70,6 +70,7 @@ flags.DEFINE_float("ent_coef", 0.01, "")
 flags.DEFINE_float("vf_coef", 0.5, "")
 flags.DEFINE_float("max_grad_norm", 0.5, "")
 flags.DEFINE_float("target_kl", None, "")
+flags.DEFINE_integer("gpu", 1, "whether to use gpu")
 # GNN
 flags.DEFINE_integer("num_head", 8, "num of heads in GAT")
 flags.DEFINE_integer("n_layers", 3, "num of GAT layers")
@@ -136,12 +137,6 @@ def main(_):
                    os.path.join(FLAGS.default_out_path, "viz", FLAGS.plot),
                    check=False)
 
-    # run a sanity check
-    # round_trip = conversion(lang.all_operators(), my_expr_graph.get_edges())
-    # v2 = verify(expr)
-    # v1 = verify(round_trip)
-    # assert np.isclose(v1, v2), f"verify failed: {v1}, {v2}"
-
     # ===== rewrite engine =====
     rw_eng = RewriteEngine(
         expr_graphs,
@@ -155,37 +150,44 @@ def main(_):
     if t:
         rw_eng.train()
     else:
+        print("=" * 40)
         opt_time = rw_eng.run()
+        print(f"opt time {opt_time:.4f}s")
 
         # result
-        print("=" * 40)
         opt_exprs = conversion(lang.all_operators(), rw_eng.envs)
         old_costs = [expr_cost(expr) for expr in exprs]
         opt_costs = [expr_cost(expr) for expr in opt_exprs]
 
-        print(f"opt time {opt_time:.4f}s")
+        t1 = time.perf_counter()
         oks = verify_by_egraph(lang, exprs, opt_exprs)
-        print(f"verification: {oks}")
+        t2 = time.perf_counter()
+        print(f"verification: {oks} - time: {t2-t1:.2f}s")
+        print(f"all_verified?: {oks.all()}")
         print("=" * 40)
 
-        if len(opt_costs) == 1:
+        if FLAGS.fn is not None:
             logger.info("opt expression: %s", pformat(opt_exprs[0]))
             print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
-        else:
 
+        elif FLAGS.dir is not None:
             results = {}
-            for i, (name, old,
-                    new) in enumerate(zip(files, old_costs, opt_costs)):
+            for i, (
+                    name,
+                    old,
+                    new,
+                    ok,
+            ) in enumerate(zip(files, old_costs, opt_costs, oks)):
                 name = name.split("/")[-1]
                 print(f"expr{i}: {name}; Costs: {old} -> {new}")
 
-                results[name] = (old, new, oks[i])
+                results[name] = (old, new, ok)
 
             results["opt_time"] = opt_time
             result_path = os.path.join(
-                f"{config.default_out_path}/runs/",
+                f"{FLAGS.default_out_path}/runs/",
                 FLAGS.weights_path,
-                "results.pkl",
+                f"results_{FLAGS.dir}.pkl",
             )
             with open(result_path, "wb") as f:
                 pickle.dump(results, f)
