@@ -1,3 +1,5 @@
+import gymnasium as gym
+
 from rlx.rw_engine.parser import Parser
 from rlx.rw_engine.environment.env import make_env, InferenceVecEnv
 
@@ -13,8 +15,6 @@ from rlx.rw_engine.agents.multi_output_max_ppo import inference as multi_output_
 
 from rlx.rw_engine.agents.ppo import env_loop as ppo_env_loop
 from rlx.rw_engine.agents.ppo import inference as ppo_inference
-
-import gymnasium as gym
 
 
 class RewriteEngine:

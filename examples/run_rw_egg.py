@@ -162,8 +162,9 @@ def main(_):
         t1 = time.perf_counter()
         oks = verify_by_egraph(lang, exprs, opt_exprs)
         t2 = time.perf_counter()
-        print(f"verification: {oks} - time: {t2-t1:.2f}s")
-        print(f"all_verified?: {oks.all()}")
+        print(f"verification: {oks} ")
+        print(f"time_taken: {t2-t1:.2f}s")
+        print(f"all_verified?: {all(oks)}")
         print("=" * 40)
 
         if FLAGS.fn is not None:
