@@ -3,7 +3,6 @@ import time
 import random
 import pickle
 from pprint import pformat
-from collections import namedtuple
 
 import numpy as np
 import torch
@@ -117,10 +116,10 @@ def main(_):
         conversion = convert_rlxGraphs
         callback_reward_function = math_reward
     elif FLAGS.lang == "prop":
-        define_types = define_prop_node_type
-        define_rewrite_rules = prop_rewrite_rules
-        conversion = rlxGraph2Prop
-        callback_reward_function = prop_reward
+        # define_types = define_prop_node_type
+        # define_rewrite_rules = prop_rewrite_rules
+        # conversion = rlxGraph2Prop
+        # callback_reward_function = prop_reward
         raise NotImplementedError(f"Need to redo")
     else:
         raise NotImplementedError(f"Unsupported lang: {FLAGS.lang}")
@@ -145,7 +144,7 @@ def main(_):
         FLAGS,
     )
 
-    # ===== train or inference =====
+    # ===== train/inference =====
     t = bool(FLAGS.t)
     if t:
         rw_eng.train()
@@ -163,16 +162,20 @@ def main(_):
         oks = verify_by_egraph(lang, exprs, opt_exprs)
         t2 = time.perf_counter()
         print(f"verification: {oks} ")
-        print(f"time_taken: {t2-t1:.2f}s")
+        print(f"verify time: {t2-t1:.2f}s")
         print(f"all_verified?: {all(oks)}")
         print("=" * 40)
 
+        results = {}
         if FLAGS.fn is not None:
             logger.info("opt expression: %s", pformat(opt_exprs[0]))
             print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
+            results[FLAGS.fn] = (old_costs[0], opt_costs[0], oks[0])
+            results["opt_time"] = opt_time
+            fn = FLAGS.fn.split("/")[-1]
+            result_path = f"results_{fn}.pkl"
 
         elif FLAGS.dir is not None:
-            results = {}
             for i, (
                     name,
                     old,
@@ -181,16 +184,24 @@ def main(_):
             ) in enumerate(zip(files, old_costs, opt_costs, oks)):
                 name = name.split("/")[-1]
                 print(f"expr{i}: {name}; Costs: {old} -> {new}")
-
                 results[name] = (old, new, ok)
-
             results["opt_time"] = opt_time
-            result_path = os.path.join(
+            result_path = f"results_{FLAGS.dir}.pkl"
+
+        l = bool(FLAGS.l)
+        if l:
+            result_dir_path = os.path.join(
                 f"{FLAGS.default_out_path}/runs/",
                 FLAGS.weights_path,
-                f"results_{FLAGS.dir}.pkl",
+                "results",
             )
-            with open(result_path, "wb") as f:
+            if not os.path.exists(result_dir_path):
+                os.makedirs(result_dir_path)
+            full_path = os.path.join(
+                result_dir_path,
+                result_path,
+            )
+            with open(full_path, "wb") as f:
                 pickle.dump(results, f)
 
         # v1 = verify(opt_expr)

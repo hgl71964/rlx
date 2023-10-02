@@ -4,6 +4,8 @@ import pickle
 import pandas as pd
 from collections import namedtuple
 
+from tqdm import tqdm
+
 from rlx.frontend import Graph, Node, Edge
 
 # extern interface
@@ -237,7 +239,7 @@ def verify_by_egraph(
     time_lim=100,
 ):
     oks = []
-    for expr, opt_expr in zip(exprs, opt_exprs):
+    for expr, opt_expr in tqdm(zip(exprs, opt_exprs)):
         egraph = new_egraph(expr)
         step_info, _ = solve_without_step(
             expr,
