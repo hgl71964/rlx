@@ -73,6 +73,7 @@ def main(_):
     old_costs = []
     opt_exprs = []
     opt_costs = []
+    step_infos = []
     t1 = time.perf_counter()
     for expr in tqdm(exprs):
         egraph = new_egraph(expr)
@@ -89,6 +90,7 @@ def main(_):
         old_costs.append(base_cost)
         opt_exprs.append(best_expr)
         opt_costs.append(step_info.cost)
+        step_infos.append(step_info)
     t2 = time.perf_counter()
     print(f"opt time {t2-t1:.4f}s")
 
@@ -99,19 +101,25 @@ def main(_):
 
     elif FLAGS.dir is not None:
         results = {}
-        for i, (name, old, new) in enumerate(zip(files, old_costs, opt_costs)):
+        for i, (
+                name,
+                info,
+                old,
+                new,
+        ) in enumerate(zip(files, step_infos, old_costs, opt_costs)):
             name = name.split("/")[-1]
             print(f"expr{i}: {name}; Costs: {old} -> {new}")
-            results[name] = (old, new, True)
+            results[name] = (
+                old,
+                new,
+                True,
+                info.build_time,
+                info.extract_time,
+            )
 
         results["opt_time"] = t2 - t1
         run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}.pkl"
-        result_path = f"{FLAGS.default_out_path}/rlx/runs/egg"
-
-        # https://github.com/abseil/abseil-py/issues/57
-        # FLAGS.append_flags_into_file(save_path + "/hyperparams.txt")
-        # with open(save_path, "wb") as f:
-        #     pickle.dump(step_info._asdict(), f)
+        result_path = f"{FLAGS.default_out_path}/runs/egg"
 
         if not os.path.exists(result_path):
             os.mkdir(result_path)
