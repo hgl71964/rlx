@@ -173,7 +173,7 @@ def main(_):
             results[FLAGS.fn] = (old_costs[0], opt_costs[0], oks[0])
             results["opt_time"] = opt_time
             fn = FLAGS.fn.split("/")[-1]
-            result_path = f"results_{fn}.pkl"
+            result_path = f"results_{fn}"
 
         elif FLAGS.dir is not None:
             for i, (

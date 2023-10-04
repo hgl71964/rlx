@@ -3,6 +3,7 @@ import time
 import random
 import pickle
 import numpy as np
+from tqdm import tqdm
 from pprint import pformat
 
 from rlx.utils.common import get_logger
@@ -73,7 +74,7 @@ def main(_):
     opt_exprs = []
     opt_costs = []
     t1 = time.perf_counter()
-    for expr in exprs:
+    for expr in tqdm(exprs):
         egraph = new_egraph(expr)
         base_cost, _ = egraph.extract(expr)
         step_info, best_expr = solve_without_step(
@@ -105,7 +106,7 @@ def main(_):
 
         results["opt_time"] = t2 - t1
         run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}.pkl"
-        result_path = f"{FLAGS.default_out_path}/rlx/runs/egg/{run_name}"
+        result_path = f"{FLAGS.default_out_path}/rlx/runs/egg"
 
         # https://github.com/abseil/abseil-py/issues/57
         # FLAGS.append_flags_into_file(save_path + "/hyperparams.txt")
@@ -114,6 +115,7 @@ def main(_):
 
         if not os.path.exists(result_path):
             os.mkdir(result_path)
+        result_path = os.path.join(result_path, run_name)
         with open(result_path, "wb") as f:
             pickle.dump(results, f)
 
