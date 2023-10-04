@@ -67,10 +67,12 @@ class PPO(nn.Module):
         vf, _ = self.critic(x)
         return vf
 
-    def get_action_and_value(self,
-                             x: pyg.data.Batch,
-                             invalid_rule_mask: torch.Tensor,
-                             action=None):
+    def get_action_and_value(
+        self,
+        x: pyg.data.Batch,
+        invalid_rule_mask: torch.Tensor,
+        action=None,
+    ):
         # shape: (num_of_graph_in_the_batch, actor_n_action)
         logits, _ = self.actor(x)
         vf, _ = self.critic(x)
@@ -412,12 +414,12 @@ def env_loop(envs, config):
         writer.close()
 
 
-def inference(env, config):
+def inference(envs, config):
     device = torch.device(
         "cuda" if torch.cuda.is_available() and bool(config.gpu) else "cpu")
     logger.info(f"device: {device}")
-    # ===== env =====
-    state, _ = env.reset(seed=config.seed)
+    # ===== envs =====
+    state, _ = envs.reset(seed=config.seed)
 
     # ===== agent =====
     assert config.weights_path is not None, "weights_path must be set"
@@ -425,51 +427,52 @@ def inference(env, config):
     fn = os.path.join(f"{config.default_out_path}/runs/", config.weights_path,
                       f"{agent_id}.pt")
     agent = PPO(
-        actor_n_action=env.single_action_space.nvec[0],
-        n_node_features=env.single_observation_space.node_space.shape[0],
-        n_edge_features=env.single_observation_space.edge_space.shape[0],
+        actor_n_action=envs.single_action_space.nvec[0],
+        n_node_features=envs.single_observation_space.node_space.shape[0],
+        n_edge_features=envs.single_observation_space.edge_space.shape[0],
         num_head=config.num_head,
         n_layers=config.n_layers,
         hidden_size=config.hidden_size,
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
         device=device,
-    ).to(device)
+    )
     agent_state_dict = torch.load(fn, map_location=device)
     agent.load_state_dict(agent_state_dict)
     agent.to(device)
 
-    next_obs = state[0].to(device)
-    invalid_rule_mask = state[2].reshape(1, -1).to(device)
-    invalid_loc_mask = state[3].reshape(
-        [config.num_envs] + env.action_space.nvec.tolist()).to(device)
+    next_obs = pyg.data.Batch.from_data_list([i[0] for i in state]).to(device)
+    invalid_rule_mask = torch.cat([i[2] for i in state]).reshape(
+        (envs.num_envs, -1)).to(device)
 
     # ==== rollouts ====
     cnt = 0
-    done = False
     t1 = time.perf_counter()
-    while not done:
+    while True:
         cnt += 1
         with torch.no_grad():
             action, _, _, _ = agent.get_action_and_value(
                 next_obs,
                 invalid_rule_mask=invalid_rule_mask,
-                invalid_loc_mask=invalid_loc_mask)
+            )
 
         # TRY NOT TO MODIFY: execute the game and log data.
-        action = action[0].cpu()
-        a = [action[0], action[1]]
-        next_obs, reward, terminated, truncated, _ = env.step(a)
+        # print("a", action)
+        # a = [tuple(i) for i in action.cpu()]
+        next_obs, _, terminated, truncated, _ = envs.step(action.cpu().numpy())
         done = np.logical_or(terminated, truncated)
-        if done:
-            break
-        invalid_rule_mask = next_obs[2].reshape(1, -1).to(device)
-        invalid_loc_mask = next_obs[3].reshape(
-            [config.num_envs] + env.action_space.nvec.tolist()).to(device)
-        next_obs = next_obs[0].to(device)
 
-        logger.info(f"iter {cnt}; reward: {reward}")
+        if done.all():
+            break
+
+        invalid_rule_mask = torch.cat([i[2] for i in next_obs]).reshape(
+            (envs.num_envs, -1)).to(device)
+
+        next_obs = pyg.data.Batch.from_data_list([i[0] for i in next_obs
+                                                  ]).to(device)
+
+        # logger.info(f"iter {cnt}; reward: {reward}")
 
     t2 = time.perf_counter()
-    print(terminated, truncated)
+    # print(terminated, truncated)
     return t2 - t1

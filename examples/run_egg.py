@@ -11,6 +11,8 @@ from rlx.extern.expr.expr_utils import (get_lang, new_egraph, load_expr,
                                         solve_without_step, plot_expr,
                                         load_all_exprs)
 
+from rlx.extern.expr.math_def import expr_cost
+
 from absl import app
 from absl import flags
 
@@ -72,7 +74,6 @@ def main(_):
     # solve without step
     old_costs = []
     opt_exprs = []
-    opt_costs = []
     step_infos = []
     t1 = time.perf_counter()
     for expr in tqdm(exprs):
@@ -86,15 +87,16 @@ def main(_):
             FLAGS.node_lim,
             FLAGS.time_lim,
             bool(FLAGS.backoff),
+            FLAGS.e,
         )
         old_costs.append(base_cost)
         opt_exprs.append(best_expr)
-        opt_costs.append(step_info.cost)
         step_infos.append(step_info)
     t2 = time.perf_counter()
-    print(f"opt time {t2-t1:.4f}s")
+    print(f"opt time {t2-t1:.2f}s")
 
     # result
+    opt_costs = [expr_cost(opt_expr) for opt_expr in opt_exprs]
     if FLAGS.fn is not None:
         logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")

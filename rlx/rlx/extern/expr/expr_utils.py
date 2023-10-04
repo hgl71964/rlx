@@ -249,6 +249,7 @@ def verify_by_egraph(
             node_lim,
             time_lim,
             backoff=True,
+            e="greedy",
         )
         ok = egraph.equiv(expr, opt_expr)
         oks.append(ok)
@@ -283,8 +284,15 @@ def get_lang(name: str) -> Language:
     }[name]
 
 
-def solve_without_step(expr_to_extract, lang, egraph, iter_lim, node_lim,
-                       time_lim, backoff):
+def solve_without_step(expr_to_extract,
+                       lang,
+                       egraph,
+                       iter_lim,
+                       node_lim,
+                       time_lim,
+                       backoff,
+                       e,
+                       timeout=50.0):
     t0 = time.perf_counter()
     stop_reason, num_applications, num_enodes, num_eclasses = egraph.run(
         lang.rewrite_rules(),
@@ -294,7 +302,13 @@ def solve_without_step(expr_to_extract, lang, egraph, iter_lim, node_lim,
         use_backoff=backoff,
     )
     t1 = time.perf_counter()
-    best_cost, best_expr = egraph.extract(expr_to_extract)
+    if e == "greedy":
+        best_cost, best_expr = egraph.extract(expr_to_extract)
+    elif e == "ilp":
+        # ilp will panic for some reason?
+        _, best_expr = egraph.lp_extract(expr_to_extract, timeout=timeout)
+    else:
+        raise RuntimeError(f"Unkown solver: {e}")
     t2 = time.perf_counter()
     # print("entry: ", egraph.extraction_entry_point(expr_to_extract))
     # print("all eid", egraph.eclass_ids())
@@ -303,7 +317,7 @@ def solve_without_step(expr_to_extract, lang, egraph, iter_lim, node_lim,
         action_name="NaN",
         num_applications=num_applications,
         stop_reason=stop_reason,
-        cost=float(best_cost),
+        cost=0,
         best_expr=str(best_expr),
         num_eclasses=num_eclasses,
         num_enodes=num_enodes,

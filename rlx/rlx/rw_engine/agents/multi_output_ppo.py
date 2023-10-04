@@ -69,11 +69,13 @@ class MultiOutputPPO(nn.Module):
         vf, _ = self.critic(x)
         return vf
 
-    def get_action_and_value(self,
-                             x: pyg.data.Batch,
-                             invalid_rule_mask: torch.Tensor,
-                             invalid_loc_mask: torch.Tensor,
-                             action=None):
+    def get_action_and_value(
+        self,
+        x: pyg.data.Batch,
+        invalid_rule_mask: torch.Tensor,
+        invalid_loc_mask: torch.Tensor,
+        action=None,
+    ):
         logits, _ = self.actor(x)
         vf, _ = self.critic(x)
         # logger.warning(f"{logits.shape}, {vf.shape}")
@@ -500,7 +502,7 @@ def inference(envs, config):
                 invalid_loc_mask=invalid_loc_mask)
 
         a = [tuple(i) for i in action.cpu()]
-        next_obs, reward, terminated, truncated, _ = envs.step(a)
+        next_obs, _, terminated, truncated, _ = envs.step(a)
         done = np.logical_or(terminated, truncated)
 
         if done.all():
