@@ -131,7 +131,7 @@ def main(_):
 
     # for plot initial expr
     if FLAGS.plot is not None:
-        file_name = FLAGS.fn if FLAGS.fn is not None else FLAGS.dir
+        file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
         logger.warning("[WARNING]only plotting the first graph")
         parser = Parser(expr_graphs[0])
         parser.viz(parser.edges,

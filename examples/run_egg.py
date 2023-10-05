@@ -23,6 +23,7 @@ flags.DEFINE_integer("time_lim", 100, "")
 flags.DEFINE_integer("backoff", 1, "whether to use backoff scheduler")
 flags.DEFINE_integer("seed", 0, "")
 
+flags.DEFINE_integer("l", 1, "whether to log")
 flags.DEFINE_integer("plot", 0, "whether to plot")
 
 flags.DEFINE_string("lang", None, "")
@@ -66,10 +67,11 @@ def main(_):
 
     plot = bool(FLAGS.plot)
     if plot:
+        file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
         print(f"[WARNING] only plotting the first expr")
         plot_expr(
             exprs[0],
-            os.path.join(FLAGS.default_out_path, "viz", "initial_" + FLAGS.fn))
+            os.path.join(FLAGS.default_out_path, "viz", "initial_" + file_name))
 
     # solve without step
     old_costs = []
@@ -123,11 +125,13 @@ def main(_):
         run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}.pkl"
         result_path = f"{FLAGS.default_out_path}/runs/egg"
 
-        if not os.path.exists(result_path):
-            os.mkdir(result_path)
-        result_path = os.path.join(result_path, run_name)
-        with open(result_path, "wb") as f:
-            pickle.dump(results, f)
+        l = bool(FLAGS.l)
+        if l:
+            if not os.path.exists(result_path):
+                os.mkdir(result_path)
+            result_path = os.path.join(result_path, run_name)
+            with open(result_path, "wb") as f:
+                pickle.dump(results, f)
 
     # TODO does use the same egraph to prove equivs make sense?
     # ok = egraph.equiv(expr, best_expr)
@@ -135,9 +139,10 @@ def main(_):
 
     if plot:
         print(f"[WARNING] only plotting the first opt expr")
+        file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
         plot_expr(
             opt_exprs[0],
-            os.path.join(FLAGS.default_out_path, "viz", "final_" + FLAGS.fn))
+            os.path.join(FLAGS.default_out_path, "viz", "final_" + file_name))
 
 
 if __name__ == "__main__":
