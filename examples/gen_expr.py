@@ -7,7 +7,7 @@ from absl import flags
 import numpy as np
 
 from rlx.extern.expr.expr_utils import get_lang, save_expr, cnt_op
-from rlx.extern.expr.math_def import verify
+# from rlx.extern.expr.math_def import verify
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string("lang", "MATH", "")
