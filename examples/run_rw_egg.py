@@ -3,6 +3,7 @@ import time
 import random
 import pickle
 from pprint import pformat
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -11,8 +12,7 @@ from rlx.rw_engine.parser import Parser
 from rlx.rw_engine import RewriteEngine
 from rlx.utils.common import get_logger
 
-from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, load_all_exprs, verify_by_egraph
-
+from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, load_all_exprs, verify_by_egraph, plot_expr_graph
 from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
 from rlx.extern.expr.math_def import define_node_type as define_math_node_type
 from rlx.extern.expr.math_def import reward_func as math_reward
@@ -129,14 +129,16 @@ def main(_):
     rewrite_rules = define_rewrite_rules(node_types)
     expr_graphs = [expr_graph(expr, node_types) for expr in exprs]
 
-    # for plot initial expr
-    if FLAGS.plot is not None:
+    plot = bool(FLAGS.plot)
+    if plot:
         file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
-        logger.warning("[WARNING]only plotting the first graph")
-        parser = Parser(expr_graphs[0])
-        parser.viz(parser.edges,
-                   os.path.join(FLAGS.default_out_path, "viz",
-                                "initial_" + file_name),
+        logger.warning("only plotting the first graph")
+        parser = Parser([deepcopy(expr_graphs[0])])
+        parser.viz(parser.all_edges[0],
+                   os.path.join(FLAGS.default_out_path, 
+                                "viz",
+                                "rlx_initial_" + file_name,
+                                ),
                    check=False)
 
     # ===== rewrite engine =====
@@ -206,6 +208,14 @@ def main(_):
             )
             with open(full_path, "wb") as f:
                 pickle.dump(results, f)
+
+        if plot:
+            file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
+            plot_expr_graph(parser, rw_eng.envs, os.path.join(
+                FLAGS.default_out_path, 
+                "viz",
+                "rlx_final_" + file_name,
+            ))
 
         # v1 = verify(opt_expr)
         # v2 = verify(expr)

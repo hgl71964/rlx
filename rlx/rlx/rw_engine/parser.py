@@ -1,5 +1,3 @@
-from typing import Optional, Any
-
 from rlx.utils.common import get_logger
 from rlx.frontend.graph import Graph, Node, Edge
 from rlx.frontend.registry import get_node_type
@@ -94,8 +92,13 @@ class Parser:
         logger.info(f"graph sinks: {sinks}")
 
     def _infer_edge_type(self, output_edges: list[Edge]):
-        # A rlx_Edge should be either Const or Var
-        # but constant folding is supposed to be done by users
+        """
+        type inference:
+            A rlx_Edge should be either Const or Var
+            but constant folding is supposed to be done by users
+        
+        Also build continuous indices
+        """
         visited = set()
         _, const_type, var_type = get_node_type()
         node_cnt, edge_cnt = 0, 0
@@ -192,7 +195,7 @@ class Parser:
                     built.add(nid)
                 g.edge(e_label, label)  # edge -> uses
 
-        g.render(cleanup=True, format="png")
+        g.render(cleanup=True, format="pdf")
 
     def _check_edges(self, edges):
         for _, e in enumerate(edges):

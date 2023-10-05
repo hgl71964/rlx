@@ -238,6 +238,12 @@ def plot_expr(expr, path):
     dfs(expr)
     g.render(cleanup=True, format="pdf")
 
+def plot_expr_graph(parser, envs, path):
+    edges = envs.envs[0].unwrapped.edges
+    parser.viz(edges,
+                path,
+                check=False)
+
 
 def new_egraph(expr=None):
     egraph = EGraph()

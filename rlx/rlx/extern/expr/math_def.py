@@ -105,8 +105,9 @@ def expr_cost(expr):
 
 def convert_rlxGraphs(ops, envs):
     opt_exprs = []
-    for i, edges in enumerate(envs.get_attr("edges")):
-        expr = rlxGraph2math(ops, edges)
+    # for i, edges in enumerate(envs.get_attr("edges")):
+    for i, env in enumerate(envs.envs):
+        expr = rlxGraph2math(ops, env.unwrapped.edges)
         opt_exprs.append(expr)
     return opt_exprs
 
