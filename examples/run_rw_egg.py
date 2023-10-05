@@ -56,7 +56,7 @@ flags.DEFINE_integer("normalize_reward", 0, "whether to normalize the reward?")
 # agent
 flags.DEFINE_string("agent", "multi_output_ppo", "which RL agent to train")
 flags.DEFINE_string("weights_path", None, "path to pre-trained weights")
-flags.DEFINE_string("agent_id", None, "agent id")
+flags.DEFINE_string("agent_id", None, "agent ckpt id for inference; None -> latest")
 flags.DEFINE_integer("anneal_lr", 1, "")
 flags.DEFINE_integer("gae", 1, "")
 flags.DEFINE_integer("norm_adv", 1, "")
