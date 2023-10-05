@@ -191,7 +191,7 @@ def main(_):
                 print(f"expr{i}: {name}; Costs: {old} -> {new}")
                 results[name] = (old, new, ok)
             results["opt_time"] = opt_time
-            result_path = f"{FLAGS.dir}.pkl"
+            result_path = f"{FLAGS.dir}_dir.pkl"
 
         l = bool(FLAGS.l)
         if l:

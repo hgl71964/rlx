@@ -156,7 +156,7 @@ def env_loop(envs, config):
     log = bool(config.l)
     if log:
         t = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        file = config.fn if config.fn is not None else config.dir
+        file = config.fn.split("/")[-1] if config.fn is not None else config.dir
         run_name = f"rlx_{config.env_id}__{config.agent}__{file}"
         if config.annotation is not None:
             run_name += f"__{config.annotation}"
