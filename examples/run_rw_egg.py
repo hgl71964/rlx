@@ -41,16 +41,17 @@ flags.DEFINE_integer("t", 1, "whether to train?")
 flags.DEFINE_integer("l", 1, "whether to log")
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
-flags.DEFINE_string("plot", None, "path to plot the initial graph")
+flags.DEFINE_integer("plot", 0, "whether to plot")
+flags.DEFINE_string("annotation", None, "append to save name")
 # env
 flags.DEFINE_string("env_id", "env_multi-v0", "")
-flags.DEFINE_integer("a", 0, "whether to AsyncEnv?")
+flags.DEFINE_integer("a", 0, "whether to AsyncEnv; not support for now")
 flags.DEFINE_integer("total_timesteps", int(1e6), "1e6 = 1 million")
 flags.DEFINE_integer("num_envs", 4, "")
 flags.DEFINE_integer("num_mini_batch", 8, "")
 flags.DEFINE_integer("h", 256, "hard horizon")
 flags.DEFINE_integer("num_steps", 512, "num of steps to roll out")
-flags.DEFINE_integer("max_loc", 128, "maximum location consider")
+flags.DEFINE_integer("max_loc", 50, "maximum location consider")
 flags.DEFINE_integer("normalize_reward", 0, "whether to normalize the reward?")
 # agent
 flags.DEFINE_string("agent", "multi_output_ppo", "which RL agent to train")
@@ -120,7 +121,7 @@ def main(_):
         # define_rewrite_rules = prop_rewrite_rules
         # conversion = rlxGraph2Prop
         # callback_reward_function = prop_reward
-        raise NotImplementedError(f"Need to redo")
+        raise NotImplementedError(f"Unsupported lang: {FLAGS.lang}")
     else:
         raise NotImplementedError(f"Unsupported lang: {FLAGS.lang}")
 
@@ -130,10 +131,12 @@ def main(_):
 
     # for plot initial expr
     if FLAGS.plot is not None:
-        logger.warning("only plotting the first graph")
-        parser = Parser(expr_graphs[0])  # ONLY plot the first graph
+        file_name = FLAGS.fn if FLAGS.fn is not None else FLAGS.dir
+        logger.warning("[WARNING]only plotting the first graph")
+        parser = Parser(expr_graphs[0])
         parser.viz(parser.edges,
-                   os.path.join(FLAGS.default_out_path, "viz", FLAGS.plot),
+                   os.path.join(FLAGS.default_out_path, "viz",
+                                "initial_" + file_name),
                    check=False)
 
     # ===== rewrite engine =====
