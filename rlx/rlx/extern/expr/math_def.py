@@ -105,11 +105,13 @@ def expr_cost(expr):
 
 def convert_rlxGraphs(ops, envs):
     opt_exprs = []
+    opt_costs = []
     # for i, edges in enumerate(envs.get_attr("edges")):
-    for i, env in enumerate(envs.envs):
-        expr = rlxGraph2math(ops, env.unwrapped.edges)
+    for _, env in enumerate(envs.envs):
+        expr, cost = rlxGraph2math(ops, env.unwrapped.edges)
         opt_exprs.append(expr)
-    return opt_exprs
+        opt_costs.append(cost)
+    return opt_exprs, opt_costs
 
 
 def rlxGraph2math(ops, edges: list[Edge]):
@@ -130,8 +132,10 @@ def rlxGraph2math(ops, edges: list[Edge]):
 
     # build expr
     built = {}  # obj -> expr obj
+    cost = 0
 
     def dfs(obj):
+        nonlocal cost
         if obj in built:
             return built[obj]
 
@@ -144,6 +148,7 @@ def rlxGraph2math(ops, edges: list[Edge]):
             op = lookup(obj.get_type())
             node = op(*inputs)
             built[obj] = node
+            cost += OP_COST[obj.get_type().name]
             return node
 
         if isinstance(obj, Edge):
@@ -154,6 +159,7 @@ def rlxGraph2math(ops, edges: list[Edge]):
                     obj.attr,
                     int), f"expect int, got {type(obj.attr)} {obj.idx}"
                 built[obj] = obj.attr
+                cost += 1
                 return obj.attr
             else:
                 node = dfs(obj.trace)
@@ -162,48 +168,8 @@ def rlxGraph2math(ops, edges: list[Edge]):
 
         raise RuntimeError("unreachable")
 
-    return dfs(output)
-
-
-# def verify(expr):
-#     def dfs(node):
-#         # leaf
-#         if isinstance(node, int):
-#             return node
-#
-#         children = []
-#         for child in node._fields:
-#             child_node = dfs(getattr(node, str(child)))
-#             children.append(child_node)
-#
-#         my_type = type(node).__name__
-#         if my_type == "Add":
-#             ret = children[0] + children[1]
-#         elif my_type == "Sub":
-#             ret = children[0] - children[1]
-#         elif my_type == "Mul":
-#             ret = children[0] * children[1]
-#         elif my_type == "Div":
-#             assert (children[1] != 0), "Div by zero"
-#             ret = children[0] / children[1]
-#         elif my_type == "Pow":
-#             assert (children[0] > 0), "Pow by negative"
-#             try:
-#                 ret = math.pow(children[0], children[1])
-#             except:
-#                 raise RuntimeError(f"pow: {children[0]}, {children[1]}")
-#         elif my_type == "Sqrt":
-#             assert (children[0] >= 0)
-#             ret = math.sqrt(children[0])
-#         elif my_type == "Sin":
-#             ret = math.sin(children[0])
-#         elif my_type == "Cos":
-#             ret = math.cos(children[0])
-#         else:
-#             raise RuntimeError(f"Unsupport Op {my_type}")
-#         return ret
-#
-#     return dfs(expr)
+    expr = dfs(output)
+    return expr, cost
 
 
 #########################################

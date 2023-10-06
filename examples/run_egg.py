@@ -67,11 +67,13 @@ def main(_):
 
     plot = bool(FLAGS.plot)
     if plot:
-        file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
+        file_name = FLAGS.fn.split(
+            "/")[-1] if FLAGS.fn is not None else FLAGS.dir
         print(f"[WARNING] only plotting the first expr")
         plot_expr(
             exprs[0],
-            os.path.join(FLAGS.default_out_path, "viz", "initial_" + file_name))
+            os.path.join(FLAGS.default_out_path, "viz",
+                         "initial_" + file_name))
 
     # solve without step
     old_costs = []
@@ -139,7 +141,8 @@ def main(_):
 
     if plot:
         print(f"[WARNING] only plotting the first opt expr")
-        file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
+        file_name = FLAGS.fn.split(
+            "/")[-1] if FLAGS.fn is not None else FLAGS.dir
         plot_expr(
             opt_exprs[0],
             os.path.join(FLAGS.default_out_path, "viz", "final_" + file_name))

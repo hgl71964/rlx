@@ -165,6 +165,7 @@ def cnt_op(expr):
     dfs(expr)
     return cnt
 
+
 step_info = namedtuple("StepInfo", [
     "action", "action_name", "stop_reason", "cost", "num_applications",
     "num_enodes", "num_eclasses", "best_expr", "init_expr", "build_time",
@@ -238,11 +239,10 @@ def plot_expr(expr, path):
     dfs(expr)
     g.render(cleanup=True, format="pdf")
 
+
 def plot_expr_graph(parser, envs, path):
     edges = envs.envs[0].unwrapped.edges
-    parser.viz(edges,
-                path,
-                check=False)
+    parser.viz(edges, path, check=False)
 
 
 def new_egraph(expr=None):

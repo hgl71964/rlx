@@ -131,14 +131,16 @@ def main(_):
 
     plot = bool(FLAGS.plot)
     if plot:
-        file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
+        file_name = FLAGS.fn.split(
+            "/")[-1] if FLAGS.fn is not None else FLAGS.dir
         logger.warning("only plotting the first graph")
         parser = Parser([deepcopy(expr_graphs[0])])
         parser.viz(parser.all_edges[0],
-                   os.path.join(FLAGS.default_out_path, 
-                                "viz",
-                                "rlx_initial_" + file_name,
-                                ),
+                   os.path.join(
+                       FLAGS.default_out_path,
+                       "viz",
+                       "rlx_initial_" + file_name,
+                   ),
                    check=False)
 
     # ===== rewrite engine =====
@@ -159,9 +161,8 @@ def main(_):
         print(f"opt time {opt_time:.4f}s")
 
         # result
-        opt_exprs = conversion(lang.all_operators(), rw_eng.envs)
+        opt_exprs, opt_costs = conversion(lang.all_operators(), rw_eng.envs)
         old_costs = [expr_cost(expr) for expr in exprs]
-        opt_costs = [expr_cost(expr) for expr in opt_exprs]
 
         t1 = time.perf_counter()
         oks = verify_by_egraph(lang, exprs, opt_exprs)
@@ -210,12 +211,15 @@ def main(_):
                 pickle.dump(results, f)
 
         if plot:
-            file_name = FLAGS.fn.split("/")[-1] if FLAGS.fn is not None else FLAGS.dir
-            plot_expr_graph(parser, rw_eng.envs, os.path.join(
-                FLAGS.default_out_path, 
-                "viz",
-                "rlx_final_" + file_name,
-            ))
+            file_name = FLAGS.fn.split(
+                "/")[-1] if FLAGS.fn is not None else FLAGS.dir
+            plot_expr_graph(
+                parser, rw_eng.envs,
+                os.path.join(
+                    FLAGS.default_out_path,
+                    "viz",
+                    "rlx_final_" + file_name,
+                ))
 
         # v1 = verify(opt_expr)
         # v2 = verify(expr)
