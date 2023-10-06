@@ -62,14 +62,18 @@ class Env(gym.Env):
         ##############################
         # 1. node type one-hot encoding
         # 2. each rewrite rule one-hot encoding
-        self.n_node_feat = len(self.node_types) + self.n_rewrite_rules
+        # 3. custom node embedding
+        self.n_custom_node_embedding = self.parser.n_node_embedding
+        self.n_node_feat = len(self.node_types) + self.n_rewrite_rules + self.n_custom_node_embedding
         ##############################
         #### edge features design ####
         ##############################
         # 1. edge type one-hot encoding
         # 2. each rewrite rule one-hot encoding
         # 3. edge position embedding, e.g. we want to distinguish a+b=>b+a
-        self.n_edge_feat = 2 + self.n_rewrite_rules + 1
+        # 4. custom edge embedding
+        self.n_custom_edge_embedding = self.parser.n_edge_embedding
+        self.n_edge_feat = 2 + self.n_rewrite_rules + 1 + self.n_custom_edge_embedding
 
         # gym spaces
         self.observation_space = GraphObsSpace(
@@ -480,17 +484,26 @@ class Env(gym.Env):
         ######################################
         ############# embedding ##############
         ######################################
-        # 1. type embedding
+        # 1. type embedding + 4. custom embedding
+        node_custom_start=len(self.node_types)+self.n_rewrite_rules
+        edge_custom_start=2+self.n_rewrite_rules+1
         for n_rlx_idx, n in self.node_map.items():
             node_feat[n_rlx_idx, n.get_type().value] = 1.
+            emds = n.get_embedding()
+            for i, emb in enumerate(emds):
+                node_feat[n_rlx_idx, node_custom_start + i] = emb
 
         for e_rlx_idx, e in self.edge_map.items():
+            emds = e.get_embedding()
             if e.get_type() == self.const_type:
-                for embed_eid in rlx_idx_to_graph_edge_idx[e_rlx_idx]:
-                    edge_feat[embed_eid, 0] = 1.
+                type_idx = 0
             else:
-                for embed_eid in rlx_idx_to_graph_edge_idx[e_rlx_idx]:
-                    edge_feat[embed_eid, 1] = 1.
+                type_idx = 1
+
+            for embed_eid in rlx_idx_to_graph_edge_idx[e_rlx_idx]:
+                edge_feat[embed_eid, type_idx] = 1.
+                for i, emb in enumerate(emds):
+                    edge_feat[embed_eid, edge_custom_start + i] = emb
 
         # 2. pattern-match embedding
         node_rule_start = len(self.node_types)
@@ -522,10 +535,11 @@ class Env(gym.Env):
                         raise RuntimeError(f"type error {v[0]}")
 
         # 3. edge position embedding
+        pos_idx = 2 + self.n_rewrite_rules
         for _, n in self.node_map.items():
             for i, e in enumerate(n.get_inputs()):
                 for embed_eid in rlx_idx_to_graph_edge_idx[e._rlx_idx]:
-                    edge_feat[embed_eid, -1] = i
+                    edge_feat[embed_eid, pos_idx] = i
 
         # sort
         edge_index, edge_feat = pyg.utils.sort_edge_index(

@@ -50,6 +50,15 @@ class expr_edge(Edge):
 
     def get_trace(self):
         return self.trace
+    
+    @staticmethod
+    def get_nums_embedding():
+        return 1
+    
+    def get_embedding(self):
+        if self.attr is not None:
+            return [self.attr]
+        return [-10]
 
 
 class expr_node(Node):
@@ -84,6 +93,13 @@ class expr_node(Node):
 
     def get_outputs(self):
         return self.outputs
+
+    @staticmethod
+    def get_nums_embedding():
+        return 0
+    
+    def get_embedding(self):
+        return []
 
     def out(self, idx=-1, attr=None):
         # utility to auto-generate output; edge_type will be inferred

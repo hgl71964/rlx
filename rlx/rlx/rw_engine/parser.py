@@ -38,6 +38,10 @@ class Parser:
             self.all_edges.append(edges)
             self.all_nodes.append(nodes)
 
+        # assume homogeneous embedding scheme
+        self.n_edge_embedding = edges[0].get_nums_embedding()
+        self.n_node_embedding = nodes[0].get_nums_embedding()
+
     def _detect_circle(self, output_edges: list[Edge]):
         visited, path = set(), set()
         stack = []

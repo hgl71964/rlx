@@ -63,13 +63,13 @@ class G2(G):
         self.nodes = []
         self.edges = []
         # input
-        t = expr_edge(0, None, node_types["Const"], None)
-        tw = expr_edge(0, None, node_types["Const"], None)
+        t = expr_edge(0, 1, node_types["Const"], None)
+        tw = expr_edge(0, 2, node_types["Const"], None)
 
         # a = expr_edge(0, None, node_types["Const"], None)
-        b = expr_edge(0, None, node_types["Const"], None)
-        x = expr_edge(0, None, node_types["Const"], None)
-        more = expr_edge(0, None, node_types["Const"], None)
+        b = expr_edge(0, 5, node_types["Const"], None)
+        x = expr_edge(0, 100, node_types["Const"], None)
+        more = expr_edge(0, 3, node_types["Const"], None)
 
         # gen a
         a_node = expr_node(0, None, node_types["Add"], [t, tw])
@@ -128,13 +128,13 @@ def rw14(node_types):
 
 def plot_embedding(g, r, n, action=None, viz=False):
     n = str(n)
-    gym_id = "env-v0"
-    parser = Parser(g)
+    gym_id = "env_multi-v0"
+    parser = Parser([g])
     for _r in r:
         _r.initialise()
     env = make_env(gym_id,
                    parser,
-                   lambda x, y, z: 0,
+                   lambda x, y, z, zz: 0,
                    r,
                    seed=0,
                    config=config(
@@ -142,7 +142,7 @@ def plot_embedding(g, r, n, action=None, viz=False):
                        h=100,
                        normalize_reward=1,
                    ))()
-    (pyg_g, m, _, _), _ = env.reset()
+    (pyg_g, m, _, _, _), _ = env.reset()
     print("+++reset+++")
     for rule_id, pmaps in m.items():
         locs = len(pmaps)
@@ -168,7 +168,7 @@ def plot_embedding(g, r, n, action=None, viz=False):
             dest_label = f"Node-{dest}-{x[dest]}"
             g.edge(src_label, dest_label)
 
-        g.render(cleanup=True, format="png")
+        g.render(cleanup=True, format="pdf")
 
         # print edge; because we don't plot
         print("edge_index shape:  edge_attr shape")

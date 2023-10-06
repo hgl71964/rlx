@@ -41,6 +41,16 @@ class Edge(ABC):
     def get_trace(self) -> Optional[Node]:
         pass
 
+    @staticmethod
+    @abstractmethod
+    def get_nums_embedding()->int:
+        pass
+
+    @abstractmethod
+    def get_embedding(self) -> list[int]:
+        pass
+
+
 
 class Node(ABC):
 
@@ -70,6 +80,15 @@ class Node(ABC):
 
     @abstractmethod
     def get_outputs(self) -> list[Edge]:
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def get_nums_embedding()->int:
+        pass
+
+    @abstractmethod
+    def get_embedding(self) -> list[int]:
         pass
 
 
