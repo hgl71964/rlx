@@ -484,12 +484,12 @@ def env_loop(envs, config):
         writer.close()
 
 
-def inference(env, config):
+def inference(envs, config):
     device = torch.device(
         "cuda" if torch.cuda.is_available() and bool(config.gpu) else "cpu")
     logger.info(f"device: {device}")
     # ===== env =====
-    state, _ = env.reset(seed=config.seed)
+    state, _ = envs.reset(seed=config.seed)
 
     # ===== agent =====
     assert config.weights_path is not None, "weights_path must be set"
@@ -497,9 +497,9 @@ def inference(env, config):
     fn = os.path.join(f"{config.default_out_path}/runs/", config.weights_path,
                       f"{agent_id}.pt")
     agent = MultiOutputGraphGlobalPPO(
-        nvec=env.action_space.nvec,
-        n_node_features=env.observation_space.node_space.shape[0],
-        n_edge_features=env.observation_space.edge_space.shape[0],
+        nvec=envs.single_action_space.nvec,
+        n_node_features=envs.single_observation_space.node_space.shape[0],
+        n_edge_features=envs.single_observation_space.edge_space.shape[0],
         num_head=config.num_head,
         n_layers=config.n_layers,
         hidden_size=config.hidden_size,
@@ -510,15 +510,19 @@ def inference(env, config):
     agent.load_state_dict(agent_state_dict)
     agent.to(device)
 
-    next_obs = state[0].to(device)
-    invalid_rule_mask = state[2].reshape(1, -1).to(device)
-    invalid_loc_mask = state[3].reshape(
-        [config.num_envs] + env.action_space.nvec.tolist()).to(device)
+    next_obs = pyg.data.Batch.from_data_list([i[0] for i in state]).to(device)
+    invalid_rule_mask = torch.cat([i[2] for i in state]).reshape(
+        (envs.num_envs, -1)).to(device)
+    invalid_loc_mask = torch.cat([
+        i[3] for i in state
+    ]).reshape([envs.num_envs] +
+               envs.single_action_space.nvec.tolist()).to(device)
+
 
     # ==== rollouts ====
     cnt = 0
-    done = False
-    while not done:
+    t1 = time.perf_counter()
+    while True:
         cnt += 1
         with torch.no_grad():
             action, _, _, _ = agent.get_action_and_value(
@@ -526,17 +530,25 @@ def inference(env, config):
                 invalid_rule_mask=invalid_rule_mask,
                 invalid_loc_mask=invalid_loc_mask)
 
-        # TRY NOT TO MODIFY: execute the game and log data.
-        action = action[0].cpu()
-        a = [action[0], action[1]]
-        next_obs, reward, terminated, truncated, _ = env.step(a)
+        a = [tuple(i) for i in action.cpu()]
+        next_obs, _, terminated, truncated, _ = envs.step(a)
         done = np.logical_or(terminated, truncated)
-        invalid_rule_mask = next_obs[2].reshape(1, -1).to(device)
-        invalid_loc_mask = next_obs[3].reshape(
-            [config.num_envs] + env.action_space.nvec.tolist()).to(device)
-        next_obs = next_obs[0].to(device)
 
-        logger.info(f"iter {cnt}; reward: {reward}")
+        if done.all():
+            break
 
-    print(terminated, truncated)
-    #print(info)
+        invalid_rule_mask = torch.cat([i[2] for i in next_obs]).reshape(
+            (envs.num_envs, -1)).to(device)
+        invalid_loc_mask = torch.cat([
+            i[3] for i in next_obs
+        ]).reshape([envs.num_envs] +
+                   envs.single_action_space.nvec.tolist()).to(device)
+
+        next_obs = pyg.data.Batch.from_data_list([i[0] for i in next_obs
+                                                  ]).to(device)
+        # logger.info(f"iter {cnt}; reward: {reward}")
+
+    t2 = time.perf_counter()
+
+    # print(terminated, truncated)
+    return t2 - t1
