@@ -254,6 +254,11 @@ class GATNetwork_with_global(nn.Module):
             add_self_loops=False,
     ):
         super().__init__()
+
+        self.hidden_size = hidden_size
+        self.n_actions = n_actions
+        self.out_std = out_std
+
         in_size = 2 * num_node_features + num_edge_features
         self.edge_and_node_layer = MetaLayer(
             EdgeModel(in_size, 2 * in_size, num_edge_features),
@@ -293,6 +298,16 @@ class GATNetwork_with_global(nn.Module):
                 # nn.LeakyReLU(),
                 nn.Tanh(),
                 layer_init(nn.Linear(2 * hidden_size, n_actions), std=out_std))
+
+    def fine_tuning(self):
+        # TODO freeze prev layers?
+        # for param in self.parameters():
+        #     param.requires_grad = False
+
+        # re-init last layer
+        self.head[-1] = layer_init(nn.Linear(2 * self.hidden_size,
+                                             self.n_actions),
+                                   std=self.out_std)
 
     def forward(self, data: Union[pyg.data.Data, pyg.data.Batch]):
         # 1. update edges and nodes

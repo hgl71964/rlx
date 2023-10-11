@@ -518,7 +518,6 @@ def inference(envs, config):
     ]).reshape([envs.num_envs] +
                envs.single_action_space.nvec.tolist()).to(device)
 
-
     # ==== rollouts ====
     cnt = 0
     t1 = time.perf_counter()

@@ -50,11 +50,11 @@ class expr_edge(Edge):
 
     def get_trace(self):
         return self.trace
-    
+
     @staticmethod
     def get_nums_embedding():
         return 1
-    
+
     def get_embedding(self):
         if self.attr is not None:
             return [self.attr]
@@ -97,7 +97,7 @@ class expr_node(Node):
     @staticmethod
     def get_nums_embedding():
         return 0
-    
+
     def get_embedding(self):
         return []
 

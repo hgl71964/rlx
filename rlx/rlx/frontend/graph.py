@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 
 class Node:  # for type annotation
@@ -43,13 +43,12 @@ class Edge(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_nums_embedding()->int:
+    def get_nums_embedding() -> int:
         pass
 
     @abstractmethod
-    def get_embedding(self) -> list[int]:
+    def get_embedding(self) -> list[Union[int, float]]:
         pass
-
 
 
 class Node(ABC):
@@ -84,11 +83,11 @@ class Node(ABC):
 
     @staticmethod
     @abstractmethod
-    def get_nums_embedding()->int:
+    def get_nums_embedding() -> int:
         pass
 
     @abstractmethod
-    def get_embedding(self) -> list[int]:
+    def get_embedding(self) -> list[Union[int, float]]:
         pass
 
 

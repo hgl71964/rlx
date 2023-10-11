@@ -63,7 +63,9 @@ class Env(gym.Env):
         # 2. each rewrite rule one-hot encoding
         # 3. custom node embedding
         self.n_custom_node_embedding = self.parser.n_node_embedding
-        self.n_node_feat = len(self.node_types) + self.n_rewrite_rules + self.n_custom_node_embedding
+        self.n_node_feat = len(
+            self.node_types
+        ) + self.n_rewrite_rules + self.n_custom_node_embedding
         ##############################
         #### edge features design ####
         ##############################
@@ -432,8 +434,8 @@ class Env(gym.Env):
         ############# embedding ##############
         ######################################
         # 1. type embedding + 4. custom embedding
-        node_custom_start=len(self.node_types)+self.n_rewrite_rules
-        edge_custom_start=2+self.n_rewrite_rules+1
+        node_custom_start = len(self.node_types) + self.n_rewrite_rules
+        edge_custom_start = 2 + self.n_rewrite_rules + 1
         for n_rlx_idx, n in self.node_map.items():
             node_feat[n_rlx_idx, n.get_type().value] = 1.
             emds = n.get_embedding()
