@@ -22,7 +22,7 @@ set -e # stop on any error from now on
 files=(data/rlx/inputs/${dir}/*)
 for fn in ${files[@]}; do
     # https://stackoverflow.com/questions/918886/how-do-i-split-a-string-on-a-delimiter-in-bash
-    str_arr=(${fn//// })  
+    str_arr=(${fn//// })
     file_name=${str_arr[-1]}
 
     echo "inference: ${file_name}"

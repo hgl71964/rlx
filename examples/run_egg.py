@@ -80,6 +80,7 @@ def main(_):
     old_costs = []
     opt_exprs = []
     step_infos = []
+    opt_costs = []
     t1 = time.perf_counter()
     for expr in tqdm(exprs):
         egraph = new_egraph(expr)
@@ -96,12 +97,13 @@ def main(_):
         )
         old_costs.append(base_cost)
         opt_exprs.append(best_expr)
+        opt_costs.append(step_info.cost)
         step_infos.append(step_info)
     t2 = time.perf_counter()
     print(f"opt time {t2-t1:.2f}s")
 
     # result
-    opt_costs = [expr_cost(opt_expr) for opt_expr in opt_exprs]
+    # opt_costs = [expr_cost(opt_expr) for opt_expr in opt_exprs]
     if FLAGS.fn is not None:
         logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")

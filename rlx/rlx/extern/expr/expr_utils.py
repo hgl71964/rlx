@@ -345,6 +345,7 @@ def solve_without_step(expr_to_extract,
     elif e == "ilp":
         # ilp will panic for some reason?
         _, best_expr = egraph.lp_extract(expr_to_extract, timeout=timeout)
+        best_cost = 0
     else:
         raise RuntimeError(f"Unkown solver: {e}")
     t2 = time.perf_counter()
@@ -355,7 +356,7 @@ def solve_without_step(expr_to_extract,
         action_name="NaN",
         num_applications=num_applications,
         stop_reason=stop_reason,
-        cost=0,
+        cost=best_cost,
         best_expr=str(best_expr),
         num_eclasses=num_eclasses,
         num_enodes=num_enodes,
