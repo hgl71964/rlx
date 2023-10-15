@@ -29,6 +29,7 @@ flags.DEFINE_integer("plot", 0, "whether to plot")
 flags.DEFINE_string("lang", None, "")
 flags.DEFINE_string("e", "greedy", "extractor; greedy or ilp")
 flags.DEFINE_string("default_out_path", "data", "output dir")
+flags.DEFINE_string("annotation", None, "annotation appended to save name")
 
 flags.DEFINE_string("fn", None, "file name of the pre-generated expr")
 flags.DEFINE_string("dir", None, "directory pre-generated expr")
@@ -124,7 +125,10 @@ def main(_):
             )
 
         results["opt_time"] = t2 - t1
-        run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}.pkl"
+        if FLAGS.annotation is None:
+            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}.pkl"
+        else:
+            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}_{FLAGS.annotation}.pkl"
         result_path = f"{FLAGS.default_out_path}/runs/egg"
 
         l = bool(FLAGS.l)
