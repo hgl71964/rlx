@@ -118,9 +118,9 @@ def main(_):
         )
         results["opt_time"] = t2 - t1
         if FLAGS.annotation is None:
-            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{name}.pkl"
+            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{name}"
         else:
-            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{name}_{FLAGS.annotation}.pkl"
+            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.annotation}_{name}"
         result_path = f"{FLAGS.default_out_path}/runs/egg/individuals/"
 
     elif FLAGS.dir is not None:
