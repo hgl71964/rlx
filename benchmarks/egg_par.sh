@@ -1,6 +1,6 @@
 #! /bin/bash
 
-l=1
+l=0
 lang=math
 #dir=math-5-full-ops
 dir=math-5-100_150
@@ -25,7 +25,7 @@ files=(data/rlx/inputs/${dir}/*)
 #
 # wait
 
-parallel "(
+time parallel "(
 	echo 'full name {};; file $dir/{/}'
 	     python examples/run_egg.py \
 	     -l $l \
