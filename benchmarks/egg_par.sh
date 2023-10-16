@@ -2,7 +2,9 @@
 
 l=1
 lang=math
-dir=math-5-full-ops
+#dir=math-5-full-ops
+dir=math-5-100_150
+annotation=parallel_ast_size
 
 set -e
 
@@ -27,7 +29,8 @@ parallel "(
 	echo 'full name {};; file $dir/{/}'
 	     python examples/run_egg.py \
 	     -l $l \
+             --annotation $annotation \
 	     --lang $lang \
 	     --annotation parallel_ast_size  \
 	     --fn $dir/{/}
-	echo 'Done Building {/}')" ::: ${files[@]}
+	echo 'Done {/}')" ::: ${files[@]}

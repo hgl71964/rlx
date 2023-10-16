@@ -60,10 +60,10 @@ def main(_):
     #########################
     ####### solver ##########
     #########################
-    if FLAGS.fn is not None:
-        print("=" * 40)
-        print("[EGG] Solving expression: ", expr)
-        print("=" * 40)
+    # if FLAGS.fn is not None:
+    #     print("=" * 40)
+    #     print("[EGG] Solving expression: ", expr)
+    #     print("=" * 40)
     # egg_df, best_expr = solve_expr_egg(lang, expr, FLAGS.node_lim)
 
     plot = bool(FLAGS.plot)
@@ -104,12 +104,26 @@ def main(_):
 
     # result
     # opt_costs = [expr_cost(opt_expr) for opt_expr in opt_exprs]
+    results = {}
     if FLAGS.fn is not None:
         logger.info("opt expression: %s", pformat(opt_exprs[0]))
         print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
+        name = FLAGS.fn.split("/")[-1]
+        results[name] = (
+            old_costs[0],
+            opt_costs[0],
+            True,
+            step_infos[0].build_time,
+            step_infos[0].extract_time,
+        )
+        results["opt_time"] = t2 - t1
+        if FLAGS.annotation is None:
+            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{name}.pkl"
+        else:
+            run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{name}_{FLAGS.annotation}.pkl"
+        result_path = f"{FLAGS.default_out_path}/runs/egg/individuals/"
 
     elif FLAGS.dir is not None:
-        results = {}
         for i, (
                 name,
                 info,
@@ -133,13 +147,14 @@ def main(_):
             run_name = f"{FLAGS.node_lim}_{FLAGS.e}_{FLAGS.dir}_{FLAGS.annotation}.pkl"
         result_path = f"{FLAGS.default_out_path}/runs/egg"
 
-        l = bool(FLAGS.l)
-        if l:
-            if not os.path.exists(result_path):
-                os.mkdir(result_path)
-            result_path = os.path.join(result_path, run_name)
-            with open(result_path, "wb") as f:
-                pickle.dump(results, f)
+    # save
+    l = bool(FLAGS.l)
+    if l:
+        if not os.path.exists(result_path):
+            os.mkdir(result_path)
+        result_path = os.path.join(result_path, run_name)
+        with open(result_path, "wb") as f:
+            pickle.dump(results, f)
 
     # TODO does use the same egraph to prove equivs make sense?
     # ok = egraph.equiv(expr, best_expr)
