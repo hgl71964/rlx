@@ -44,17 +44,27 @@ def define_node_type():
 ################ utility ################
 #########################################
 OP_COST = {
-    "Diff": 100,
-    "Integral": 100,
-    "Add": 2,
-    "Sub": 2,
-    "Mul": 4,
-    "Div": 8,
-    "Pow": 10,
-    "Sqrt": 10,
-    "Sin": 5,
-    "Cos": 5,
+    # "Diff": 100,
+    # "Integral": 100,
+    # "Add": 2,
+    # "Sub": 2,
+    # "Mul": 4,
+    # "Div": 8,
+    # "Pow": 10,
+    # "Sqrt": 10,
+    # "Sin": 5,
+    # "Cos": 5,
     # "int": 1,
+    "Diff": 1,
+    "Integral": 1,
+    "Add": 1,
+    "Sub": 1,
+    "Mul": 1,
+    "Div": 1,
+    "Pow": 1,
+    "Sqrt": 1,
+    "Sin": 1,
+    "Cos": 1,
 }
 
 

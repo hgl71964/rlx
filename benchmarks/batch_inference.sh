@@ -4,11 +4,13 @@ l=1
 lang=math
 max_loc=50
 num_steps=50
-hidden_size=256
-n_layers=3
+hidden_size=512
+n_layers=10
+num_head=16
+
 agent=multi_output_ppo
 env_id=env_multi
-weights_path=rlx_env_multi-v0__multi_output_ppo__math-5-full-ops__with_custom_embedding__20231006-121602
+weights_path=rlx_env_multi-v0__multi_output_ppo__math-5-full-ops__ast_size__20231014-230528
 # agent=ppo
 # env_id=env_single
 # weights_path=rlx_env_single-v0__ppo__None__20230925-044705
@@ -30,6 +32,7 @@ python examples/run_rw_egg.py \
 --num_steps $num_steps \
 --hidden_size $hidden_size \
 --n_layers $n_layers \
+--num_head $num_head \
 --agent $agent \
 --env_id $env_id \
 --weights_path $weights_path  \
