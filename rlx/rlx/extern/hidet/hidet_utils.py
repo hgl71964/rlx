@@ -289,7 +289,6 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
             #                         obj.dtype,
             #                         obj.device,
             #                         obj.layout,
-
             #                         # NOTE: storage cannot deepcopy
             #                         obj.storage.device if obj.storage is not None else None,
             #                         obj.storage.addr if obj.storage is not None else None,

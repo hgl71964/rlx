@@ -41,6 +41,9 @@ from hidet.graph.transforms.resolve_variant import resolve_variant_pass
 from hidet.graph.transforms.fuse_operator import fuse_operator_pass
 from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
 
+# utils
+from hidet.utils import same_list, initialize
+
 logger = get_logger(__name__)
 
 _hidet_id = 10000
@@ -646,37 +649,97 @@ class cr1(RewriteRule):
 
     def source_pattern(self):
         conv = node_pattern(self.node_types["conv2d"], [self.x, self.w], 1)
+        self.y = conv
         mul = node_pattern(self.node_types["mul"], [conv, self.scale], 1)
         return [mul]
 
     def target_pattern(self, matched):
-        x, w, scale = [matched[v] for v in [self.x, self.w, self.scale]]
-        mul = node_pattern(self.node_types["*"], [self.tw, self.tscale], 1)
-        conv = node_pattern(self.node_types["conv2d"], [self.tx, mul], 1)
-        return [conv]
+        x, w, y, scale = [
+            matched[v] for v in [self.x, self.w, self.y, self.scale]
+        ]
+        if not scale.attr[0][0] == scale.attr[0][2] == scale.attr[0][3] == 1:
+            return None
 
-    def register_deps(self):
-        pass
+        attrs = y.trace.attr[1]
+        out = DFG_Op(
+            get_id(),
+            attr=(
+                "Squeeze",
+                {
+                    "dims": [0]
+                },
+            ),
+            node_type=self.node_types["squeeze"],
+            inputs=[scale],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=(
+                "Unsqueeze",
+                {
+                    "dims": [3]
+                },
+            ),
+            node_type=self.node_types["unsqueeze"],
+            inputs=[scale],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[w, out],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=("Conv2d", {
+                "stride": attrs["stride"],
+                "dilations": (1, 1),
+                "groups": attrs["groups"],
+            }),
+            node_type=self.node_types["conv2d"],
+            inputs=[x, out],
+        ).out(get_id())
+        return [out]
 
 
 class cr2(RewriteRule):
 
     def __init__(self):
         self.name = "conv2d(x, w1)|conv2d(x, w2) => conv2d(x, w1 + w2)"
-        self.x, self.tx = symbol_pattern()
-        self.w1, self.tw1 = const_pattern()
-        self.w2, self.tw2 = const_pattern()
+        self.x = symbol_pattern()
+        self.w1 = const_pattern()
+        self.w2 = const_pattern()
 
     def source_pattern(self):
         conv1 = node_pattern(node_types["conv2d"], [self.x, self.w1], 1)
         conv2 = node_pattern(node_types["conv2d"], [self.x, self.w2], 1)
+        self.y1 = conv1
+        self.y2 = conv2
         return [conv1, conv2]
 
-    def target_pattern(self):
-        concat = node_pattern(node_types["concat"], [self.tw1, self.tw2], 1)
-        conv = node_pattern(node_types["conv2d"], [self.tx, concat], 1)
-        split = node_pattern(node_types["split"], [conv], 2)
-        return split
+    def target_pattern(self, matched):
+        x, w1, w2, y1, y2 = [
+            matched[v] for v in [self.x, self.w1, self.w2, self.y1, self.y2]
+        ]
+        op1 = y1.trace
+        op2 = y2.trace
+
+        if op1.attr[1]['groups'] == op2.attr[1]['groups'] == 1:
+            if same_list(op1.attr[1]['stride'], op2.attr[1]['stride']):
+                if same_list(w1.attr[0][1:], w2.attr[0][1:]):
+                    out = DFG_Op(
+                        get_id(),
+                        attr=("Conv2d", {
+                            "stride": attrs["stride"],
+                            "dilations": (1, 1),
+                            "groups": attrs["groups"],
+                        }),
+                        node_type=self.node_types["conv2d"],
+                        inputs=[x, out],
+                    ).out(get_id())
+
+                    return
+        return None
 
     def register_deps(self):
         pass
