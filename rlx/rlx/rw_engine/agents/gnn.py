@@ -354,14 +354,26 @@ class PoolingLayer(nn.Module):
         out_std,
     ):
         super().__init__()
+        self.hidden_size = hidden_size
+        self.out_std = out_std
+        self.out_size = out_size
         self.head = nn.Sequential(
-            nn.Linear(hidden_size, 2 * hidden_size), nn.Tanh(),
-            layer_init(nn.Linear(2 * hidden_size, out_size), std=out_std))
+            nn.Linear(hidden_size, 2 * hidden_size), 
+            nn.Tanh(),
+            layer_init(nn.Linear(2 * hidden_size, out_size), std=out_std),
+            )
 
     def forward(self, x, batch):
         out = pyg.nn.global_mean_pool(x=x, batch=batch)
         return self.head(out)
-
+    
+    def fine_tuning(self):
+        # TODO freeze prev layers?
+        # for param in self.parameters():
+        #     param.requires_grad = False
+        self.head[-1] = layer_init(nn.Linear(2 * self.hidden_size,
+                                             self.out_size),
+                                   std=self.out_std)
 
 class GlobalLayer(nn.Module):
 
@@ -372,6 +384,9 @@ class GlobalLayer(nn.Module):
         out_std,
     ):
         super().__init__()
+        self.hidden_size = hidden_size
+        self.out_std = out_std
+        self.out_size = out_size
         self.global_layer = MetaLayer(
             None,
             None,
@@ -384,3 +399,11 @@ class GlobalLayer(nn.Module):
     def forward(self, x, edge_index, edge_attr, u, batch):
         x, edge_attr, u = self.global_layer(x, edge_index, edge_attr, u, batch)
         return self.head(u)
+    
+    def fine_tuning(self):
+        # TODO freeze prev layers?
+        # for param in self.parameters():
+        #     param.requires_grad = False
+        self.head[-1] = layer_init(nn.Linear(2 * self.hidden_size,
+                                             self.out_size),
+                                   std=self.out_std)

@@ -144,6 +144,11 @@ class MultiOutputGraphGlobalPPO(nn.Module):
         entropy = torch.stack([c.entropy() for c in [c1, c2]])
         return action.T, log_prob.sum(0), entropy.sum(0), vf
 
+    def fine_tuning(self):
+        self.actor1.fine_tuning()
+        self.actor2.fine_tuning()
+        self.critic.fine_tuning()
+
 
 def env_loop(envs, config):
     device = torch.device(
@@ -180,6 +185,19 @@ def env_loop(envs, config):
         vgat=config.vgat,
         use_dropout=bool(config.use_dropout),
         device=device).to(device)
+
+    if config.weights_path is not None:
+        # TODO save+load opt states too?
+        logger.warning(
+            f"[ENV_LOOP] fine tuning from checkpoint {config.weights_path}")
+        agent_id = config.agent_id if config.agent_id is not None else "agent-final"
+        fn = os.path.join(f"{config.default_out_path}/runs/",
+                          config.weights_path, f"{agent_id}.pt")
+        agent_state_dict = torch.load(fn, map_location=device)
+        agent.load_state_dict(agent_state_dict)
+        agent.fine_tuning()
+        agent.to(device)
+
     optimizer = optim.Adam(agent.parameters(), lr=config.lr, eps=1e-5)
 
     # ===== START GAME =====
