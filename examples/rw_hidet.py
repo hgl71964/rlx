@@ -31,7 +31,6 @@ flags.DEFINE_integer("t", 1, "whether to train?")
 flags.DEFINE_integer("l", 1, "whether to log")
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
-flags.DEFINE_integer("ver", 0, "verbose")
 flags.DEFINE_string("plot", None, "path to plot the initial graph")
 # env
 flags.DEFINE_string("env_id", "env-v0", "")
@@ -39,7 +38,7 @@ flags.DEFINE_integer("a", 0, "whether to AsyncEnv?")
 flags.DEFINE_integer("total_timesteps", int(1e6), "1e6 = 1 million")
 flags.DEFINE_integer("num_envs", 4, "")
 flags.DEFINE_integer("num_mini_batch", 8, "")
-flags.DEFINE_integer("h", 256, "hard horizon")
+flags.DEFINE_integer("h", 30, "hard horizon")
 flags.DEFINE_integer("num_steps", 512, "num of steps to roll out")
 flags.DEFINE_integer("max_loc", 128, "maximum location consider")
 flags.DEFINE_integer("normalize_reward", 0, "whether to normalize the reward?")
@@ -67,9 +66,6 @@ flags.DEFINE_integer("n_layers", 5, "")
 flags.DEFINE_integer("hidden_size", 128, "")
 flags.DEFINE_integer("use_dropout", 0, "")
 flags.DEFINE_integer("vgat", 2, "version of gat")
-
-## for score-based ppo
-flags.DEFINE_integer("out_node_features", 16, "output node features")
 
 # logger
 logger = get_logger(__name__)
@@ -117,7 +113,6 @@ def main(_):
     rewrite_rules = define_rewrite_rules(node_types)
     rw_eng = RewriteEngine(dfg, rewrite_rules, reward_func, FLAGS)
 
-    # rw_eng.viz_graph("graph")
     t = bool(FLAGS.t)
     if t:
         rw_eng.train()

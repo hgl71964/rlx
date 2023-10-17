@@ -1,12 +1,8 @@
 import os
-import math
-import time
-import pickle
-import pandas as pd
 import numpy as np
 from collections import namedtuple
 
-import ctypes
+# import ctypes
 
 import torch
 from transformers.utils.fx import symbolic_trace
@@ -29,6 +25,38 @@ from hidet.graph import ops  # see frontend/onnx for how to build op
 
 # logger
 logger = get_logger(__name__)
+
+
+def reward_func(
+    graph: Graph,
+    init: bool,
+    terminated: bool,
+    stats: dict,
+) -> float:
+    hidet_graph = convert_to_hidet_graph(graph.get_edges())
+    my_passes = [
+        fold_const_pass(),
+        subgraph_rewrite_pass(),
+        automatic_mix_precision_pass(),
+        subgraph_rewrite_pass(),
+        resolve_variant_pass(),
+        fuse_operator_pass(),
+        eliminate_barrier_pass(),
+    ]
+    with hidet.graph.PassContext() as ctx:
+        for p in my_passes:
+            hidet_graph = p(hidet_graph)
+
+    latency = bench_hidet_graph(hidet_graph, False)
+    if init:
+        assert (latency != 0), f"initial reward cannot be zero {latency}"
+        stats["init_latency"] = latency
+        stats["last_latency"] = latency
+        return latency
+
+    reward = (stats["last_latency"] - latency) / stats["init_latency"]
+    stats["last_latency"] = latency
+    return reward
 
 
 def verify_graph(g1, g2):

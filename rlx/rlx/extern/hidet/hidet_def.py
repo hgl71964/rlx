@@ -1,10 +1,3 @@
-import os
-import math
-import time
-import pickle
-import pandas as pd
-from collections import namedtuple
-
 import onnx  # type: ignore
 
 from rlx.utils.common import get_logger
@@ -48,7 +41,6 @@ from hidet.graph.transforms.resolve_variant import resolve_variant_pass
 from hidet.graph.transforms.fuse_operator import fuse_operator_pass
 from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
 
-# logger
 logger = get_logger(__name__)
 
 _hidet_id = 10000
@@ -168,17 +160,36 @@ class DFG_Edge(Edge):
         self.uses = []
         self.trace = trace
 
+    def get_idx(self):
+        return self.idx
+
     def get_type(self):
         return self.edge_type
+
+    def set_type(self, edge_type):
+        self.edge_type = edge_type
 
     def get_attr(self):
         return self.attr
 
+    def set_attr(self, attr):
+        self.attr = attr
+
     def get_uses(self):
         return self.uses
 
+    def set_uses(self, uses):
+        self.uses = uses
+
     def get_trace(self):
         return self.trace
+
+    @staticmethod
+    def get_nums_embedding():
+        return 0
+
+    def get_embedding(self):
+        return []
 
 
 class DFG_Op(Node):
@@ -193,11 +204,20 @@ class DFG_Op(Node):
         for inp in inputs:
             inp.uses.append(self)
 
+    def get_idx(self):
+        return self.idx
+
     def get_type(self):
         return self.node_type
 
+    def set_type(self, node_type):
+        self.node_type = node_type
+
     def get_attr(self):
         return self.attr
+
+    def set_attr(self, attr):
+        self.attr = attr
 
     def get_inputs(self):
         return self.inputs
@@ -205,8 +225,15 @@ class DFG_Op(Node):
     def get_outputs(self):
         return self.outputs
 
+    @staticmethod
+    def get_nums_embedding():
+        return 0
+
+    def get_embedding(self):
+        return []
+
     def out(self, idx=-1, attr=None, edge_type=None):
-        o = expr_edge(idx, attr=attr, edge_type=edge_type, trace=self)
+        o = DFG_Edge(idx, attr=attr, edge_type=edge_type, trace=self)
         self.outputs.append(o)
         return o
 
@@ -222,38 +249,6 @@ class DataflowGraph(Graph):
 
     def get_edges(self):
         return self.edges
-
-
-def reward_func(
-    graph: Graph,
-    init: bool,
-    terminated: bool,
-    stats: dict,
-) -> float:
-    hidet_graph = convert_to_hidet_graph(graph.get_edges())
-    my_passes = [
-        fold_const_pass(),
-        subgraph_rewrite_pass(),
-        automatic_mix_precision_pass(),
-        subgraph_rewrite_pass(),
-        resolve_variant_pass(),
-        fuse_operator_pass(),
-        eliminate_barrier_pass(),
-    ]
-    with hidet.graph.PassContext() as ctx:
-        for p in my_passes:
-            hidet_graph = p(hidet_graph)
-
-    latency = bench_hidet_graph(hidet_graph, False)
-    if init:
-        assert (latency != 0), f"initial reward cannot be zero {latency}"
-        stats["init_latency"] = latency
-        stats["last_latency"] = latency
-        return latency
-
-    reward = (stats["last_latency"] - latency) / stats["init_latency"]
-    stats["last_latency"] = latency
-    return reward
 
 
 #########################################
@@ -642,20 +637,22 @@ class attnr4(RewriteRule):
 ##### conv rules ####
 class cr1(RewriteRule):
 
-    def __init__(self):
+    def __init__(self, node_types):
         self.name = "conv2d(x, w) * scale => conv2d(x, w * scale)"
-        self.x, self.tx = symbol_pattern()
-        self.w, self.tw = const_pattern()
-        self.scale, self.tscale = const_pattern()
+        self.x = symbol_pattern()
+        self.w = const_pattern()
+        self.scale = const_pattern()
+        self.node_types = node_types
 
     def source_pattern(self):
-        conv = node_pattern(node_types["conv2d"], [self.x, self.w], 1)
-        mul = node_pattern(node_types["*"], [conv, self.scale], 1)
+        conv = node_pattern(self.node_types["conv2d"], [self.x, self.w], 1)
+        mul = node_pattern(self.node_types["mul"], [conv, self.scale], 1)
         return [mul]
 
-    def target_pattern(self):
-        mul = node_pattern(node_types["*"], [self.tw, self.tscale], 1)
-        conv = node_pattern(node_types["conv2d"], [self.tx, mul], 1)
+    def target_pattern(self, matched):
+        x, w, scale = [matched[v] for v in [self.x, self.w, self.scale]]
+        mul = node_pattern(self.node_types["*"], [self.tw, self.tscale], 1)
+        conv = node_pattern(self.node_types["conv2d"], [self.tx, mul], 1)
         return [conv]
 
     def register_deps(self):
