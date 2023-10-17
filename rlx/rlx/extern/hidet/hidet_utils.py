@@ -81,12 +81,11 @@ def verify_graph(g1, g2):
     logger.info(f"verify graphs")
 
 
-def hidet_lookup(hidet_op: hidet.Operator):
-    all_node_type, _, _ = get_node_type()
+def hidet_lookup(hidet_op: hidet.Operator, all_types):
     op_class = type(hidet_op)
     if op_class not in OP_MAP:
         raise RuntimeError(f"Unsupport hidet op type {hidet_op} | {op_class}")
-    return all_node_type[OP_MAP[op_class]]
+    return all_types[OP_MAP[op_class]]
 
 
 def hidet_reverse_loopup(dfg_op, inputs):
@@ -246,7 +245,7 @@ def hidet_reverse_loopup(dfg_op, inputs):
 def convert_to_dataflow_graph(graph: hidet.FlowGraph):
     cnt = 0
     built = {}  # 1-to-1 mapping
-    _, const_type, var_type = get_node_type()
+    all_types, const_type, var_type = get_node_type()
 
     def dfs(obj):
         nonlocal cnt
@@ -261,7 +260,7 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
                 assert isinstance(out,
                                   DFG_Edge), f"expect Tensor, got {type(out)}"
 
-            node_type = hidet_lookup(obj)
+            node_type = hidet_lookup(obj, all_types)
             node = DFG_Op(
                 cnt,
                 attr=(
@@ -282,21 +281,6 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
                 trace = dfs(obj.trace[0])
                 assert isinstance(trace,
                                   DFG_Op), f"expect DFG_Op, got {type(trace)}"
-
-            # NOTE: doesn't work for deepcopy
-            # tensor = DFG_Edge(cnt,
-            #                   attr=(obj.shape,
-            #                         obj.dtype,
-            #                         obj.device,
-            #                         obj.layout,
-            #                         # NOTE: storage cannot deepcopy
-            #                         obj.storage.device if obj.storage is not None else None,
-            #                         obj.storage.addr if obj.storage is not None else None,
-            #                         obj.storage.num_bytes if obj.storage is not None else None,
-            #                         obj.storage.free_handler if obj.storage is not None else None,
-            #                         ),
-            #                   edge_type=None,
-            #                   trace=trace)
 
             edge_type = var_type if obj.storage is None else const_type
             if obj.storage is None:
@@ -362,8 +346,11 @@ def convert_to_hidet_graph(edges: list[Edge]):
                 assert isinstance(
                     out, hidet.Tensor), f"expect Tensor, got {type(out)}"
 
-            # FIXME could be multiple outputs
             out = hidet_reverse_loopup(obj, inputs)
+            if isinstance(out, list):
+                # FIXME could be multiple outputs
+                raise RuntimeError(
+                    f"doesnt support multiple outputs for now {out}")
             built[obj] = out
             return out
 

@@ -43,6 +43,7 @@ from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
 
 # utils
 from hidet.utils import same_list, initialize
+from hidet.graph.ops.definitions.utils.tensor_utils import normalize_dim
 
 logger = get_logger(__name__)
 
@@ -262,8 +263,8 @@ class DataflowGraph(Graph):
 #### transform rules ####
 class tr1(RewriteRule):
 
-    def __init__(self, node_type):
-        self.node_type = node_type
+    def __init__(self, node_types):
+        self.node_types = node_types
         self.name = "reshape(x) * scale => "
         self.x, self.tx = symbol_pattern()
         self.scale, self.tscale = const_pattern()
@@ -729,20 +730,55 @@ class cr2(RewriteRule):
                 if same_list(w1.attr[0][1:], w2.attr[0][1:]):
                     out = DFG_Op(
                         get_id(),
+                        attr=("Concat", {
+                            "axis": 0
+                        }),
+                        node_type=self.node_types["concat"],
+                        inputs=[w1, w2],
+                    ).out(get_id())
+
+                    # y doesn't have shape; because we don't have shape inference algorithm
+                    # TODO can we use hidet's infra to build and infer shape?
+                    y = DFG_Op(
+                        get_id(),
                         attr=("Conv2d", {
-                            "stride": attrs["stride"],
+                            "stride": op1.attr[1]["stride"],
                             "dilations": (1, 1),
-                            "groups": attrs["groups"],
+                            "groups": 1,
                         }),
                         node_type=self.node_types["conv2d"],
                         inputs=[x, out],
                     ).out(get_id())
 
-                    return
-        return None
+                    len_data_shape = len(y.attr[0])  # <- FIXME
+                    shape1 = w1.attr[0][0]
+                    shape2 = w2.attr[0][0]
+                    parts = [shape1, shape2]
+                    axis = 1
+                    axis = normalize_dim(axis, len_data_shape)
 
-    def register_deps(self):
-        pass
+                    outputs = []
+                    for i in range(len(parts)):
+                        start = sum(parts[:i])
+                        end = start + parts[i]
+
+                        # out = DFG_Op(
+                        #     get_id(),
+                        #     attr=("Conv2d", {
+                        #         "stride": op1.attr[1]["stride"],
+                        #         "dilations": (1, 1),
+                        #         "groups": 1,
+                        #     }),
+                        #     node_type=self.node_types["conv2d"],
+                        #     inputs=[x, out],
+                        # ).out(get_id())
+                        StridedSliceOp.normalize()
+
+                        # outputs.append(strided_slice(y, starts=[start], ends=[end], axes=[axis], strides=[1]))
+                        outputs.append()
+                    return outputs
+
+        return None
 
 
 class cr3(RewriteRule):
@@ -779,4 +815,7 @@ def define_rewrite_rules(node_types):
         ar3(node_types),
         ar4(node_types),
         ar5(node_types),
+
+        # conv
+        cr1(node_types),
     ]
