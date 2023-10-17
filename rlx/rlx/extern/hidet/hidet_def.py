@@ -40,6 +40,14 @@ from hidet.graph.ops.definitions.matmul.batch_matmul import BatchMatmulOp
 
 from hidet.graph.ops.definitions.reduce.reduce import ReduceSumOp, ReduceMeanOp
 
+# pass
+from hidet.graph.transforms.fold_const import fold_const_pass
+from hidet.graph.transforms.subgraph_rewrite import subgraph_rewrite_pass
+from hidet.graph.transforms.automatic_mix_precision import automatic_mix_precision_pass
+from hidet.graph.transforms.resolve_variant import resolve_variant_pass
+from hidet.graph.transforms.fuse_operator import fuse_operator_pass
+from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
+
 # logger
 logger = get_logger(__name__)
 
@@ -214,6 +222,38 @@ class DataflowGraph(Graph):
 
     def get_edges(self):
         return self.edges
+
+
+def reward_func(
+    graph: Graph,
+    init: bool,
+    terminated: bool,
+    stats: dict,
+) -> float:
+    hidet_graph = convert_to_hidet_graph(graph.get_edges())
+    my_passes = [
+        fold_const_pass(),
+        subgraph_rewrite_pass(),
+        automatic_mix_precision_pass(),
+        subgraph_rewrite_pass(),
+        resolve_variant_pass(),
+        fuse_operator_pass(),
+        eliminate_barrier_pass(),
+    ]
+    with hidet.graph.PassContext() as ctx:
+        for p in my_passes:
+            hidet_graph = p(hidet_graph)
+
+    latency = bench_hidet_graph(hidet_graph, False)
+    if init:
+        assert (latency != 0), f"initial reward cannot be zero {latency}"
+        stats["init_latency"] = latency
+        stats["last_latency"] = latency
+        return latency
+
+    reward = (stats["last_latency"] - latency) / stats["init_latency"]
+    stats["last_latency"] = latency
+    return reward
 
 
 #########################################

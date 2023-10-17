@@ -24,16 +24,8 @@ from hidet.utils import benchmark_func
 from hidet.graph import ops  # see frontend/onnx for how to build op
 
 # storage
-from hidet.graph.impl.dlpack import DLPackStorage, DLTensorDeleter
-from hidet.runtime.storage import Storage
-
-# pass
-from hidet.graph.transforms.fold_const import fold_const_pass
-from hidet.graph.transforms.subgraph_rewrite import subgraph_rewrite_pass
-from hidet.graph.transforms.automatic_mix_precision import automatic_mix_precision_pass
-from hidet.graph.transforms.resolve_variant import resolve_variant_pass
-from hidet.graph.transforms.fuse_operator import fuse_operator_pass
-from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
+# from hidet.graph.impl.dlpack import DLPackStorage, DLTensorDeleter
+# from hidet.runtime.storage import Storage
 
 # logger
 logger = get_logger(__name__)
@@ -390,12 +382,12 @@ def bench_hidet_graph(graph: hidet.FlowGraph, v=True) -> float:
 
 def get_hidet_model(model: str):
     if model[:4] == "bert" or model == "gpt2":
-        return hidet_model_from_pytorch(model)
+        return _hidet_model_from_pytorch(model)
 
-    return hidet_model_from_onnx_path(model)
+    return _hidet_model_from_onnx_path(model)
 
 
-def hidet_model_from_onnx_path(model: str):
+def _hidet_model_from_onnx_path(model: str):
     # load from onnx
     if model[-1] == "/":
         model = model[:-1]
@@ -424,7 +416,7 @@ def hidet_model_from_onnx_path(model: str):
     print("TRACE")
     assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
 
-    # a hack to convert [3, 244, 244] -> [1, 3, 244, 244]
+    # XXX: a hack to convert [3, 244, 244] -> [1, 3, 244, 244]
     if len(inputs_shape[0]) == 3:
         inputs_shape[0] = [1] + inputs_shape[0]
     # data = hidet.randn([1, 3, 224, 224], device='cuda')
@@ -436,7 +428,7 @@ def hidet_model_from_onnx_path(model: str):
     return graph
 
 
-def hidet_model_from_pytorch(model: str, batch_size=1, seq_length=1):
+def _hidet_model_from_pytorch(model: str, batch_size=1, seq_length=1):
     """
     the following export to onnx and back have problems
         "bert-base-uncased",
@@ -469,24 +461,3 @@ def hidet_model_from_pytorch(model: str, batch_size=1, seq_length=1):
     symbol_output = hidet_module(symbol_data)
     graph = hidet.trace_from(symbol_output)
     return graph
-
-
-def callback_reward_function(graph: Graph, terminated: bool,
-                             stats: dict) -> float:
-    hidet_graph = convert_to_hidet_graph(graph.get_edges())
-    my_passes = [
-        fold_const_pass(),
-        subgraph_rewrite_pass(),
-        automatic_mix_precision_pass(),
-        subgraph_rewrite_pass(),
-        resolve_variant_pass(),
-        fuse_operator_pass(),
-        eliminate_barrier_pass(),
-    ]
-    with hidet.graph.PassContext() as ctx:
-        for p in my_passes:
-            hidet_graph = p(hidet_graph)
-
-    latency = bench_hidet_graph(hidet_graph, False)
-    # TODO use stats
-    return 3 - latency

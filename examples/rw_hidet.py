@@ -101,7 +101,6 @@ def main(_):
     #     for inp in node.inputs:
     #         if inp.storage is not None:
     #             print(i)
-
     # print(hidet_graph)
 
     # rw
@@ -116,7 +115,7 @@ def main(_):
 
     node_types, _, _ = get_node_type()
     rewrite_rules = define_rewrite_rules(node_types)
-    rw_eng = RewriteEngine(dfg, rewrite_rules, callback_reward_function, FLAGS)
+    rw_eng = RewriteEngine(dfg, rewrite_rules, reward_func, FLAGS)
 
     # rw_eng.viz_graph("graph")
     t = bool(FLAGS.t)
