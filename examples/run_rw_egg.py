@@ -157,7 +157,7 @@ def main(_):
         rw_eng.train()
     else:
         print("=" * 40)
-        opt_time = rw_eng.run()
+        opt_time, inf_time = rw_eng.run()
         print(f"opt time {opt_time:.4f}s")
 
         # result
@@ -178,6 +178,7 @@ def main(_):
             print(f"expr: {FLAGS.fn}; Costs: {old_costs[0]} -> {opt_costs[0]}")
             results[FLAGS.fn] = (old_costs[0], opt_costs[0], oks[0])
             results["opt_time"] = opt_time
+            results["inf_time"] = inf_time
             fn = FLAGS.fn.split("/")[-1]
             result_path = f"results_{fn}"
 
@@ -192,6 +193,7 @@ def main(_):
                 print(f"expr{i}: {name}; Costs: {old} -> {new}")
                 results[name] = (old, new, ok)
             results["opt_time"] = opt_time
+            results["inf_time"] = inf_time
             result_path = f"{FLAGS.dir}_dir.pkl"
 
         l = bool(FLAGS.l)

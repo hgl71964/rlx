@@ -521,13 +521,17 @@ def inference(envs, config):
     # ==== rollouts ====
     cnt = 0
     t1 = time.perf_counter()
+    inf_time = 0
     while True:
         cnt += 1
         with torch.no_grad():
+            _t1 = time.perf_counter()
             action, _, _, _ = agent.get_action_and_value(
                 next_obs,
                 invalid_rule_mask=invalid_rule_mask,
                 invalid_loc_mask=invalid_loc_mask)
+            _t2 = time.perf_counter()
+        inf_time += _t2 - _t1
 
         a = [tuple(i) for i in action.cpu()]
         next_obs, _, terminated, truncated, _ = envs.step(a)
@@ -550,4 +554,4 @@ def inference(envs, config):
     t2 = time.perf_counter()
 
     # print(terminated, truncated)
-    return t2 - t1
+    return t2 - t1, inf_time

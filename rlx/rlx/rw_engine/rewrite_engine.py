@@ -64,9 +64,9 @@ class RewriteEngine:
         else:
             raise RuntimeError(f"fail to dispatch {self.config.agent}")
 
-        opt_time = inference(envs, self.config)
+        opt_time, inf_time = inference(envs, self.config)
         self.envs = envs
-        return opt_time
+        return opt_time, inf_time
 
     def train(self):
         """train the RL given a batch of training graphs"""

@@ -94,6 +94,10 @@ class PPO(nn.Module):
         # print(action.shape)
         return action, probs.log_prob(action), probs.entropy(), vf
 
+    def fine_tuning(self):
+        self.actor.fine_tuning()
+        self.critic.fine_tuning()
+
 
 # https://github.com/vwxyzjn/cleanrl
 def env_loop(envs, config):
@@ -136,6 +140,19 @@ def env_loop(envs, config):
         use_dropout=bool(config.use_dropout),
         device=device,
     ).to(device)
+
+    if config.weights_path is not None:
+        # TODO save+load opt states too?
+        logger.warning(
+            f"[ENV_LOOP] fine tuning from checkpoint {config.weights_path}")
+        agent_id = config.agent_id if config.agent_id is not None else "agent-final"
+        fn = os.path.join(f"{config.default_out_path}/runs/",
+                          config.weights_path, f"{agent_id}.pt")
+        agent_state_dict = torch.load(fn, map_location=device)
+        agent.load_state_dict(agent_state_dict)
+        agent.fine_tuning()
+        agent.to(device)
+
     optimizer = optim.Adam(agent.parameters(), lr=config.lr, eps=1e-5)
 
     # ===== START GAME =====
@@ -452,13 +469,17 @@ def inference(envs, config):
     # ==== rollouts ====
     cnt = 0
     t1 = time.perf_counter()
+    inf_time = 0
     while True:
         cnt += 1
         with torch.no_grad():
+            _t1 = time.perf_counter()
             action, _, _, _ = agent.get_action_and_value(
                 next_obs,
                 invalid_rule_mask=invalid_rule_mask,
             )
+            _t2 = time.perf_counter()
+        inf_time += _t2 - _t1
 
         # TRY NOT TO MODIFY: execute the game and log data.
         # print("a", action)
@@ -479,4 +500,4 @@ def inference(envs, config):
 
     t2 = time.perf_counter()
     # print(terminated, truncated)
-    return t2 - t1
+    return t2 - t1, inf_time
