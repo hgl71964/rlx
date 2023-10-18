@@ -12,7 +12,7 @@ import torch
 from torch import Tensor
 import torch_geometric as pyg
 
-from rlx.frontend.registry import get_node_type
+from rlx.frontend.registry import get_types
 from rlx.frontend.graph import Node, Edge
 from rlx.frontend.rewrite_rule import PATTERN_ID_MAP
 from rlx.rw_engine.parser import Parser
@@ -52,7 +52,7 @@ class Env(gym.Env):
         self.reward_func = reward_func
         self.rewrite_rules = rewrite_rules
         self.n_rewrite_rules = len(rewrite_rules)
-        self.node_types, self.const_type, self.var_type = get_node_type()
+        self.types, self.const_type, self.var_type = get_types()
 
         # num of node/edge FEATURES are static
         # num of node/edge can change dynamically
@@ -64,8 +64,7 @@ class Env(gym.Env):
         # 3. custom node embedding
         self.n_custom_node_embedding = self.parser.n_node_embedding
         self.n_node_feat = len(
-            self.node_types
-        ) + self.n_rewrite_rules + self.n_custom_node_embedding
+            self.types) + self.n_rewrite_rules + self.n_custom_node_embedding
         ##############################
         #### edge features design ####
         ##############################
@@ -434,7 +433,7 @@ class Env(gym.Env):
         ############# embedding ##############
         ######################################
         # 1. type embedding + 4. custom embedding
-        node_custom_start = len(self.node_types) + self.n_rewrite_rules
+        node_custom_start = len(self.types) + self.n_rewrite_rules
         edge_custom_start = 2 + self.n_rewrite_rules + 1
         for n_rlx_idx, n in self.node_map.items():
             node_feat[n_rlx_idx, n.get_type().value] = 1.
@@ -455,7 +454,7 @@ class Env(gym.Env):
                     edge_feat[embed_eid, edge_custom_start + i] = emb
 
         # 2. pattern-match embedding
-        node_rule_start = len(self.node_types)
+        node_rule_start = len(self.types)
         edge_rule_start = 2
         for rule_id, pmaps in pattern_map.items():
 

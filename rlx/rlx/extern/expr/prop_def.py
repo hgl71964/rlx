@@ -1,7 +1,7 @@
 import math
 
-from rlx.frontend.registry import get_node_type
-from rlx.frontend.registry import register_node_type
+from rlx.frontend.registry import get_types
+from rlx.frontend.registry import register_types
 from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
@@ -28,8 +28,8 @@ NODE_TYPES = [
 
 
 def define_node_type():
-    register_node_type(NODE_TYPES)
-    return get_node_type()
+    register_types(NODE_TYPES)
+    return get_types()
 
 
 #########################################

@@ -3,7 +3,7 @@ from typing import Dict
 
 from rlx.utils.common import get_logger
 from rlx.frontend.graph import Node, Edge
-from rlx.frontend.registry import get_node_type
+from rlx.frontend.registry import get_types
 from rlx.frontend.rewrite_rule import EdgePattern, NodePattern, RewriteRule
 
 # graph mining or graph pattern-matching is an established area
@@ -23,7 +23,7 @@ class PatternMatch:
     def __init__(self):
         self.matched = {}
         self.reverse_matched = {}
-        _, self.const_edge_type, self.var_edge_type = get_node_type(
+        _, self.const_edge_type, self.var_edge_type = get_types(
         )  # enum; Const type
 
     def build(self, edges: list[Edge],

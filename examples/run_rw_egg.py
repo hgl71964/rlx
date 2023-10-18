@@ -14,7 +14,7 @@ from rlx.utils.common import get_logger
 
 from rlx.extern.expr.expr_utils import expr_graph, get_lang, load_expr, load_all_exprs, verify_by_egraph, plot_expr_graph
 from rlx.extern.expr.math_def import define_rewrite_rules as math_rewrite_rules
-from rlx.extern.expr.math_def import define_node_type as define_math_node_type
+from rlx.extern.expr.math_def import define_types as define_math_node_type
 from rlx.extern.expr.math_def import reward_func as math_reward
 from rlx.extern.expr.math_def import convert_rlxGraphs
 from rlx.extern.expr.math_def import expr_cost
@@ -35,7 +35,6 @@ flags.DEFINE_string("lang", "math", "")
 flags.DEFINE_string("fn", None, "file name of the pre-generated expr")
 flags.DEFINE_string("dir", None, "directory pre-generated expr")
 flags.DEFINE_string("default_out_path", "data", "output dir")
-# flags.DEFINE_integer("load", 1, "whether to load from pre-generated expr?")
 # common
 flags.DEFINE_integer("t", 1, "whether to train?")
 flags.DEFINE_integer("l", 1, "whether to log")
@@ -124,9 +123,9 @@ def main(_):
     else:
         raise NotImplementedError(f"Unsupported lang: {FLAGS.lang}")
 
-    node_types, _, _ = define_types()
-    rewrite_rules = define_rewrite_rules(node_types)
-    expr_graphs = [expr_graph(expr, node_types) for expr in exprs]
+    types, _, _ = define_types()
+    rewrite_rules = define_rewrite_rules(types)
+    expr_graphs = [expr_graph(expr, types) for expr in exprs]
 
     # if plot to debug
     plot = bool(FLAGS.plot)

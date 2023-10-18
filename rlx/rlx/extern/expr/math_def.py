@@ -1,5 +1,4 @@
-from rlx.frontend.registry import get_node_type
-from rlx.frontend.registry import register_node_type
+from rlx.frontend.registry import get_types, register_types
 from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern, EdgePattern
 
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
@@ -14,7 +13,7 @@ def get_id():
     return local
 
 
-NODE_TYPES = [
+MATH_TYPES = [
     "Diff",
     "Integral",
     "Add",
@@ -33,9 +32,9 @@ NODE_TYPES = [
 ]
 
 
-def define_node_type():
-    register_node_type(NODE_TYPES)
-    return get_node_type()
+def define_types():
+    register_types(MATH_TYPES)
+    return get_types()
 
 
 #########################################
@@ -1208,43 +1207,43 @@ class r24(RewriteRule):
     #["mul-one", a, op.mul(a, 1)],
 
 
-def define_rewrite_rules(node_types):
+def define_rewrite_rules(types):
     return [
-        r1(node_types),
-        r2(node_types),
-        r3(node_types),
-        r4(node_types),
-        r5(node_types),
-        r6(node_types),
-        r7(node_types),
-        r8(node_types),
-        r9(node_types),
-        r10(node_types),
-        r11(node_types),
-        r12(node_types),
-        r13(node_types),
-        r14(node_types),
-        # r15(node_types),
-        # r16(node_types),
-        # r17(node_types),
-        # r18(node_types),
-        # r19(node_types),
-        # r20(node_types),
-        # r21(node_types),
-        # r22(node_types),
-        # r23(node_types),
-        # r24(node_types),
+        r1(types),
+        r2(types),
+        r3(types),
+        r4(types),
+        r5(types),
+        r6(types),
+        r7(types),
+        r8(types),
+        r9(types),
+        r10(types),
+        r11(types),
+        r12(types),
+        r13(types),
+        r14(types),
+        # r15(types),
+        # r16(types),
+        # r17(types),
+        # r18(types),
+        # r19(types),
+        # r20(types),
+        # r21(types),
+        # r22(types),
+        # r23(types),
+        # r24(types),
 
         # asymmetric
-        r6_v2(node_types),
-        r7_v2(node_types),
-        r8_v2(node_types),
-        r9_v2(node_types),
-        r10_v2(node_types),
-        r11_v2(node_types),
-        r11_v3(node_types),
-        r11_v4(node_types),
-        r4_v2(node_types),
-        r6_sub(node_types),
-        r8_minus_one(node_types),
+        r6_v2(types),
+        r7_v2(types),
+        r8_v2(types),
+        r9_v2(types),
+        r10_v2(types),
+        r11_v2(types),
+        r11_v3(types),
+        r11_v4(types),
+        r4_v2(types),
+        r6_sub(types),
+        r8_minus_one(types),
     ]

@@ -110,7 +110,7 @@ class expr_node(Node):
 
 class expr_graph(Graph):
 
-    def __init__(self, expr, node_types):
+    def __init__(self, expr, types):
         # build graph from expr (tree)
         cnt = 0
         nodes = []
@@ -123,7 +123,7 @@ class expr_graph(Graph):
             if isinstance(node, int) or isinstance(node, bool):
                 e = expr_edge(cnt,
                               attr=int(node),
-                              edge_type=node_types["Const"],
+                              edge_type=types["Const"],
                               trace=None)
                 cnt += 1
                 edges.append(e)
@@ -137,7 +137,7 @@ class expr_graph(Graph):
             my_type = type(node).__name__
             n = expr_node(cnt,
                           attr=None,
-                          node_type=node_types[my_type],
+                          node_type=types[my_type],
                           inputs=inputs)
             cnt += 1
             e = expr_edge(

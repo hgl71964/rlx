@@ -1,6 +1,6 @@
 from rlx.utils.common import get_logger
 from rlx.frontend.graph import Graph, Node, Edge
-from rlx.frontend.registry import get_node_type
+from rlx.frontend.registry import get_types
 
 logger = get_logger(__name__)
 
@@ -104,7 +104,7 @@ class Parser:
         Also build continuous indices
         """
         visited = set()
-        _, const_type, var_type = get_node_type()
+        _, const_type, var_type = get_types()
         node_cnt, edge_cnt = 0, 0
 
         def dfs(obj):
