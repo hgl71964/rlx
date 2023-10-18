@@ -1,3 +1,4 @@
+from collections import namedtuple
 import onnx  # type: ignore
 
 from rlx.utils.common import get_logger
@@ -74,6 +75,15 @@ def add_storage(storage):
     _storage_id += 1
     return local
 
+
+NodeAttribute = namedtuple("NodeAttribute", ["name", "attrs"])
+EdgeAttribute = namedtuple("EdgeAttribute", [
+    "shape",
+    "dtype",
+    "device",
+    "layout",
+    "storage_id",
+])
 
 OP_MAP = {
     # arithmeticOp
@@ -266,17 +276,33 @@ class tr1(RewriteRule):
     def __init__(self, node_types):
         self.node_types = node_types
         self.name = "reshape(x) * scale => "
-        self.x, self.tx = symbol_pattern()
-        self.scale, self.tscale = const_pattern()
+        self.x = symbol_pattern()
+        self.scale = const_pattern()
 
     def source_pattern(self):
         reshape = node_pattern(self.node_types["reshape"], [self.x], 1)
+        self.y = reshape
         mul = node_pattern(self.node_types["mul"], [reshape, self.scale], 1)
         return [mul]
 
-    def target_pattern(self):
-        unsqueeze = node_pattern(self.node_types["unsqueeze"], [self.tscale],
-                                 1)
+    def target_pattern(self, matched):
+        x, scale, y = [matched[v] for v in [self.x, self.scale, self.y]]
+
+        if len(scale.attr.shape) < len(y.attr.shape):
+            diff_dims = len(y.attr.shape) - len(scale.attr.shape)
+            # scale = scale.unsqueeze(dims=list(range(diff_dims)))
+            scale = DFG_Op(
+                get_id(),
+                attr=NodeAttribute(
+                    "Unsqueeze",
+                    {"dims": list(range(diff_dims))},
+                ),
+                node_type=self.node_types["unsqueeze"],
+                inputs=[scale],
+            ).out(get_id())
+
+        # TODO: also need shape inference algorithm
+        # scale_dims = [i for i, dim in enumerate(scale.shape) if dim != 1]
         return [out]
 
 
@@ -658,28 +684,25 @@ class cr1(RewriteRule):
         x, w, y, scale = [
             matched[v] for v in [self.x, self.w, self.y, self.scale]
         ]
-        if not scale.attr[0][0] == scale.attr[0][2] == scale.attr[0][3] == 1:
+        if not scale.attr.shape[0] == scale.attr.shape[2] == scale.attr.shape[
+                3] == 1:
             return None
 
-        attrs = y.trace.attr[1]
+        attrs = y.trace.attr.attrs
         out = DFG_Op(
             get_id(),
-            attr=(
+            attr=NodeAttribute(
                 "Squeeze",
-                {
-                    "dims": [0]
-                },
+                {"dims": [0]},
             ),
             node_type=self.node_types["squeeze"],
             inputs=[scale],
         ).out(get_id())
         out = DFG_Op(
             get_id(),
-            attr=(
+            attr=NodeAttribute(
                 "Unsqueeze",
-                {
-                    "dims": [3]
-                },
+                {"dims": [3]},
             ),
             node_type=self.node_types["unsqueeze"],
             inputs=[scale],
@@ -692,11 +715,12 @@ class cr1(RewriteRule):
         ).out(get_id())
         out = DFG_Op(
             get_id(),
-            attr=("Conv2d", {
-                "stride": attrs["stride"],
-                "dilations": (1, 1),
-                "groups": attrs["groups"],
-            }),
+            attr=NodeAttribute(
+                "Conv2d", {
+                    "stride": attrs["stride"],
+                    "dilations": (1, 1),
+                    "groups": attrs["groups"],
+                }),
             node_type=self.node_types["conv2d"],
             inputs=[x, out],
         ).out(get_id())

@@ -1,8 +1,6 @@
-import math
-
 from rlx.frontend.registry import get_node_type
 from rlx.frontend.registry import register_node_type
-from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern, EdgePattern, NodePattern
+from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern, EdgePattern
 
 from rlx.extern.expr.expr_utils import expr_edge, expr_node
 
@@ -286,6 +284,34 @@ class r4(RewriteRule):
         return [out]
 
 
+class r4_v2(RewriteRule):
+
+    def __init__(self, node_types):
+        # ["assoc-mul", op.mul(op.mul(a, b), c), op.mul(a, op.mul(b, c))],
+        self.name = "assoc-mul-v2"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.c = const_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul1 = node_pattern(self.node_types["Mul"], [self.a, self.b], 1)
+        mul2 = node_pattern(self.node_types["Mul"], [self.c, mul1], 1)
+        return [mul2]
+
+    def target_pattern(self, matched):
+        a, b, c = [matched[pat] for pat in [self.a, self.b, self.c]]
+        out = expr_node(get_id(),
+                        attr=None,
+                        node_type=self.node_types["Mul"],
+                        inputs=[b, c]).out(get_id())
+        out = expr_node(get_id(),
+                        attr=None,
+                        node_type=self.node_types["Mul"],
+                        inputs=[a, out]).out(get_id())
+        return [out]
+
+
 class r5(RewriteRule):
 
     def __init__(self, node_types):
@@ -358,6 +384,24 @@ class r6_v2(RewriteRule):
         return [a]
 
 
+class r6_sub(RewriteRule):
+
+    def __init__(self, node_types):
+        #["zero-sub", op.sub(a, 0), a],
+        self.name = "zero-sub"
+        self.a = const_pattern()
+        self.zero = const_pattern(attr=0)
+        self.node_types = node_types
+
+    def source_pattern(self):
+        sub = node_pattern(self.node_types["Sub"], [self.a, self.zero], 1)
+        return [sub]
+
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        return [a]
+
+
 class r7(RewriteRule):
 
     def __init__(self, node_types):
@@ -385,7 +429,7 @@ class r7_v2(RewriteRule):
 
     def __init__(self, node_types):
         # ["zero-mul", op.mul(a, 0), 0],
-        self.name = "zero-mul"
+        self.name = "zero-mul-v2"
         self.a = const_pattern()
         self.zero = const_pattern(attr=0)
         self.node_types = node_types
@@ -438,6 +482,30 @@ class r8_v2(RewriteRule):
     def target_pattern(self, matched):
         a = matched[self.a]
         return [a]
+
+
+class r8_minus_one(RewriteRule):
+
+    def __init__(self, node_types):
+        # ["mul_-1", op.mul(-1, -1), 1],
+        self.name = "mul_-1"
+        self.first = const_pattern(attr=-1)
+        self.second = const_pattern(attr=-1)
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul = node_pattern(self.node_types["Mul"], [self.first, self.second],
+                           1)
+        return [mul]
+
+    def target_pattern(self, matched):
+        out = expr_edge(
+            get_id(),
+            attr=1,
+            edge_type=self.node_types["Const"],
+            trace=None,
+        )
+        return [out]
 
 
 class r9(RewriteRule):
@@ -1176,4 +1244,7 @@ def define_rewrite_rules(node_types):
         r11_v2(node_types),
         r11_v3(node_types),
         r11_v4(node_types),
+        r4_v2(node_types),
+        r6_sub(node_types),
+        r8_minus_one(node_types),
     ]

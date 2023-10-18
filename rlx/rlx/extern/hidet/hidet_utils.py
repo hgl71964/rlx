@@ -88,7 +88,7 @@ def hidet_lookup(hidet_op: hidet.Operator, all_types):
     return all_types[OP_MAP[op_class]]
 
 
-def hidet_reverse_loopup(dfg_op, inputs):
+def hidet_reverse_loopup(dfg_op: DFG_Op, inputs):
     node_type = dfg_op.get_type().name
     # arithmeticOp
     if node_type == "add":
@@ -118,13 +118,13 @@ def hidet_reverse_loopup(dfg_op, inputs):
         return ops.tanh(inputs[0])
     elif node_type == "multiply_scalar":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.multiply(inputs[0], dfg_op.attr[1]["scalar"])
+        return ops.multiply(inputs[0], dfg_op.attr.attrs["scalar"])
     elif node_type == "add_scalar":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.add(inputs[0], dfg_op.attr[1]["scalar"])
+        return ops.add(inputs[0], dfg_op.attr.attrs["scalar"])
     elif node_type == "divide_scalar":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.divide(inputs[0], dfg_op.attr[1]["scalar"])
+        return ops.divide(inputs[0], dfg_op.attr.attrs["scalar"])
     elif node_type == "pow":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
         return ops.pow(inputs[0], inputs[1])
@@ -138,45 +138,45 @@ def hidet_reverse_loopup(dfg_op, inputs):
     # transformOp
     elif node_type == "reshape":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.reshape(inputs[0], dfg_op.attr[1]["shape"])
+        return ops.reshape(inputs[0], dfg_op.attr.attrs["shape"])
     elif node_type == "rearrange":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.rearrange(inputs[0], dfg_op.attr[1]["plan"])
+        return ops.rearrange(inputs[0], dfg_op.attr.attrs["plan"])
     elif node_type == "squeeze":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.squeeze(inputs[0], dfg_op.attr[1]["dims"])
+        return ops.squeeze(inputs[0], dfg_op.attr.attrs["dims"])
     elif node_type == "unsqueeze":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.unsqueeze(inputs[0], dfg_op.attr[1]["dims"])
+        return ops.unsqueeze(inputs[0], dfg_op.attr.attrs["dims"])
     elif node_type == "flatten":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.flatten(inputs[0], dfg_op.attr[1]["start_dim"],
-                           dfg_op.attr[1]["end_dim"])
+        return ops.flatten(inputs[0], dfg_op.attr.attrs["start_dim"],
+                           dfg_op.attr.attrs["end_dim"])
     elif node_type == "permute_dims":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.permute_dims(inputs[0], dfg_op.attr[1]["axes"])
+        return ops.permute_dims(inputs[0], dfg_op.attr.attrs["axes"])
     elif node_type == "cast":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.cast(inputs[0], dfg_op.attr[1]["dtype"])
+        return ops.cast(inputs[0], dfg_op.attr.attrs["dtype"])
     elif node_type == "concat":
-        return ops.concat(inputs, dfg_op.attr[1]["axis"])
+        return ops.concat(inputs, dfg_op.attr.attrs["axis"])
     elif node_type == "take":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        return ops.take(inputs[0], inputs[1], dfg_op.attr[1]["axis"])
+        return ops.take(inputs[0], inputs[1], dfg_op.attr.attrs["axis"])
     elif node_type == "gather":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        return ops.gather(inputs[0], inputs[1], dfg_op.attr[1]["axis"])
+        return ops.gather(inputs[0], inputs[1], dfg_op.attr.attrs["axis"])
     elif node_type == "strided_slice":
         # assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
         # return ops.strided_slice(inputs[0], inputs[1])
         raise RuntimeError(f"Unsupported node type: {node_type}")
     elif node_type == "broadcast":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.broadcast(inputs[0], dfg_op.attr[1]["shape"])
+        return ops.broadcast(inputs[0], dfg_op.attr.attrs["shape"])
     elif node_type == "pad":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.pad(inputs[0], dfg_op.attr[1]["pads"],
-                       dfg_op.attr[1]["mode"], dfg_op.attr[1]["value"])
+        return ops.pad(inputs[0], dfg_op.attr.attrs["pads"],
+                       dfg_op.attr.attrs["mode"], dfg_op.attr.attrs["value"])
 
     # activation
     elif node_type == "relu":
@@ -184,45 +184,45 @@ def hidet_reverse_loopup(dfg_op, inputs):
         return ops.relu(inputs[0])
     elif node_type == "leaky_relu":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.leaky_relu(inputs[0], dfg_op.attr[1]["alpha"])
+        return ops.leaky_relu(inputs[0], dfg_op.attr.attrs["alpha"])
     elif node_type == "sigmoid":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
         return ops.sigmoid(inputs[0])
     elif node_type == "clip":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.clip(inputs[0], dfg_op.attr[1]["min_val"],
-                        dfg_op.attr[1]["max_val"])
+        return ops.clip(inputs[0], dfg_op.attr.attrs["min_val"],
+                        dfg_op.attr.attrs["max_val"])
     elif node_type == "gelu":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
         return ops.gelu(inputs[0])
     elif node_type == "softmax":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.softmax(inputs[0], dfg_op.attr[1]["axis"])
+        return ops.softmax(inputs[0], dfg_op.attr.attrs["axis"])
 
     # pool
     elif node_type == "max_pool2d":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.max_pool2d(inputs[0], dfg_op.attr[1]["kernel"],
-                              dfg_op.attr[1]["stride"],
-                              dfg_op.attr[1]["padding"])
+        return ops.max_pool2d(inputs[0], dfg_op.attr.attrs["kernel"],
+                              dfg_op.attr.attrs["stride"],
+                              dfg_op.attr.attrs["padding"])
     elif node_type == "avg_pool2d":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.avg_pool2d(inputs[0], dfg_op.attr[1]["kernel"],
-                              dfg_op.attr[1]["stride"],
-                              dfg_op.attr[1]["padding"])
+        return ops.avg_pool2d(inputs[0], dfg_op.attr.attrs["kernel"],
+                              dfg_op.attr.attrs["stride"],
+                              dfg_op.attr.attrs["padding"])
 
     # tensor compute
     elif node_type == "conv2d":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        return ops.conv2d(inputs[0], inputs[1], dfg_op.attr[1]["stride"],
-                          dfg_op.attr[1]["dilations"],
-                          dfg_op.attr[1]["groups"])
+        return ops.conv2d(inputs[0], inputs[1], dfg_op.attr.attrs["stride"],
+                          dfg_op.attr.attrs["dilations"],
+                          dfg_op.attr.attrs["groups"])
     elif node_type == "matmul":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
         return ops.matmul(inputs[0], inputs[1])
     elif node_type == "batch_matmul":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        return ops.batch_matmul(inputs[0], inputs[1], dfg_op.attr[1]["mma"])
+        return ops.batch_matmul(inputs[0], inputs[1], dfg_op.attr.attrs["mma"])
     elif node_type == "attention":
         mask = None if len(inputs) == 3 else inputs[3]
         return ops.attention(inputs[0], inputs[1], inputs[2], mask)
@@ -231,13 +231,13 @@ def hidet_reverse_loopup(dfg_op, inputs):
     elif node_type == "reduce_sum":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
         return ops.sum(inputs[0],
-                       dims=dfg_op.attr[1]["dims"],
-                       keep_dim=dfg_op.attr[1]["keepdims"])
+                       dims=dfg_op.attr.attrs["dims"],
+                       keep_dim=dfg_op.attr.attrs["keepdims"])
     elif node_type == "reduce_mean":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
         return ops.mean(inputs[0],
-                        dims=dfg_op.attr[1]["dims"],
-                        keep_dim=dfg_op.attr[1]["keepdims"])
+                        dims=dfg_op.attr.attrs["dims"],
+                        keep_dim=dfg_op.attr.attrs["keepdims"])
     else:
         raise RuntimeError(f"Unsupported node type: {node_type}")
 
@@ -263,9 +263,9 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
             node_type = hidet_lookup(obj, all_types)
             node = DFG_Op(
                 cnt,
-                attr=(
-                    obj.name,
-                    obj.attrs,
+                attr=NodeAttribute(
+                    name=obj.name,
+                    attrs=obj.attrs,
                     # task is not necessary, build func from ops.* will build task automatically
                     # obj.task,
                 ),
@@ -285,24 +285,24 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
             edge_type = var_type if obj.storage is None else const_type
             if obj.storage is None:
                 tensor = DFG_Edge(cnt,
-                                  attr=(
-                                      obj.shape,
-                                      obj.dtype,
-                                      obj.device,
-                                      obj.layout,
-                                      None,
+                                  attr=EdgeAttribute(
+                                      shape=obj.shape,
+                                      dtype=obj.dtype,
+                                      device=obj.device,
+                                      layout=obj.layout,
+                                      storage_id=None,
                                   ),
                                   edge_type=edge_type,
                                   trace=trace)
             else:
                 storage_id = add_storage(obj.storage)
                 tensor = DFG_Edge(cnt,
-                                  attr=(
-                                      obj.shape,
-                                      obj.dtype,
-                                      obj.device,
-                                      obj.layout,
-                                      storage_id,
+                                  attr=EdgeAttribute(
+                                      shape=obj.shape,
+                                      dtype=obj.dtype,
+                                      device=obj.device,
+                                      layout=obj.layout,
+                                      storage_id=storage_id,
                                   ),
                                   edge_type=edge_type,
                                   trace=trace)
@@ -357,14 +357,14 @@ def convert_to_hidet_graph(edges: list[Edge]):
         if isinstance(obj, Edge):
             if obj.trace is None:
                 tensor = hidet.Tensor(
-                    shape=obj.attr[0],
-                    dtype=obj.attr[1],
-                    device=obj.attr[2],
-                    layout=obj.attr[3],
+                    shape=obj.attr.shape,
+                    dtype=obj.attr.dtype,
+                    device=obj.attr.device,
+                    layout=obj.attr.layout,
                     trace=None,
-                    storage=None
                     # if obj.attr[4] is None else STORAGE_CACHE[obj.attr[4]],
-                    if obj.attr[4] is None else get_storage(obj.attr[4]),
+                    storage=None if obj.storage_id is None else get_storage(
+                        obj.attr.storage_id),
                 )
                 built[obj] = tensor
                 return tensor

@@ -78,7 +78,6 @@ flags.DEFINE_integer("hidden_size", 128, "hidden_size of GNN")
 flags.DEFINE_integer("use_dropout", 0, "")
 flags.DEFINE_integer("vgat", 2, "version of gat")
 
-# logger
 logger = get_logger(__name__)
 # yapf: enable
 
@@ -129,6 +128,7 @@ def main(_):
     rewrite_rules = define_rewrite_rules(node_types)
     expr_graphs = [expr_graph(expr, node_types) for expr in exprs]
 
+    # if plot to debug
     plot = bool(FLAGS.plot)
     if plot:
         file_name = FLAGS.fn.split(
@@ -194,7 +194,9 @@ def main(_):
                 results[name] = (old, new, ok)
             results["opt_time"] = opt_time
             results["inf_time"] = inf_time
-            result_path = f"{FLAGS.dir}_dir.pkl"
+            device = "gpu" if torch.cuda.is_available() and bool(
+                FLAGS.gpu) else "cpu"
+            result_path = f"{device}_{FLAGS.dir}_dir.pkl"
 
         l = bool(FLAGS.l)
         if l:
