@@ -507,6 +507,26 @@ class r8_minus_one(RewriteRule):
         return [out]
 
 
+class r8_triple_minus_one(RewriteRule):
+
+    def __init__(self, node_types):
+        # ["mul_triple_-1", op.mul(-1, *, -1), 1],
+        self.name = "mul_triple_-1"
+        self.first = const_pattern(attr=-1)
+        self.a = const_pattern()
+        self.second = const_pattern(attr=-1)
+        self.node_types = node_types
+
+    def source_pattern(self):
+        mul = node_pattern(self.node_types["Mul"], [self.first, self.a], 1)
+        mul = node_pattern(self.node_types["Mul"], [mul, self.second], 1)
+        return [mul]
+
+    def target_pattern(self, matched):
+        a = matched[self.a]
+        return [a]
+
+
 class r9(RewriteRule):
 
     def __init__(self, node_types):
@@ -1246,4 +1266,5 @@ def define_rewrite_rules(types):
         r4_v2(types),
         r6_sub(types),
         r8_minus_one(types),
+        r8_triple_minus_one(types),
     ]

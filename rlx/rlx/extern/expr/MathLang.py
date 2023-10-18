@@ -55,6 +55,7 @@ class MathLang(Language):
 
         ["zero-sub", op.sub(a, 0), a],
         ["mul_-1", op.mul(-1, -1), 1],
+        ["mul_triple_-1", op.mul(-1, op.mul(a, -1)), a],
 
         #["add-zero", a, op.add(a, 0)],
         #["mul-one", a, op.mul(a, 1)],
