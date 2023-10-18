@@ -60,10 +60,10 @@ def main(_):
     #########################
     ####### solver ##########
     #########################
-    # if FLAGS.fn is not None:
-    #     print("=" * 40)
-    #     print("[EGG] Solving expression: ", expr)
-    #     print("=" * 40)
+    if FLAGS.fn is not None:
+        print("=" * 40)
+        print("[EGG] Solving expression: ", expr)
+        print("=" * 40)
     # egg_df, best_expr = solve_expr_egg(lang, expr, FLAGS.node_lim)
 
     plot = bool(FLAGS.plot)
