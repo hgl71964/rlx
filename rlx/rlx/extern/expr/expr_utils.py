@@ -53,12 +53,15 @@ class expr_edge(Edge):
 
     @staticmethod
     def get_nums_embedding():
-        return 1
+        return 6
 
     def get_embedding(self):
+        res = [0, 0, 0, 0, 0, 0]
         if self.attr is not None:
-            return [self.attr]
-        return [-10]
+            res[self.attr] = 1
+        else:
+            res[4] = 1
+        return res
 
 
 class expr_node(Node):
