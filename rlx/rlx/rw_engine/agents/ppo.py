@@ -500,4 +500,8 @@ def inference(envs, config):
 
     t2 = time.perf_counter()
     # print(terminated, truncated)
-    return t2 - t1, inf_time
+    return {
+        "iter": cnt,
+        "opt_time": t2 - t1,
+        "inf_time": inf_time,
+    }

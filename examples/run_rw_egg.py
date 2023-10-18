@@ -156,7 +156,10 @@ def main(_):
         rw_eng.train()
     else:
         print("=" * 40)
-        opt_time, inf_time = rw_eng.run()
+        info = rw_eng.run()
+        opt_time = info["opt_time"]
+        inf_time = info["inf_time"]
+        cnt = info["iter"]
         print(f"opt time {opt_time:.4f}s")
 
         # result
