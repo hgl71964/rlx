@@ -66,18 +66,21 @@ OP_COST = {
 
 
 def reward_func(
+    ops,
     graph: Graph,
     init: bool,
     terminated: bool,
     stats: dict,
 ) -> float:
-    cost = 0
-    for e in graph.get_edges():
-        if e.get_trace() is None:
-            cost += 1
+    # cost = 0
+    # for e in graph.get_edges():
+    #     if e.get_trace() is None:
+    #         cost += 1
 
-    for n in graph.get_nodes():
-        cost += OP_COST[n.node_type.name]
+    # for n in graph.get_nodes():
+    #     cost += OP_COST[n.node_type.name]
+    expr, _ = rlxGraph2math(ops, graph.get_edges())
+    cost = expr_cost(expr)
 
     if init:
         # print(f"init cost {cost}")

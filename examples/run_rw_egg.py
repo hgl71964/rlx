@@ -5,6 +5,8 @@ import pickle
 from pprint import pformat
 from copy import deepcopy
 
+from functools import partial
+
 import numpy as np
 import torch
 
@@ -146,7 +148,7 @@ def main(_):
     rw_eng = RewriteEngine(
         expr_graphs,
         rewrite_rules,
-        callback_reward_function,
+        partial(callback_reward_function, lang.all_operators()),
         FLAGS,
     )
 
@@ -163,9 +165,9 @@ def main(_):
         print(f"opt time {opt_time:.4f}s")
 
         # result
-        opt_exprs, opt_costs = conversion(lang.all_operators(), rw_eng.envs)
+        opt_exprs, _ = conversion(lang.all_operators(), rw_eng.envs)
         old_costs = [expr_cost(expr) for expr in exprs]
-        # opt_costs = [expr_cost(expr) for expr in opt_exprs]
+        opt_costs = [expr_cost(expr) for expr in opt_exprs]
 
         t1 = time.perf_counter()
         oks = verify_by_egraph(lang, exprs, opt_exprs)
