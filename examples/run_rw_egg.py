@@ -165,6 +165,7 @@ def main(_):
         # result
         opt_exprs, opt_costs = conversion(lang.all_operators(), rw_eng.envs)
         old_costs = [expr_cost(expr) for expr in exprs]
+        # opt_costs = [expr_cost(expr) for expr in opt_exprs]
 
         t1 = time.perf_counter()
         oks = verify_by_egraph(lang, exprs, opt_exprs)
