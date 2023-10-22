@@ -515,7 +515,8 @@ def inference(envs, config):
     fn = os.path.join(f"{config.default_out_path}/runs/", config.weights_path,
                       f"{agent_id}.pt")
     logger.warning(
-            f"[ENV_LOOP] inference from checkpoint {config.weights_path}: {agent_id}")
+        f"[ENV_LOOP] inference from checkpoint {config.weights_path}: {agent_id}"
+    )
     agent = MultiOutputGraphGlobalPPO(
         nvec=envs.single_action_space.nvec,
         n_node_features=envs.single_observation_space.node_space.shape[0],

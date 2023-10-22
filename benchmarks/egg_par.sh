@@ -4,7 +4,7 @@ l=0
 lang=math
 #dir=math-5-full-ops
 dir=math-5-100_150
-annotation=parallel_ast_size
+annotation=parallel
 
 set -e
 
