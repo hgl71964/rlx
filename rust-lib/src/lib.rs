@@ -712,7 +712,7 @@ impl egg::CostFunction<PyLang> for MathCost {
             "Sqrt" => 11,
             "Sin" => 19,
             "Cos" => 18,
-            "int" => 10,
+            "int" => 1,
 
             // Prop
             "And" => 1,
