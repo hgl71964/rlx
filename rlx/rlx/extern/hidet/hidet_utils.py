@@ -75,7 +75,7 @@ def verify_graph(g1, g2):
         rtol=1e-5,
         atol=1e-5,
     )
-    logger.info(f"verify graphs")
+    logger.info(f"verify graphs OK!!")
 
 
 

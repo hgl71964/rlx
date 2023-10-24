@@ -260,10 +260,10 @@ class FlowGraph:
 
             # run node
             GraphForwardContext.current()._trigger_before_operator(node, node_inputs)
-            logger.debug('[%4d/%d] run operator %s', idx, num_operators, node.name)
-            logger.debug('   inputs: %s', [x.signature() for x in node_inputs])
+            # logger.debug('[%4d/%d] run operator %s', idx, num_operators, node.name)
+            # logger.debug('   inputs: %s', [x.signature() for x in node_inputs])
             node_outputs = node.imperative_run(node_inputs)
-            logger.debug('  outputs: %s', [x.signature() for x in node_outputs])
+            # logger.debug('  outputs: %s', [x.signature() for x in node_outputs])
             GraphForwardContext.current()._trigger_after_operator(node, node_inputs, node_outputs)
 
             # update map

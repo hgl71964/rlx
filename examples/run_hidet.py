@@ -30,10 +30,10 @@ flags.DEFINE_string("fn", None, "name of the model; e.g. resnet50")
 flags.DEFINE_string("default_out_path", "data", "output dir")
 flags.DEFINE_integer("c", 1, "whether to cache operators")
 flags.DEFINE_integer("s", 1, "search level: [0, 1, 2]")
+flags.DEFINE_integer("verify", 1, "whether to verify")
 # common
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
-flags.DEFINE_integer("ver", 0, "verbose")
 
 
 # overload hidet logging
@@ -76,9 +76,11 @@ def main(_):
     print()
 
     # round trip
-    dfg = convert_to_dataflow_graph(hidet_graph)
-    converted_hidet_graph = convert_to_hidet_graph(dfg.get_edges())
-    verify_graph(hidet_graph, converted_hidet_graph)
+    v = bool(FLAGS.verify)
+    if v:
+        dfg = convert_to_dataflow_graph(hidet_graph)
+        converted_hidet_graph = convert_to_hidet_graph(dfg.get_edges())
+        verify_graph(hidet_graph, converted_hidet_graph)
     # raise
 
     # optimization

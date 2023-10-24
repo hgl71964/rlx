@@ -316,7 +316,7 @@ def convert_to_hidet_graph(edges: list[Edge]):
                     layout=obj.attr.layout,
                     trace=None,
                     # if obj.attr[4] is None else STORAGE_CACHE[obj.attr[4]],
-                    storage=None if obj.storage_id is None else get_storage(
+                    storage=None if obj.attr.storage_id is None else get_storage(
                         obj.attr.storage_id),
                 )
                 built[obj] = tensor
