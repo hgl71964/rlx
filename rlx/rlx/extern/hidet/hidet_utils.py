@@ -3,10 +3,8 @@ import numpy as np
 from collections import namedtuple
 
 # import ctypes
-
 import torch
-
-import onnx  # type: ignore
+import onnx
 
 from rlx.utils.common import get_logger
 from rlx.extern.hidet.hidet_def import *

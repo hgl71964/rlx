@@ -1,8 +1,4 @@
-import time
 import random
-from pprint import pformat
-
-import logging
 
 import numpy as np
 import torch
@@ -36,11 +32,6 @@ flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
 
 
-# overload hidet logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
-
-
 # logger
 logger = get_logger(__name__)
 # yapf: enable
@@ -64,8 +55,8 @@ def main(_):
     # hidet.option.save_lower_ir()
     hidet.option.search_space(FLAGS.s)
 
-    hidet.option.debug_cache_tuning(
-        True)  # <- cause error if False, cannot rm file, device not empty
+    # NOTE: cause error if False, cannot rm (tmp?) file, device not empty
+    hidet.option.debug_cache_tuning(True)
 
     # ===== load =====
     # hidet_graph = hidet_model_from_onnx_path(FLAGS.fn)

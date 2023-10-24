@@ -33,6 +33,9 @@ def add_storage(storage):
     return local
 
 
+#########################
+##### look up table #####
+#########################
 def hidet_lookup(hidet_op: hidet.Operator, all_types):
     op_class = type(hidet_op)
     if op_class not in OP_MAP:
@@ -194,6 +197,9 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs):
         raise RuntimeError(f"Unsupported node type: {node_type}")
 
 
+#########################
+####### Converter #######
+#########################
 def convert_to_dataflow_graph(graph: hidet.FlowGraph):
     cnt = 0
     built = {}  # 1-to-1 mapping
@@ -334,3 +340,16 @@ def convert_to_hidet_graph(edges: list[Edge]):
 
     hidet_graph = hidet.FlowGraph(outs)
     return hidet_graph
+
+
+#########################
+#### shape inference ####
+#########################
+def edge2tensor(edge: Edge):
+    assert isinstance(edge, DFG_Edge), f"expect DFG_Edge, got {type(edge)}"
+    # TODO
+
+
+def node2operator(node: Node):
+    assert isinstance(node, DFG_Op), f"expect DFG_Op, got {type(node)}"
+    # TODO
