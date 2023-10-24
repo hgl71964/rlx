@@ -1,12 +1,11 @@
 from collections import namedtuple
-import onnx  # type: ignore
 
 from rlx.utils.common import get_logger
-from rlx.frontend.registry import register_node_type
+from rlx.frontend.registry import register_types
 from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern
 
 # extern
-import hidet  # type: ignore
+import hidet  
 
 from hidet.graph.ops.definitions.arithmetic import AddScalarOp, SubScalarOp, RSubScalarOp, MultiplyScalarOp, DivideScalarOp, RDivideScalarOp, SqrtOp, ErfOp, ExpOp, Expm1Op, LogOp, Log2Op, Log10Op, Log1pOp, RsqrtOp, PowOp, NegativeOp, ReciprocalOp, AddOp, SubtractOp, MultiplyOp, DivideOp, SinOp, CosOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, Atan2Op, AcoshOp, AsinhOp, AtanhOp, SquareOp, CubeOp, AbsOp, FloorOp, RoundOp, TruncOp, CeilOp, IsFiniteOp, IsInfOp, IsNanOp, SignOp, RightShiftOp, LeftShiftOp, BitwiseAndOp, BitwiseNotOp, BitwiseOrOp, BitwiseXorOp, ModOp, WhereOp, MaxOp, MinOp
 
@@ -55,24 +54,6 @@ def get_id():
     global _hidet_id
     local = _hidet_id
     _hidet_id += 1
-    return local
-
-
-# NOTE: storage cannot be deepcopy neither its attributes
-STORAGE_CACHE = {}
-_storage_id = 0
-
-
-def get_storage(idx):
-    assert idx in STORAGE_CACHE, f"{idx} not in storage cache"
-    return STORAGE_CACHE[idx]
-
-
-def add_storage(storage):
-    global _storage_id
-    local = _storage_id
-    STORAGE_CACHE[local] = storage
-    _storage_id += 1
     return local
 
 
@@ -162,7 +143,7 @@ NODE_TYPE = ["Var", "Const"] + [v for _, v in OP_MAP.items()]
 ########################################
 ## override user-API for hidet  ########
 ########################################
-register_node_type(NODE_TYPE)
+register_types(NODE_TYPE)
 
 
 class DFG_Edge(Edge):

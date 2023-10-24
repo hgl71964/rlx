@@ -6,14 +6,14 @@ ONNX_PATH = './data/models/'
 
 MODELS = [
     # vision
-    # "mobilenet_v2",
-    # "inception_v3",
-    # "resnext50_32x4d",
-    #"resnext101_32x8d",
-    #"resnet18",
-    #"resnet34",
-    # "resnet50",
-    # "resnet101",
+    "mobilenet_v2",
+    "inception_v3",
+    "resnext50_32x4d",
+    "resnext101_32x8d",
+    "resnet18",
+    # "resnet34",
+    "resnet50",
+    "resnet101",
     #"resnet152",
 
     # nlp
@@ -27,7 +27,7 @@ MODELS = [
 
 def main():
 
-    print(torch.hub.list("pytorch/vision"))
+    # print(torch.hub.list("pytorch/vision"))  # NOTE: this is not working
     # print(torch.hub.list("huggingface/pytorch-transformers"))
     # print(torch.hub.list("pytorch/fairseq"))
     # print(torch.hub.list("pytorch/text"))
