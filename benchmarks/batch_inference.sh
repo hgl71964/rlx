@@ -11,15 +11,16 @@ num_head=8
 
 agent=multi_output_graph_global_ppo
 env_id=env_multi
-weights_path=rlx_env_multi__multi_output_graph_global_ppo__math-5-100_150__batch_fine_tuning__20231021-211544
+weights_path=rlx_env_multi__multi_output_graph_global_ppo__math-5-full-ops__20231018-224203
 # agent=ppo
 # env_id=env_single
 # weights_path=rlx_env_single__ppo__math-5-full-ops__TinyASTSize__20231017-140341
 #dir=math-5-full-ops
-dir=math-5-100_150
+#dir=math-5-100_150
+dir=math-5-batch-fine-tuning
 
-#agent_id=agent-final
-agent_id=agent-8192
+agent_id=agent-final
+#agent_id=agent-73728
 
 
 set -e # stop on any error from now on

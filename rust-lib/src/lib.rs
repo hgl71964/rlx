@@ -699,30 +699,30 @@ impl egg::CostFunction<PyLang> for MathCost {
         // ("Sin", "x"),
         // ("Cos", "x")
 
-        let op_cost = match enode.name.as_str() {
-            // Math
-            "Diff" => 100,
-            "Integral" => 100,
-            "Add" => 10,
-            "Sub" => 10,
-            "Mul" => 10,
-            "Div" => 11,
-            "Pow" => 50,
-            // "Ln" => 1,
-            "Sqrt" => 11,
-            "Sin" => 19,
-            "Cos" => 18,
-            "int" => 1,
+        // let op_cost = match enode.name.as_str() {
+        //     // Math
+        //     "Diff" => 100,
+        //     "Integral" => 100,
+        //     "Add" => 10,
+        //     "Sub" => 10,
+        //     "Mul" => 10,
+        //     "Div" => 11,
+        //     "Pow" => 50,
+        //     // "Ln" => 1,
+        //     "Sqrt" => 11,
+        //     "Sin" => 19,
+        //     "Cos" => 18,
+        //     "int" => 1,
 
-            // Prop
-            "And" => 1,
-            "Not" => 1,
-            "Or" => 1,
-            "Implies" =>1,
+        //     // Prop
+        //     "And" => 1,
+        //     "Not" => 1,
+        //     "Or" => 1,
+        //     "Implies" =>1,
 
-            _ => panic!("unknown op {}", enode.name),
-        };
-        // let op_cost = 1;
+        //     _ => panic!("unknown op {}", enode.name),
+        // };
+        let op_cost = 1;
         enode.fold(op_cost, |sum, id| sum + costs(id))
     }
 }

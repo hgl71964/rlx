@@ -1,6 +1,6 @@
 #! /bin/bash
 
-l=1
+l=0
 lang=math
 max_loc=50
 h=30
@@ -9,7 +9,7 @@ hidden_size=512
 n_layers=5
 num_head=8
 num_mini_batch=16
-total_timesteps=50000
+total_timesteps=100000
 annotation=fine_tuning
 
 agent=multi_output_graph_global_ppo
@@ -19,7 +19,7 @@ weights_path=rlx_env_multi__multi_output_graph_global_ppo__math-5-full-ops__2023
 # env_id=env_single
 # weights_path=rlx_env_single__ppo__math-5-full-ops__TinyASTSize__20231017-140341
 dir=math-5-100_150
-fn=math-5-128.pkl
+fn=math-5-112.pkl
 
 
 set -e # stop on any error from now on

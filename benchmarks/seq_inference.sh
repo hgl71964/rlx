@@ -11,7 +11,7 @@ num_head=8
 
 agent=multi_output_graph_global_ppo
 env_id=env_multi
-weights_path=rlx_env_multi__multi_output_graph_global_ppo__math-5-full-ops__numpy_cost__20231021-140234
+weights_path=rlx_env_multi__multi_output_graph_global_ppo__math-5-full-ops__20231018-224203
 # agent=ppo
 # env_id=env_single
 # weights_path=rlx_env_single__ppo__math-5-full-ops__TinyASTSize__20231017-140341
