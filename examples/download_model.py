@@ -9,7 +9,7 @@ MODELS = [
     "mobilenet_v2",
     "inception_v3",
     "resnext50_32x4d",
-    "resnext101_32x8d",
+    # "resnext101_32x8d",
     "resnet18",
     # "resnet34",
     "resnet50",
