@@ -78,7 +78,6 @@ def verify_graph(g1, g2):
     logger.info(f"verify graphs OK!!")
 
 
-
 def bench_hidet_graph(graph: hidet.FlowGraph, v=True) -> float:
     data = graph.dummy_inputs()
     cuda_graph = graph.cuda_graph()

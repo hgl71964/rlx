@@ -21,6 +21,9 @@ from absl import flags
 FLAGS = flags.FLAGS
 
 # yapf: disable
+'''
+set PYTHONPATH to HIDET_HOME/python
+'''
 # extern
 flags.DEFINE_string("fn", None, "name of the model; e.g. resnet50")
 flags.DEFINE_string("default_out_path", "data", "output dir")
@@ -62,8 +65,8 @@ flags.DEFINE_float("target_kl", None, "")
 
 # GNN
 flags.DEFINE_integer("num_head", 8, "num of heads in GAT")
-flags.DEFINE_integer("n_layers", 5, "")
-flags.DEFINE_integer("hidden_size", 128, "")
+flags.DEFINE_integer("n_layers", 5, "num of GAT layers")
+flags.DEFINE_integer("hidden_size", 512, "hidden_size of GNN")
 flags.DEFINE_integer("use_dropout", 0, "")
 flags.DEFINE_integer("vgat", 2, "version of gat")
 

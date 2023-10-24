@@ -51,7 +51,6 @@ OP_COST = {
     # "Sqrt": 11,
     # "Sin": 19,
     # "Cos": 18,
-
     "Diff": 1,
     "Integral": 1,
     "Add": 1,

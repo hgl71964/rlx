@@ -64,6 +64,9 @@ def main(_):
     # hidet.option.save_lower_ir()
     hidet.option.search_space(FLAGS.s)
 
+    hidet.option.debug_cache_tuning(
+        True)  # <- cause error if False, cannot rm file, device not empty
+
     # ===== load =====
     # hidet_graph = hidet_model_from_onnx_path(FLAGS.fn)
     hidet_graph = get_hidet_model(FLAGS.fn)
