@@ -86,7 +86,7 @@ class PatternMatch:
         sorted_ids = tuple(sorted(ids))
         if sorted_ids in visited:
             # this is likely a multi-output subgraphs
-            logger.warning(f"[PatternMatch][XXX] find identical subgraphs")
+            # logger.warning(f"[PatternMatch] find identical subgraphs")
             return True
 
         visited.add(sorted_ids)
