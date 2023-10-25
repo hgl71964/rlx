@@ -43,6 +43,7 @@ flags.DEFINE_integer("l", 1, "whether to log")
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
 flags.DEFINE_integer("plot", 0, "whether to plot")
+flags.DEFINE_integer("verbose", 0, "")
 flags.DEFINE_string("annotation", None, "append to save name")
 # env
 flags.DEFINE_string("env_id", "env_multi-v0", "")

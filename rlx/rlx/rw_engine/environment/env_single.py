@@ -46,7 +46,7 @@ class GraphObsSpace(GymGraph):
 
 class Env(gym.Env):
 
-    def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc):
+    def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc, verbose):
         super().__init__()
         self.parser = parser
         self.reward_func = reward_func
@@ -83,6 +83,8 @@ class Env(gym.Env):
         # 1st -> which rule to apply; 2nd -> no meaning
         self.action_space = MultiDiscrete([self.n_rewrite_rules + 1, max_loc])
         self.max_loc = max_loc
+
+        self.verbose = verbose
 
         # empty attr (will be populated)
         self.edges = None

@@ -43,7 +43,8 @@ def reward_func(
         for p in my_passes:
             hidet_graph = p(hidet_graph)
 
-    latency = bench_hidet_graph(hidet_graph, verbose)
+    # latency = bench_hidet_graph(hidet_graph, verbose)
+    latency = hidet_graph.latency()
     if init:
         assert (latency != 0), f"initial reward cannot be zero {latency}"
         stats["init_latency"] = latency

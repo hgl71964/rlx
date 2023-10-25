@@ -36,7 +36,8 @@ def make_env(
                        parser=parser,
                        reward_func=callback_reward_function,
                        rewrite_rules=rewrite_rules,
-                       max_loc=config.max_loc)
+                       max_loc=config.max_loc,
+                       verbose=bool(config.verbose))
 
         # utility wrapper
         # env = gym.wrappers.NormalizeReward(env)  # this influences learning significantly

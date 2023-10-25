@@ -47,7 +47,7 @@ class GraphObsSpace(GymGraph):
 
 class Env(gym.Env):
 
-    def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc):
+    def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc,verbose):
         super().__init__()
         self.parser = parser
         self.reward_func = reward_func
@@ -84,6 +84,8 @@ class Env(gym.Env):
         # 1st -> which rule to apply; 2nd -> which location to apply
         self.action_space = MultiDiscrete([self.n_rewrite_rules + 1, max_loc])
         self.max_loc = max_loc
+
+        self.verbose = verbose
 
         # empty attr (will be populated)
         self.edges = None
@@ -136,6 +138,8 @@ class Env(gym.Env):
         rule_id, loc_id = action
         rule_id = int(rule_id)
         loc_id = int(loc_id)
+        if self.verbose:
+            logger.info(f"rule_id: {rule_id}, loc_id: {loc_id}")
 
         truncated = False  # done by env wrapper
         terminated = False
@@ -149,8 +153,8 @@ class Env(gym.Env):
             ban = self._substitute(rw, matched)
             self._build_mapping()
             # check
-            nodes = [v for _, v in self.node_map.items()]
-            self._check_nodes(rw, matched, nodes, ban)
+            # nodes = [v for _, v in self.node_map.items()]
+            # self._check_nodes(rw, matched, nodes, ban)
 
         reward = self._call_reward_func(False, terminated)
         if terminated:

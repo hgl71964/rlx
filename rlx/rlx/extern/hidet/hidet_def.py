@@ -822,5 +822,5 @@ def define_rewrite_rules(node_types):
         ar5(node_types),
 
         # conv
-        cr1(node_types),
+        # cr1(node_types),
     ]
