@@ -47,7 +47,7 @@ flags.DEFINE_integer("num_envs", 1, "")
 flags.DEFINE_integer("num_mini_batch", 2, "")
 flags.DEFINE_integer("h", 30, "hard horizon")
 flags.DEFINE_integer("num_steps", 128, "num of steps to roll out")
-flags.DEFINE_integer("max_loc", 50, "maximum location consider")
+flags.DEFINE_integer("max_loc", 64, "maximum location consider")
 flags.DEFINE_integer("normalize_reward", 0, "whether to normalize the reward?")
 # agent
 flags.DEFINE_string("agent", "multi_output_ppo", "which RL agent to train")
