@@ -1,8 +1,7 @@
 from collections import namedtuple
 
 from rlx.utils.common import get_logger
-from rlx.frontend.registry import register_types
-from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern
+from rlx.frontend import RewriteRule, node_pattern, const_pattern, symbol_pattern
 
 from rlx.extern.hidet.hidet_def import *
 from rlx.extern.hidet.hidet_conversion import *
@@ -117,12 +116,13 @@ class ar1(RewriteRule):
 
     def target_pattern(self, matched):
         a, x = [matched[pat] for pat in [self.a, self.x]]
-        out = DFG_Op(
+        add_dfgOp = DFG_Op(
             get_id(),
             attr=None,  # could be infer
             node_type=self.node_types["add"],
             inputs=[x, a],
-        ).out(get_id())
+        )
+        out = build_outputs(add_dfgOp)
         return [out]
 
 
@@ -140,12 +140,13 @@ class ar1_v2(RewriteRule):
 
     def target_pattern(self, matched):
         a, x = [matched[pat] for pat in [self.a, self.x]]
-        out = DFG_Op(
+        add_dfgOp = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["add"],
             inputs=[a, x],
-        ).out(get_id())
+        )
+        out = build_outputs(add_dfgOp)
         return [out]
 
 
@@ -165,18 +166,20 @@ class ar2(RewriteRule):
         # neg = node_pattern(self.node_types["neg"], [self.ta], 1)
         # add = node_pattern(self.node_types["add"], [self.tx, neg], 1)
         a, x = [matched[pat] for pat in [self.a, self.x]]
-        out = DFG_Op(
+        neg_dfgOp = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["neg"],
             inputs=[a],
-        ).out(get_id())
-        out = DFG_Op(
+        )
+        out = build_outputs(neg_dfgOp)
+        add_dfgOp = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["add"],
             inputs=[x, out],
-        ).out(get_id())
+        )
+        out = build_outputs(add_dfgOp)
         return [out]
 
 
@@ -198,18 +201,20 @@ class ar3(RewriteRule):
         # add = node_pattern(self.node_types["add"], [self.tb, self.ta], 1)
         # out = node_pattern(self.node_types["add"], [self.tx, add], 1)
         a, b, x = [matched[pat] for pat in [self.a, self.b, self.x]]
-        out = DFG_Op(
+        add_dfgOp = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["add"],
             inputs=[a, b],
-        ).out(get_id())
+        )
+        out = build_outputs(add_dfgOp)
         out = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["add"],
             inputs=[x, out],
-        ).out(get_id())
+        )
+        out = build_outputs(add_dfgOp)
         return [out]
 
 
@@ -232,24 +237,27 @@ class ar4(RewriteRule):
         # mul2 = node_pattern(self.node_types["mul"], [self.ta, self.tb], 1)
         # add = node_pattern(self.node_types["add"], [mul1, mul2], 1)
         a, b, x = [matched[pat] for pat in [self.a, self.b, self.x]]
-        mul1 = DFG_Op(
+        mul1_dfgOp = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["mul"],
             inputs=[x, b],
-        ).out(get_id())
-        mul2 = DFG_Op(
+        )
+        mul1 = build_outputs(mul1_dfgOp)
+        mul2_dfgOp = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["mul"],
             inputs=[a, b],
-        ).out(get_id())
-        out = DFG_Op(
+        )
+        mul2 = build_outputs(mul2_dfgOp)
+        add_dfgOp = DFG_Op(
             get_id(),
             attr=None,
             node_type=self.node_types["add"],
             inputs=[mul1, mul2],
-        ).out(get_id())
+        )
+        out = build_outputs(add_dfgOp)
         return [out]
 
 
@@ -274,24 +282,27 @@ class ar5(RewriteRule):
         # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
         # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
         a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
-        xy = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[x, y],
-        ).out(get_id())
-        ab = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[a, b],
-        ).out(get_id())
-        out = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[xy, ab],
-        ).out(get_id())
+        xy = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[x, y],
+            ))
+        ab = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[a, b],
+            ))
+        out = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[xy, ab],
+            ))
         return [out]
 
 
@@ -316,24 +327,27 @@ class ar5_v2(RewriteRule):
         # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
         # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
         a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
-        xy = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[x, y],
-        ).out(get_id())
-        ab = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[a, b],
-        ).out(get_id())
-        out = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[xy, ab],
-        ).out(get_id())
+        xy = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[x, y],
+            ))
+        ab = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[a, b],
+            ))
+        out = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[xy, ab],
+            ))
         return [out]
 
 
@@ -358,24 +372,27 @@ class ar5_v3(RewriteRule):
         # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
         # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
         a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
-        xy = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[x, y],
-        ).out(get_id())
-        ab = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[a, b],
-        ).out(get_id())
-        out = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[xy, ab],
-        ).out(get_id())
+        xy = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[x, y],
+            ))
+        ab = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[a, b],
+            ))
+        out = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[xy, ab],
+            ))
         return [out]
 
 
@@ -400,24 +417,27 @@ class ar5_v4(RewriteRule):
         # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
         # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
         a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
-        xy = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[x, y],
-        ).out(get_id())
-        ab = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[a, b],
-        ).out(get_id())
-        out = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["add"],
-            inputs=[xy, ab],
-        ).out(get_id())
+        xy = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[x, y],
+            ))
+        ab = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[a, b],
+            ))
+        out = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["add"],
+                inputs=[xy, ab],
+            ))
         return [out]
 
 
@@ -435,12 +455,13 @@ class ar6(RewriteRule):
 
     def target_pattern(self, matched):
         a, x = [matched[pat] for pat in [self.a, self.x]]
-        out = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["mul"],
-            inputs=[x, a],
-        ).out(get_id())
+        out = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["mul"],
+                inputs=[x, a],
+            ))
         return [out]
 
 
@@ -458,12 +479,13 @@ class ar6_v2(RewriteRule):
 
     def target_pattern(self, matched):
         a, x = [matched[pat] for pat in [self.a, self.x]]
-        out = DFG_Op(
-            get_id(),
-            attr=None,
-            node_type=self.node_types["mul"],
-            inputs=[a, x],
-        ).out(get_id())
+        out = build_outputs(
+            DFG_Op(
+                get_id(),
+                attr=None,
+                node_type=self.node_types["mul"],
+                inputs=[a, x],
+            ))
         return [out]
 
 
