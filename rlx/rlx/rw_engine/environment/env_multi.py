@@ -215,7 +215,13 @@ class Env(gym.Env):
                 ban_objs.add(obj)
 
         # get new subgraph from users;
+        # NOTE: target pattern can reject transformation at runtime
+        # BUT ensure that target pattern doesn't change the graph already!!
+        # SO ALWASYs check validity first!
         new_subgraph_outputs = rw.target_pattern(matched_mapping)
+        if new_subgraph_outputs is None:
+            logger.critical(f"{rw.name} returned None")
+            return ban_objs
         assert isinstance(
             new_subgraph_outputs,
             list), f"expect list, got {type(new_subgraph_outputs)}"

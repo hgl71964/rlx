@@ -19,9 +19,9 @@ def get_id():
     return local
 
 
-def shape_inference(op: DFG_Op):
+def build_outputs(op: DFG_Op) -> DFG_Edge:
     """
-    When building target graph, we need to know the shape of output
+    When building target graph, we need to build the actual output
     """
     inputs = []
     for inp in op.inputs:
@@ -119,7 +119,7 @@ class ar1(RewriteRule):
         a, x = [matched[pat] for pat in [self.a, self.x]]
         out = DFG_Op(
             get_id(),
-            attr=None,
+            attr=None,  # could be infer
             node_type=self.node_types["add"],
             inputs=[x, a],
         ).out(get_id())
@@ -447,7 +447,7 @@ class ar6(RewriteRule):
 class ar6_v2(RewriteRule):
 
     def __init__(self, node_types):
-        self.name = "a * x => x * a"
+        self.name = "x*a => a*x"
         self.a = const_pattern()
         self.x = symbol_pattern()
         self.node_types = node_types
@@ -666,7 +666,7 @@ class cr1(RewriteRule):
             return None
 
         attrs = y.trace.attr.attrs
-        out = DFG_Op(
+        squeeze_dfgOp = DFG_Op(
             get_id(),
             attr=NodeAttribute(
                 "Squeeze",
@@ -674,23 +674,26 @@ class cr1(RewriteRule):
             ),
             node_type=self.node_types["squeeze"],
             inputs=[scale],
-        ).out(get_id())
-        out = DFG_Op(
+        )
+        out = build_outputs(squeeze_dfgOp)
+        unsqueeze_dfgOp = DFG_Op(
             get_id(),
             attr=NodeAttribute(
                 "Unsqueeze",
                 {"dims": [3]},
             ),
             node_type=self.node_types["unsqueeze"],
-            inputs=[scale],
-        ).out(get_id())
-        out = DFG_Op(
+            inputs=[out],
+        )
+        out = build_outputs(unsqueeze_dfgOp)
+        mul_dfgOp = DFG_Op(
             get_id(),
             attr=None,
-            node_type=self.node_types["add"],
+            node_type=self.node_types["mul"],
             inputs=[w, out],
-        ).out(get_id())
-        out = DFG_Op(
+        )
+        out = build_outputs(mul_dfgOp)
+        conv2d_dfgOp = DFG_Op(
             get_id(),
             attr=NodeAttribute(
                 "Conv2d", {
@@ -700,7 +703,8 @@ class cr1(RewriteRule):
                 }),
             node_type=self.node_types["conv2d"],
             inputs=[x, out],
-        ).out(get_id())
+        )
+        out = build_outputs(conv2d_dfgOp)
         return [out]
 
 
@@ -730,55 +734,55 @@ class cr2(RewriteRule):
         if op1.attr.attrs['groups'] == op2.attr.attrs['groups'] == 1:
             if same_list(op1.attr.attrs['stride'], op2.attr.attrs['stride']):
                 if same_list(w1.attr.shape[1:], w2.attr.shape[1:]):
-                    concatOp = DFG_Op(
+                    concat_dfgOp = DFG_Op(
                         get_id(),
-                        attr=("Concat", {
-                            "axis": 0
-                        }),
+                        attr=NodeAttribute("Concat", {"axis": 0}),
                         node_type=self.node_types["concat"],
                         inputs=[w1, w2],
                     )
-                    out = shape_inference(concatOp)
+                    out = build_outputs(concat_dfgOp)
 
-                    convOp = DFG_Op(
+                    conv2d_dfgOp = DFG_Op(
                         get_id(),
-                        attr=("Conv2d", {
-                            "stride": op1.attr[1]["stride"],
-                            "dilations": (1, 1),
-                            "groups": 1,
-                        }),
+                        attr=NodeAttribute(
+                            "Conv2d", {
+                                "stride": op1.attr[1]["stride"],
+                                "dilations": (1, 1),
+                                "groups": 1,
+                            }),
                         node_type=self.node_types["conv2d"],
                         inputs=[x, out],
                     )
-                    y = shape_inference(convOp)
+                    y = build_outputs(conv2d_dfgOp)
 
-                    len_data_shape = len(y.attr.shape)
+                    axis = 1
                     shape1 = w1.attr.shape[0]
                     shape2 = w2.attr.shape[0]
                     parts = [shape1, shape2]
-                    axis = 1
-                    axis = normalize_dim(axis, len_data_shape)
+                    axis = normalize_dim(axis, len(y.attr.shape))
 
-                    # TODO
                     outputs = []
                     for i in range(len(parts)):
                         start = sum(parts[:i])
                         end = start + parts[i]
+                        # hidet.graph.ops.definitions.transform
+                        starts, ends, axes, strides = StridedSliceOp.normalize(
+                            y.attr.shape, [start], [end], [axis], [1])
+                        strided_slice_dfgOp = DFG_Op(
+                            get_id(),
+                            attr=NodeAttribute(
+                                "strided_slice", {
+                                    "starts": starts,
+                                    "ends": ends,
+                                    "axes": axes,
+                                    "strides": strides,
+                                }),
+                            node_type=self.node_types["strided_slice"],
+                            inputs=[y],
+                        )
+                        out = build_outputs(strided_slice_dfgOp)
 
-                        # out = DFG_Op(
-                        #     get_id(),
-                        #     attr=("Conv2d", {
-                        #         "stride": op1.attr[1]["stride"],
-                        #         "dilations": (1, 1),
-                        #         "groups": 1,
-                        #     }),
-                        #     node_type=self.node_types["conv2d"],
-                        #     inputs=[x, out],
-                        # ).out(get_id())
-                        StridedSliceOp.normalize()
-
-                        # outputs.append(strided_slice(y, starts=[start], ends=[end], axes=[axis], strides=[1]))
-                        outputs.append()
+                        outputs.append(out)
                     return outputs
 
         return None
@@ -826,5 +830,6 @@ def define_rewrite_rules(node_types):
         ar6_v2(node_types),
 
         # conv
-        # cr1(node_types),
+        cr1(node_types),
+        cr2(node_types),
     ]

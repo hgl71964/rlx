@@ -26,8 +26,11 @@ class PatternMatch:
         _, self.const_edge_type, self.var_edge_type = get_types(
         )  # enum; Const type
 
-    def build(self, edges: list[Edge],
-              rewrite_rules: list[RewriteRule]) -> dict[int, list[MatchDict]]:
+    def build(
+        self,
+        edges: list[Edge],
+        rewrite_rules: list[RewriteRule],
+    ) -> dict[int, list[MatchDict]]:
         """
         Returns:
             dict: rule_id -> a list of its MatchDict

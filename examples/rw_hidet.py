@@ -13,7 +13,7 @@ from rlx.rw_engine.parser import Parser
 from rlx.rw_engine import RewriteEngine
 from rlx.utils.common import get_logger
 from rlx.extern.hidet.hidet_utils import *
-from rlx.extern.hidet.hidet_def import *
+from rlx.extern.hidet.hidet_rules import *
 
 import hidet
 

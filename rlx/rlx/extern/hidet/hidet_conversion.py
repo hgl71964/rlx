@@ -33,14 +33,15 @@ def add_storage(storage):
 #########################
 ##### look up table #####
 #########################
-def hidet_lookup(hidet_op: hidet.Operator, all_types):
+def hidet_lookup(hidet_op: hidet.Operator, types):
     op_class = type(hidet_op)
     if op_class not in OP_MAP:
         raise RuntimeError(f"Unsupport hidet op type {hidet_op} | {op_class}")
-    return all_types[OP_MAP[op_class]]
+    return types[OP_MAP[op_class]]
 
 
 def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
+    assert isinstance(dfg_op, DFG_Op), f"expected DFG_Op, got {type(dfg_op)}"
     for inp in inputs:
         assert isinstance(
             inp, hidet.Tensor), f"expected hidet.Tensor, got {type(inp)}"
@@ -122,16 +123,26 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
         return ops.gather(inputs[0], inputs[1], dfg_op.attr.attrs["axis"])
     elif node_type == "strided_slice":
-        # assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        # return ops.strided_slice(inputs[0], inputs[1])
-        raise RuntimeError(f"Unsupported node type: {node_type}")
+        assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
+        # TODO one output?
+        return ops.strided_slice(
+            inputs[0],
+            dfg_op.attr.attrs["starts"],
+            dfg_op.attr.attrs["ends"],
+            dfg_op.attr.attrs["axes"],
+            dfg_op.attr.attrs["strides"],
+        )
     elif node_type == "broadcast":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
         return ops.broadcast(inputs[0], dfg_op.attr.attrs["shape"])
     elif node_type == "pad":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.pad(inputs[0], dfg_op.attr.attrs["pads"],
-                       dfg_op.attr.attrs["mode"], dfg_op.attr.attrs["value"])
+        return ops.pad(
+            inputs[0],
+            dfg_op.attr.attrs["pads"],
+            dfg_op.attr.attrs["mode"],
+            dfg_op.attr.attrs["value"],
+        )
 
     # activation
     elif node_type == "relu":
@@ -157,21 +168,31 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
     # pool
     elif node_type == "max_pool2d":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.max_pool2d(inputs[0], dfg_op.attr.attrs["kernel"],
-                              dfg_op.attr.attrs["stride"],
-                              dfg_op.attr.attrs["padding"])
+        return ops.max_pool2d(
+            inputs[0],
+            dfg_op.attr.attrs["kernel"],
+            dfg_op.attr.attrs["stride"],
+            dfg_op.attr.attrs["padding"],
+        )
     elif node_type == "avg_pool2d":
         assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
-        return ops.avg_pool2d(inputs[0], dfg_op.attr.attrs["kernel"],
-                              dfg_op.attr.attrs["stride"],
-                              dfg_op.attr.attrs["padding"])
+        return ops.avg_pool2d(
+            inputs[0],
+            dfg_op.attr.attrs["kernel"],
+            dfg_op.attr.attrs["stride"],
+            dfg_op.attr.attrs["padding"],
+        )
 
     # tensor compute
     elif node_type == "conv2d":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        return ops.conv2d(inputs[0], inputs[1], dfg_op.attr.attrs["stride"],
-                          dfg_op.attr.attrs["dilations"],
-                          dfg_op.attr.attrs["groups"])
+        return ops.conv2d(
+            inputs[0],
+            inputs[1],
+            dfg_op.attr.attrs["stride"],
+            dfg_op.attr.attrs["dilations"],
+            dfg_op.attr.attrs["groups"],
+        )
     elif node_type == "matmul":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
         return ops.matmul(inputs[0], inputs[1])
@@ -203,7 +224,7 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
 def convert_to_dataflow_graph(graph: hidet.FlowGraph):
     cnt = 0
     built = {}  # 1-to-1 mapping
-    all_types, const_type, var_type = get_types()
+    types, const_type, var_type = get_types()
 
     def dfs(obj):
         nonlocal cnt
@@ -218,7 +239,7 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
                 assert isinstance(out,
                                   DFG_Edge), f"expect Tensor, got {type(out)}"
 
-            node_type = hidet_lookup(obj, all_types)
+            node_type = hidet_lookup(obj, types)
             node = DFG_Op(
                 cnt,
                 attr=NodeAttribute(
