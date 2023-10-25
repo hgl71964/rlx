@@ -3,10 +3,12 @@ import random
 from pprint import pformat
 from copy import deepcopy
 
+from functools import partial
+
 import numpy as np
 import torch
 
-from rlx.frontend.registry import get_node_type
+from rlx.frontend.registry import get_types
 from rlx.rw_engine.parser import Parser
 from rlx.rw_engine import RewriteEngine
 from rlx.utils.common import get_logger
@@ -35,11 +37,12 @@ flags.DEFINE_integer("l", 1, "whether to log")
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
 flags.DEFINE_string("plot", None, "path to plot the initial graph")
+flags.DEFINE_integer("verbose", 1, "whether print in reward function")
 # env
-flags.DEFINE_string("env_id", "env-v0", "")
+flags.DEFINE_string("env_id", "env_multi-v0", "")
 flags.DEFINE_integer("a", 0, "whether to AsyncEnv?")
 flags.DEFINE_integer("total_timesteps", int(1e6), "1e6 = 1 million")
-flags.DEFINE_integer("num_envs", 4, "")
+flags.DEFINE_integer("num_envs", 1, "")
 flags.DEFINE_integer("num_mini_batch", 8, "")
 flags.DEFINE_integer("h", 30, "hard horizon")
 flags.DEFINE_integer("num_steps", 512, "num of steps to roll out")
@@ -62,7 +65,7 @@ flags.DEFINE_float("ent_coef", 0.01, "")
 flags.DEFINE_float("vf_coef", 0.5, "")
 flags.DEFINE_float("max_grad_norm", 0.5, "")
 flags.DEFINE_float("target_kl", None, "")
-
+flags.DEFINE_integer("gpu", 1, "whether to use gpu")
 # GNN
 flags.DEFINE_integer("num_head", 8, "num of heads in GAT")
 flags.DEFINE_integer("n_layers", 5, "num of GAT layers")
@@ -112,9 +115,14 @@ def main(_):
                    os.path.join(FLAGS.default_out_path, "viz", FLAGS.plot),
                    check=False)
 
-    node_types, _, _ = get_node_type()
+    node_types, _, _ = get_types()
     rewrite_rules = define_rewrite_rules(node_types)
-    rw_eng = RewriteEngine(dfg, rewrite_rules, reward_func, FLAGS)
+    rw_eng = RewriteEngine(
+        [dfg],
+        rewrite_rules,
+        partial(reward_func, bool(FLAGS.verbose)),
+        FLAGS,
+    )
 
     t = bool(FLAGS.t)
     if t:

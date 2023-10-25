@@ -5,7 +5,6 @@ from rlx.extern.hidet.hidet_def import *
 
 # extern
 import hidet
-from hidet.utils import benchmark_func
 from hidet.graph import ops  # see frontend/onnx for how to build op
 
 # storage

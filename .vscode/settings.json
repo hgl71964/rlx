@@ -9,7 +9,7 @@
     "python.testing.pytestEnabled": false,
     "python.testing.unittestEnabled": true, 
     "python.autoComplete.extraPaths": [
-        "venv/lib/python3.90/site-packages",
+        "venv/lib/python3.10/site-packages",
         "third_party/hidet/python",
     ],
     // "python.analysis.extraPaths": [

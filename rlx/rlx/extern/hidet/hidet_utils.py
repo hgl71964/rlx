@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 
 def reward_func(
+    verbose: bool,
     graph: Graph,
     init: bool,
     terminated: bool,
@@ -42,7 +43,7 @@ def reward_func(
         for p in my_passes:
             hidet_graph = p(hidet_graph)
 
-    latency = bench_hidet_graph(hidet_graph, False)
+    latency = bench_hidet_graph(hidet_graph, verbose)
     if init:
         assert (latency != 0), f"initial reward cannot be zero {latency}"
         stats["init_latency"] = latency
