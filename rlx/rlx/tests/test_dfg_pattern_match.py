@@ -52,6 +52,15 @@ def out(op, attr=None):
     return o
 
 
+class G(Graph):
+
+    def get_nodes(self):
+        return self.nodes
+
+    def get_edges(self):
+        return self.edges
+
+
 class DG1(Graph):
 
     def __init__(self, node_types):
@@ -82,20 +91,13 @@ class DG1(Graph):
             last_add_out
         ]
 
-    def get_nodes(self):
-        return self.nodes
-
-    def get_edges(self):
-        return self.edges
-
 
 def drw1(node_types):
     return [
-        # NOTE: how ar1 and ar5 demonstrate asymmetric, when consider var pattern
         ar1(node_types),
         ar5(node_types),
         ar6(node_types),
-        ar7(node_types),
+        # ar7(node_types),
     ]
 
 

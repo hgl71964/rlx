@@ -36,7 +36,7 @@ flags.DEFINE_integer("t", 1, "whether to train?")
 flags.DEFINE_integer("l", 1, "whether to log")
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
-flags.DEFINE_string("plot", None, "path to plot the initial graph")
+flags.DEFINE_integer("plot", 0, "whether to plot")
 flags.DEFINE_integer("verbose", 1, "whether print in reward function")
 flags.DEFINE_string("annotation", None, "append to save name")
 # env
@@ -116,10 +116,16 @@ def main(_):
     dfg = convert_to_dataflow_graph(hidet_graph)
 
     # for plot
-    if FLAGS.plot is not None:
-        parser = Parser(dfg)
-        parser.viz(parser.edges,
-                   os.path.join(FLAGS.default_out_path, "viz", FLAGS.plot),
+    plot = bool(FLAGS.plot)
+    if plot:
+        logger.warning("only plotting the first graph")
+        parser = Parser([deepcopy(dfg)])
+        parser.viz(parser.all_edges[0],
+                   os.path.join(
+                       FLAGS.default_out_path,
+                       "viz",
+                       "rlx_initial_" + FLAGS.fn,
+                   ),
                    check=False)
 
     node_types, _, _ = get_types()
@@ -142,6 +148,17 @@ def main(_):
         bench_hidet_graph(opt_hidet_graph)
         print("----- Benchmark -----")
         print()
+
+        if plot:
+            logger.warning("only plotting the first graph")
+            parser = Parser([deepcopy(dfg)])
+            parser.viz(parser.all_edges[0],
+                       os.path.join(
+                           FLAGS.default_out_path,
+                           "viz",
+                           "rlx_final_" + FLAGS.fn,
+                       ),
+                       check=False)
 
 
 if __name__ == "__main__":

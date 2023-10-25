@@ -494,6 +494,132 @@ class ar5(RewriteRule):
         return [out]
 
 
+class ar5_v2(RewriteRule):
+
+    def __init__(self, node_types):
+        self.name = "(x + a) + (y + b) => (x + y) + (a + b)"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.x = symbol_pattern()
+        self.y = symbol_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        add1 = node_pattern(self.node_types["add"], [self.a, self.x], 1)
+        add2 = node_pattern(self.node_types["add"], [self.b, self.y], 1)
+        add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
+        return [add3]
+
+    def target_pattern(self, matched):
+        # add1 = node_pattern(self.node_types["add"], [self.tx, self.ty], 1)
+        # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
+        # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
+        a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
+        xy = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[x, y],
+        ).out(get_id())
+        ab = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[a, b],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[xy, ab],
+        ).out(get_id())
+        return [out]
+
+
+class ar5_v3(RewriteRule):
+
+    def __init__(self, node_types):
+        self.name = "(x + a) + (y + b) => (x + y) + (a + b)"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.x = symbol_pattern()
+        self.y = symbol_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        add1 = node_pattern(self.node_types["add"], [self.x, self.a], 1)
+        add2 = node_pattern(self.node_types["add"], [self.y, self.b], 1)
+        add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
+        return [add3]
+
+    def target_pattern(self, matched):
+        # add1 = node_pattern(self.node_types["add"], [self.tx, self.ty], 1)
+        # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
+        # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
+        a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
+        xy = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[x, y],
+        ).out(get_id())
+        ab = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[a, b],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[xy, ab],
+        ).out(get_id())
+        return [out]
+
+
+class ar5_v4(RewriteRule):
+
+    def __init__(self, node_types):
+        self.name = "(x + a) + (y + b) => (x + y) + (a + b)"
+        self.a = const_pattern()
+        self.b = const_pattern()
+        self.x = symbol_pattern()
+        self.y = symbol_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        add1 = node_pattern(self.node_types["add"], [self.x, self.a], 1)
+        add2 = node_pattern(self.node_types["add"], [self.b, self.y], 1)
+        add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
+        return [add3]
+
+    def target_pattern(self, matched):
+        # add1 = node_pattern(self.node_types["add"], [self.tx, self.ty], 1)
+        # add2 = node_pattern(self.node_types["add"], [self.ta, self.tb], 1)
+        # add3 = node_pattern(self.node_types["add"], [add1, add2], 1)
+        a, b, x, y = [matched[pat] for pat in [self.a, self.b, self.x, self.y]]
+        xy = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[x, y],
+        ).out(get_id())
+        ab = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[a, b],
+        ).out(get_id())
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[xy, ab],
+        ).out(get_id())
+        return [out]
+
+
 class ar6(RewriteRule):
 
     def __init__(self, node_types):
@@ -890,6 +1016,9 @@ def define_rewrite_rules(node_types):
         ar3(node_types),
         ar4(node_types),
         ar5(node_types),
+        ar5_v2(node_types),
+        ar5_v3(node_types),
+        ar5_v4(node_types),
         ar6(node_types),
         ar6_v2(node_types),
 
