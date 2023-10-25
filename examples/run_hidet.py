@@ -9,12 +9,15 @@ from rlx.extern.hidet.hidet_utils import *
 from rlx.extern.hidet.hidet_def import *
 
 import hidet
-from hidet.graph.transforms.fold_const import fold_const_pass
-from hidet.graph.transforms.subgraph_rewrite import subgraph_rewrite_pass
-from hidet.graph.transforms.automatic_mix_precision import automatic_mix_precision_pass
-from hidet.graph.transforms.resolve_variant import resolve_variant_pass
-from hidet.graph.transforms.fuse_operator import fuse_operator_pass
-from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
+from hidet.graph.transforms import (
+    conv_channel_last_pass,
+    subgraph_rewrite_pass,
+    automatic_mix_precision_pass,
+    selective_quantize_pass,
+    resolve_variant_pass,
+    fuse_operator_pass,
+    eliminate_barrier_pass,
+)
 
 from absl import app
 from absl import flags
@@ -82,10 +85,11 @@ def main(_):
 
     # optimization
     my_passes = [
-        fold_const_pass(),
+        # fold_const_pass(),
+        conv_channel_last_pass(),
         subgraph_rewrite_pass(),
         automatic_mix_precision_pass(),
-        subgraph_rewrite_pass(),
+        selective_quantize_pass(),
         resolve_variant_pass(),
         fuse_operator_pass(),
         eliminate_barrier_pass(),

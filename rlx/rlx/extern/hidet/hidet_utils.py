@@ -22,10 +22,11 @@ def reward_func(
 ) -> float:
     hidet_graph = convert_to_hidet_graph(graph.get_edges())
     my_passes = [
-        fold_const_pass(),
+        # fold_const_pass(),
+        conv_channel_last_pass(),
         subgraph_rewrite_pass(),
         automatic_mix_precision_pass(),
-        subgraph_rewrite_pass(),
+        selective_quantize_pass(),
         resolve_variant_pass(),
         fuse_operator_pass(),
         eliminate_barrier_pass(),

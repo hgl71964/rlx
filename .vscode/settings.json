@@ -10,7 +10,8 @@
     "python.testing.unittestEnabled": true, 
     "python.autoComplete.extraPaths": [
         "venv/lib/python3.10/site-packages",
-        "third_party/hidet/python",
+        // "third_party/hidet/python",
+        "../latest-hidet/python"
     ],
     // "python.analysis.extraPaths": [
     //     "python",
@@ -18,9 +19,9 @@
     "python.analysis.completeFunctionParens": true,
     "python.analysis.extraPaths": [
         "venv/lib/python3.10/site-packages",
-        "third_party",
         "rlx",
-        "third_party/hidet/python",
+        // "third_party/hidet/python",
+        "../latest-hidet/python"
     ],
-    "cmake.sourceDirectory": "/Users/guoliang/workspace/rlx/third_party/hidet"
+    // "cmake.sourceDirectory": "/Users/guoliang/workspace/rlx/third_party/hidet"
 }

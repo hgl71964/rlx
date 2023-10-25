@@ -8,44 +8,54 @@ from rlx.frontend import Graph, Node, Edge
 import hidet
 from hidet.graph import ops  # see frontend/onnx for how to build op
 
-from hidet.graph.ops.definitions.arithmetic import AddScalarOp, SubScalarOp, RSubScalarOp, MultiplyScalarOp, DivideScalarOp, RDivideScalarOp, SqrtOp, ErfOp, ExpOp, Expm1Op, LogOp, Log2Op, Log10Op, Log1pOp, RsqrtOp, PowOp, NegativeOp, ReciprocalOp, AddOp, SubtractOp, MultiplyOp, DivideOp, SinOp, CosOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, Atan2Op, AcoshOp, AsinhOp, AtanhOp, SquareOp, CubeOp, AbsOp, FloorOp, RoundOp, TruncOp, CeilOp, IsFiniteOp, IsInfOp, IsNanOp, SignOp, RightShiftOp, LeftShiftOp, BitwiseAndOp, BitwiseNotOp, BitwiseOrOp, BitwiseXorOp, ModOp, WhereOp, MaxOp, MinOp
+from hidet.graph.ops.arithmetic import AddScalarOp, SubScalarOp, RSubScalarOp, MultiplyScalarOp, DivideScalarOp, RDivideScalarOp, SqrtOp, ErfOp, ExpOp, Expm1Op, LogOp, Log2Op, Log10Op, Log1pOp, RsqrtOp, PowOp, NegativeOp, ReciprocalOp, AddOp, SubtractOp, MultiplyOp, DivideOp, SinOp, CosOp, TanOp, SinhOp, CoshOp, TanhOp, AcosOp, AsinOp, AtanOp, Atan2Op, AcoshOp, AsinhOp, AtanhOp, SquareOp, CubeOp, AbsOp, FloorOp, RoundOp, TruncOp, CeilOp, IsFiniteOp, IsInfOp, IsNanOp, SignOp, RightShiftOp, LeftShiftOp, BitwiseAndOp, BitwiseNotOp, BitwiseOrOp, BitwiseXorOp, ModOp, WhereOp, MaxOp, MinOp
 
-from hidet.graph.ops.definitions.compare import EqualOp, NotEqualOp, LessOp, GreaterOp, LessEqualOp, GreaterEqualOp, LogicalNotOp, LogicalAndOp, LogicalOrOp, LogicalXorOp
+from hidet.graph.ops.compare import EqualOp, NotEqualOp, LessOp, GreaterOp, LessEqualOp, GreaterEqualOp, LogicalNotOp, LogicalAndOp, LogicalOrOp, LogicalXorOp
 
-from hidet.graph.ops.definitions.transform import ReshapeOp, RearrangeOp, SqueezeOp, UnsqueezeOp, FlattenOp, PermuteDimsOp, CastOp, ConcatOp, TakeOp, GatherOp, StridedSliceOp, BroadcastOp, PadOp, TileOp
+from hidet.graph.ops.transform import ReshapeOp, RearrangeOp, SqueezeOp, UnsqueezeOp, FlattenOp, PermuteDimsOp, CastOp, ConcatOp, TakeOp, GatherOp, StridedSliceOp, BroadcastOp, PadOp, TileOp
 
-from hidet.graph.ops.definitions.pool import MaxPool2dOp, MaxPool3dOp, AvgPool2dOp, AvgPool3dOp, AdaptivePoolOp, AdaptiveAvgPool1dOp, AdaptiveAvgPool2dOp, AdaptiveAvgPool3dOp, AdaptiveMaxPool1dOp, AdaptiveMaxPool2dOp, AdaptiveMaxPool3dOp
+from hidet.graph.ops.pool import MaxPool2dOp, MaxPool3dOp, AvgPool2dOp, AvgPool3dOp, AdaptivePoolOp, AdaptiveAvgPool1dOp, AdaptiveAvgPool2dOp, AdaptiveAvgPool3dOp, AdaptiveMaxPool1dOp, AdaptiveMaxPool2dOp, AdaptiveMaxPool3dOp
 
-from hidet.graph.ops.definitions.activation import ReluOp, LeakyReluOp, SigmoidOp, HardSigmoidOp, ClipOp, GeluOp, SiluOp, PReluOp, HardSwishOp, ThresholdOp, HardTanhOp, EluOp, SeluOp, CeluOp, LogSigmoidOp, HardShrinkOp, TanhShrinkOp, SoftSignOp, SoftPlusOp, SoftShrinkOp, SoftmaxOp
+from hidet.graph.ops.activation import ReluOp, LeakyReluOp, SigmoidOp, HardSigmoidOp, ClipOp, GeluOp, SiluOp, PReluOp, HardSwishOp, ThresholdOp, HardTanhOp, EluOp, SeluOp, CeluOp, LogSigmoidOp, HardShrinkOp, TanhShrinkOp, SoftSignOp, SoftPlusOp, SoftShrinkOp, SoftmaxOp
 
-from hidet.graph.ops.definitions.image import Resize2dOp
-from hidet.graph.ops.definitions.cumulative import CumulativeSumOp
-from hidet.graph.ops.definitions.special import BarrierOp
+from hidet.graph.ops.image import Resize2dOp
+from hidet.graph.ops.cumulative import CumulativeSumOp
+from hidet.graph.ops.special import BarrierOp
 
-from hidet.graph.ops.definitions.conv1d import Conv1dOp
-from hidet.graph.ops.definitions.conv1d_transpose.conv1d_transpose import Conv1dTransposeOp
-from hidet.graph.ops.definitions.attention.attention import AttnOp
+from hidet.graph.ops.conv1d import Conv1dOp
+from hidet.graph.ops.conv1d_transpose.conv1d_transpose import Conv1dTransposeOp
+from hidet.graph.ops.attention.attention import AttnOp
 
-from hidet.graph.ops.definitions.conv2d.conv2d import Conv2dOp
-from hidet.graph.ops.definitions.conv3d.conv3d import Conv3dOp
+from hidet.graph.ops.conv2d.conv2d import Conv2dOp
+from hidet.graph.ops.conv3d.conv3d import Conv3dOp
 
-from hidet.graph.ops.definitions.matmul.matmul import MatmulOp
-from hidet.graph.ops.definitions.matmul.batch_matmul import BatchMatmulOp
+from hidet.graph.ops.matmul.matmul import MatmulOp
+from hidet.graph.ops.matmul.batch_matmul import BatchMatmulOp
 
-from hidet.graph.ops.definitions.reduce.reduce import ReduceSumOp, ReduceMeanOp
+from hidet.graph.ops.reduce.reduce import ReduceSumOp, ReduceMeanOp
 
 # pass
-from hidet.graph.transforms.fold_const import fold_const_pass
+# from hidet.graph.transforms.fold_const import fold_const_pass
 from hidet.graph.transforms.subgraph_rewrite import subgraph_rewrite_pass
 from hidet.graph.transforms.automatic_mix_precision import automatic_mix_precision_pass
 from hidet.graph.transforms.resolve_variant import resolve_variant_pass
 from hidet.graph.transforms.fuse_operator import fuse_operator_pass
 from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
 
+from hidet.graph.transforms import (
+    conv_channel_last_pass,
+    subgraph_rewrite_pass,
+    automatic_mix_precision_pass,
+    selective_quantize_pass,
+    resolve_variant_pass,
+    fuse_operator_pass,
+    eliminate_barrier_pass,
+)
+
 # utils
 from hidet.utils import benchmark_func
 from hidet.utils import same_list, initialize
-from hidet.graph.ops.definitions.utils.tensor_utils import normalize_dim
+from hidet.graph.ops.utils.tensor_utils import normalize_dim
 
 logger = get_logger(__name__)
 
