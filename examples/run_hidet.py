@@ -20,6 +20,9 @@ from absl import app
 from absl import flags
 
 FLAGS = flags.FLAGS
+'''
+this not only benchmarks hidet, but also builds operator cache
+'''
 # yapf: disable
 # extern
 flags.DEFINE_string("fn", None, "name of the model; e.g. resnet50")
@@ -31,8 +34,6 @@ flags.DEFINE_integer("verify", 1, "whether to verify")
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
 
-
-# logger
 logger = get_logger(__name__)
 # yapf: enable
 

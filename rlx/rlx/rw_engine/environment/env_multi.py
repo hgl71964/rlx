@@ -556,7 +556,7 @@ class Env(gym.Env):
                                    edge_attr=edge_feat)
         if rule_mask.sum() < 2:
             logger.critical(f"rule_mask: {rule_mask} | {rule_mask.shape}")
-        # logger.warning(f"rule_mask: {rule_mask} | {rule_mask.shape}")
+        # logger.info(f"rule_mask: {rule_mask}")
         return graph_data, pattern_map, rule_mask, loc_mask, rlx_idx_to_graph_edge_idx
 
     def viz(self, path="parser_viz", check=True):
