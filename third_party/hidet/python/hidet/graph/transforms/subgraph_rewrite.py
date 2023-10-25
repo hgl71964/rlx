@@ -119,6 +119,7 @@ class SubgraphRewritePass(GraphPass):
                 # apply the graph transform
                 if PassContext.current().configs['verbose']:
                     print('Applying transform: {}'.format(graph_pattern.name))
+                # print('[hidet] Applying transform: {}'.format(graph_pattern.name))
                 source_output_pattern_tensors = graph_pattern.source()
                 source_output_tensors = [matched[t] for t in source_output_pattern_tensors]
                 for source_tensor, target_tensor in strict_zip(source_output_tensors, target_output_tensors):

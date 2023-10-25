@@ -139,8 +139,8 @@ class Env(gym.Env):
         rule_id, loc_id = action
         rule_id = int(rule_id)
         loc_id = int(loc_id)
-        if self.verbose:
-            logger.info(f"rule_id: {rule_id}, loc_id: {loc_id}")
+
+        # logger.info(f"rule_id: {rule_id}, loc_id: {loc_id}")
 
         truncated = False  # done by env wrapper
         terminated = False
@@ -556,6 +556,7 @@ class Env(gym.Env):
                                    edge_attr=edge_feat)
         if rule_mask.sum() < 2:
             logger.critical(f"rule_mask: {rule_mask} | {rule_mask.shape}")
+        # logger.warning(f"rule_mask: {rule_mask} | {rule_mask.shape}")
         return graph_data, pattern_map, rule_mask, loc_mask, rlx_idx_to_graph_edge_idx
 
     def viz(self, path="parser_viz", check=True):

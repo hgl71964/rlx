@@ -325,6 +325,29 @@ class ar1(RewriteRule):
         return [out]
 
 
+class ar1_v2(RewriteRule):
+
+    def __init__(self, node_types):
+        self.name = "a + x => x + a"
+        self.a = const_pattern()
+        self.x = symbol_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        add = node_pattern(self.node_types["add"], [self.x, self.a], 1)
+        return [add]
+
+    def target_pattern(self, matched):
+        a, x = [matched[pat] for pat in [self.a, self.x]]
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["add"],
+            inputs=[a, x],
+        ).out(get_id())
+        return [out]
+
+
 class ar2(RewriteRule):
 
     def __init__(self, node_types):
@@ -467,6 +490,52 @@ class ar5(RewriteRule):
             attr=None,
             node_type=self.node_types["add"],
             inputs=[xy, ab],
+        ).out(get_id())
+        return [out]
+
+
+class ar6(RewriteRule):
+
+    def __init__(self, node_types):
+        self.name = "a * x => x * a"
+        self.a = const_pattern()
+        self.x = symbol_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        out = node_pattern(self.node_types["mul"], [self.a, self.x], 1)
+        return [out]
+
+    def target_pattern(self, matched):
+        a, x = [matched[pat] for pat in [self.a, self.x]]
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["mul"],
+            inputs=[x, a],
+        ).out(get_id())
+        return [out]
+
+
+class ar6_v2(RewriteRule):
+
+    def __init__(self, node_types):
+        self.name = "a * x => x * a"
+        self.a = const_pattern()
+        self.x = symbol_pattern()
+        self.node_types = node_types
+
+    def source_pattern(self):
+        out = node_pattern(self.node_types["mul"], [self.x, self.a], 1)
+        return [out]
+
+    def target_pattern(self, matched):
+        a, x = [matched[pat] for pat in [self.a, self.x]]
+        out = DFG_Op(
+            get_id(),
+            attr=None,
+            node_type=self.node_types["mul"],
+            inputs=[a, x],
         ).out(get_id())
         return [out]
 
@@ -816,10 +885,13 @@ def define_rewrite_rules(node_types):
 
     return [
         ar1(node_types),
+        ar1_v2(node_types),
         ar2(node_types),
         ar3(node_types),
         ar4(node_types),
         ar5(node_types),
+        ar6(node_types),
+        ar6_v2(node_types),
 
         # conv
         # cr1(node_types),

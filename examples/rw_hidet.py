@@ -38,6 +38,7 @@ flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")
 flags.DEFINE_string("plot", None, "path to plot the initial graph")
 flags.DEFINE_integer("verbose", 1, "whether print in reward function")
+flags.DEFINE_string("annotation", None, "append to save name")
 # env
 flags.DEFINE_string("env_id", "env_multi-v0", "")
 flags.DEFINE_integer("a", 0, "whether to AsyncEnv?")
