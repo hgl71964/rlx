@@ -97,16 +97,21 @@ def main(_):
 
         # RUN
         # run the default passes
-        opt_graph = hidet.graph.optimize(hidet_graph)
+        # opt_graph = hidet.graph.optimize(hidet_graph)
 
         # OR run customized passes; and not running instruments
-        # for opt_pass in my_passes:
-        #     graph = opt_pass(graph)
+        for opt_pass in my_passes:
+            opt_graph = opt_pass(hidet_graph)
 
         # could use a graph instruments
         # print("----")
         # print(graph)
         # print("----")
+
+    if v:
+        dfg = convert_to_dataflow_graph(hidet_graph)
+        converted_hidet_graph = convert_to_hidet_graph(dfg.get_edges())
+        verify_graph(hidet_graph, converted_hidet_graph)
 
     print()
     print("----- Opt graph runtime -----")

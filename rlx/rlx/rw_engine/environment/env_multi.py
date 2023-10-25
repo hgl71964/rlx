@@ -47,7 +47,8 @@ class GraphObsSpace(GymGraph):
 
 class Env(gym.Env):
 
-    def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc,verbose):
+    def __init__(self, parser: Parser, reward_func, rewrite_rules, max_loc,
+                 verbose):
         super().__init__()
         self.parser = parser
         self.reward_func = reward_func

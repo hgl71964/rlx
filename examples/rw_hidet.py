@@ -105,7 +105,13 @@ def main(_):
     #             print(i)
     # print(hidet_graph)
 
-    # rw
+    ###### RUN a round trip #####
+    # dfg = convert_to_dataflow_graph(hidet_graph)
+    # converted_hidet_graph = convert_to_hidet_graph(dfg.get_edges())
+    # verify_graph(hidet_graph, converted_hidet_graph)
+    ###### RUN a round trip #####
+
+    ###### start to rw ######
     dfg = convert_to_dataflow_graph(hidet_graph)
 
     # for plot
