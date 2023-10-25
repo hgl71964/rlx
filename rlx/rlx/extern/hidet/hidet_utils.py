@@ -10,15 +10,6 @@ from rlx.utils.common import get_logger
 from rlx.extern.hidet.hidet_def import *
 from rlx.extern.hidet.hidet_conversion import *
 
-# extern
-import hidet
-from hidet.utils import benchmark_func
-
-# storage
-# from hidet.graph.impl.dlpack import DLPackStorage, DLTensorDeleter
-# from hidet.runtime.storage import Storage
-
-# logger
 logger = get_logger(__name__)
 
 

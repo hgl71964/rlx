@@ -4,14 +4,12 @@ from rlx.frontend import Edge, Node
 from rlx.extern.hidet.hidet_def import *
 
 # extern
-import hidet
 from hidet.graph import ops  # see frontend/onnx for how to build op
 
 # storage
 # from hidet.graph.impl.dlpack import DLPackStorage, DLTensorDeleter
 # from hidet.runtime.storage import Storage
 
-# logger
 logger = get_logger(__name__)
 
 # NOTE: storage cannot be deepcopy neither its attributes
@@ -243,29 +241,21 @@ def convert_to_dataflow_graph(graph: hidet.FlowGraph):
                                   DFG_Op), f"expect DFG_Op, got {type(trace)}"
 
             edge_type = var_type if obj.storage is None else const_type
+
             if obj.storage is None:
-                tensor = DFG_Edge(cnt,
-                                  attr=EdgeAttribute(
-                                      shape=obj.shape,
-                                      dtype=obj.dtype,
-                                      device=obj.device,
-                                      layout=obj.layout,
-                                      storage_id=None,
-                                  ),
-                                  edge_type=edge_type,
-                                  trace=trace)
+                storage_id = None
             else:
                 storage_id = add_storage(obj.storage)
-                tensor = DFG_Edge(cnt,
-                                  attr=EdgeAttribute(
-                                      shape=obj.shape,
-                                      dtype=obj.dtype,
-                                      device=obj.device,
-                                      layout=obj.layout,
-                                      storage_id=storage_id,
-                                  ),
-                                  edge_type=edge_type,
-                                  trace=trace)
+            tensor = DFG_Edge(cnt,
+                              attr=EdgeAttribute(
+                                  shape=obj.shape,
+                                  dtype=obj.dtype,
+                                  device=obj.device,
+                                  layout=obj.layout,
+                                  storage_id=storage_id,
+                              ),
+                              edge_type=edge_type,
+                              trace=trace)
 
             if trace is not None:
                 trace.outputs.append(tensor)
@@ -344,10 +334,7 @@ def convert_to_hidet_graph(edges: list[Edge]):
     return hidet_graph
 
 
-#########################
-#### shape inference ####
-#########################
-def edge2tensor(edge: Edge):
+def edge2tensor(edge: Edge) -> hidet.Tensor:
     assert isinstance(edge, DFG_Edge), f"expect DFG_Edge, got {type(edge)}"
     return hidet.Tensor(
         shape=edge.attr.shape,
@@ -359,8 +346,3 @@ def edge2tensor(edge: Edge):
         storage=None
         if edge.attr.storage_id is None else get_storage(edge.attr.storage_id),
     )
-
-
-def node2operator(node: Node):
-    assert isinstance(node, DFG_Op), f"expect DFG_Op, got {type(node)}"
-    # TODO

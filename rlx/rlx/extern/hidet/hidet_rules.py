@@ -7,12 +7,6 @@ from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pat
 from rlx.extern.hidet.hidet_def import *
 from rlx.extern.hidet.hidet_conversion import *
 
-# extern
-import hidet
-# utils
-from hidet.utils import same_list, initialize
-from hidet.graph.ops.definitions.utils.tensor_utils import normalize_dim
-
 logger = get_logger(__name__)
 
 _hidet_id = 10000
@@ -23,6 +17,39 @@ def get_id():
     local = _hidet_id
     _hidet_id += 1
     return local
+
+
+def shape_inference(op: DFG_Op):
+    """
+    When building target graph, we need to know the shape of output
+    """
+    inputs = []
+    for inp in op.inputs:
+        inputs.append(edge2tensor(inp))
+
+    output = hidet_reverse_loopup(op, inputs)
+    assert isinstance(
+        output,
+        hidet.Tensor,
+    ), f"expected hidet.Tensor for now, got {type(output)}"
+
+    if output.storage is not None:
+        storage_id = add_storage(output.storage)
+    else:
+        storage_id = None
+
+    out = op.out(
+        idx=get_id(),
+        attr=EdgeAttribute(
+            shape=output.shape,
+            dtype=output.dtype,
+            device=output.device,
+            layout=output.layout,
+            storage_id=storage_id,
+        ),
+        edge_type=None,
+    )
+    return out
 
 
 #### transform rules ####
@@ -703,18 +730,17 @@ class cr2(RewriteRule):
         if op1.attr.attrs['groups'] == op2.attr.attrs['groups'] == 1:
             if same_list(op1.attr.attrs['stride'], op2.attr.attrs['stride']):
                 if same_list(w1.attr.shape[1:], w2.attr.shape[1:]):
-                    out = DFG_Op(
+                    concatOp = DFG_Op(
                         get_id(),
                         attr=("Concat", {
                             "axis": 0
                         }),
                         node_type=self.node_types["concat"],
                         inputs=[w1, w2],
-                    ).out(get_id())
+                    )
+                    out = shape_inference(concatOp)
 
-                    # y doesn't have shape; because we don't have shape inference algorithm
-                    # TODO can we use hidet's infra to build and infer shape?
-                    y = DFG_Op(
+                    convOp = DFG_Op(
                         get_id(),
                         attr=("Conv2d", {
                             "stride": op1.attr[1]["stride"],
@@ -723,15 +749,17 @@ class cr2(RewriteRule):
                         }),
                         node_type=self.node_types["conv2d"],
                         inputs=[x, out],
-                    ).out(get_id())
+                    )
+                    y = shape_inference(convOp)
 
-                    len_data_shape = len(y.attr[0])  # <- FIXME
-                    shape1 = w1.attr[0][0]
-                    shape2 = w2.attr[0][0]
+                    len_data_shape = len(y.attr.shape)
+                    shape1 = w1.attr.shape[0]
+                    shape2 = w2.attr.shape[0]
                     parts = [shape1, shape2]
                     axis = 1
                     axis = normalize_dim(axis, len_data_shape)
 
+                    # TODO
                     outputs = []
                     for i in range(len(parts)):
                         start = sum(parts[:i])

@@ -2,7 +2,7 @@ from collections import namedtuple
 
 from rlx.utils.common import get_logger
 from rlx.frontend.registry import register_types
-from rlx.frontend import RewriteRule, Graph, Node, Edge, node_pattern, const_pattern, symbol_pattern
+from rlx.frontend import Graph, Node, Edge
 
 # extern
 import hidet
@@ -42,6 +42,7 @@ from hidet.graph.transforms.fuse_operator import fuse_operator_pass
 from hidet.graph.transforms.eliminate_barrier import eliminate_barrier_pass
 
 # utils
+from hidet.utils import benchmark_func
 from hidet.utils import same_list, initialize
 from hidet.graph.ops.definitions.utils.tensor_utils import normalize_dim
 
