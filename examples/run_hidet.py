@@ -30,6 +30,8 @@ flags.DEFINE_string("default_out_path", "data", "output dir")
 flags.DEFINE_integer("c", 1, "whether to cache operators")
 flags.DEFINE_integer("s", 1, "search level: [0, 1, 2]")
 flags.DEFINE_integer("verify", 1, "whether to verify")
+flags.DEFINE_integer("l", 1, "no use")
+flags.DEFINE_string("verbose", None, "no use")
 # common
 flags.DEFINE_integer("viz", 0, "whether to visualize the ast?")
 flags.DEFINE_integer("seed", 3407, "")

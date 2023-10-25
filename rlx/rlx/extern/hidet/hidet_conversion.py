@@ -1,6 +1,6 @@
 from rlx.utils.common import get_logger
 from rlx.frontend.registry import get_types
-from rlx.frontend import Graph, Edge, Node
+from rlx.frontend import Edge, Node
 from rlx.extern.hidet.hidet_def import *
 
 # extern
@@ -42,7 +42,10 @@ def hidet_lookup(hidet_op: hidet.Operator, all_types):
     return all_types[OP_MAP[op_class]]
 
 
-def hidet_reverse_loopup(dfg_op: DFG_Op, inputs):
+def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
+    for inp in inputs:
+        assert isinstance(
+            inp, hidet.Tensor), f"expected hidet.Tensor, got {type(inp)}"
     node_type = dfg_op.get_type().name
     # arithmeticOp
     if node_type == "add":
@@ -346,7 +349,16 @@ def convert_to_hidet_graph(edges: list[Edge]):
 #########################
 def edge2tensor(edge: Edge):
     assert isinstance(edge, DFG_Edge), f"expect DFG_Edge, got {type(edge)}"
-    # TODO
+    return hidet.Tensor(
+        shape=edge.attr.shape,
+        dtype=edge.attr.dtype,
+        device=edge.attr.device,
+        layout=edge.attr.layout,
+        trace=None,
+        # if edge.attr[4] is None else STORAGE_CACHE[edge.attr[4]],
+        storage=None
+        if edge.attr.storage_id is None else get_storage(edge.attr.storage_id),
+    )
 
 
 def node2operator(node: Node):
