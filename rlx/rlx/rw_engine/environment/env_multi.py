@@ -562,7 +562,14 @@ class Env(gym.Env):
                                    edge_attr=edge_feat)
         if rule_mask.sum() < 2:
             logger.critical(f"rule_mask: {rule_mask} | {rule_mask.shape}")
-        logger.warning(f"rule_mask: {rule_mask}")
+
+        # verbose version
+        for i, r in enumerate(rule_mask):
+            if r != 0 and i != len(rule_mask) - 1:
+                logger.warning(
+                    f"{self.rewrite_rules[i].name}: loc_mask: {loc_mask[i].sum()}"
+                )
+
         return graph_data, pattern_map, rule_mask, loc_mask, rlx_idx_to_graph_edge_idx
 
     def viz(self, path="parser_viz", check=True):
