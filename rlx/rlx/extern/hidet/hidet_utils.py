@@ -58,26 +58,32 @@ def verify_graph(g1, g2):
 
     data = g1.dummy_inputs()
     cuda_graph = g1.cuda_graph()
-    (out1, ) = cuda_graph.run(data)
+    out1 = cuda_graph.run(data)
     del cuda_graph
 
     cuda_graph = g2.cuda_graph()
-    (out2, ) = cuda_graph.run(data)
+    out2 = cuda_graph.run(data)
     del cuda_graph
 
-    np.testing.assert_allclose(
-        actual=out1.cpu().numpy(),
-        desired=out2.cpu().numpy(),
-        rtol=1e-5,
-        atol=1e-5,
-    )
+    if not isinstance(out1, list):
+        out1 = [out1]
+    if not isinstance(out2, list):
+        out2 = [out2]
+
+    for o1, o2 in zip(out1, out2):
+        np.testing.assert_allclose(
+            actual=o1.cpu().numpy(),
+            desired=o2.cpu().numpy(),
+            rtol=1e-5,
+            atol=1e-5,
+        )
     logger.info(f"verify graphs OK!!")
 
 
 def bench_hidet_graph(graph: hidet.FlowGraph, v=True) -> float:
     data = graph.dummy_inputs()
     cuda_graph = graph.cuda_graph()
-    (output, ) = cuda_graph.run(data)
+    _ = cuda_graph.run(data)
     latency = benchmark_func(lambda: cuda_graph.run())
     if v:
         logger.info('Hidet: {:.3f} ms'.format(latency))
@@ -98,6 +104,7 @@ def _hidet_model_from_onnx_path(model: str):
     # load from onnx
     if model[-1] == "/":
         model = model[:-1]
+    model_name = model
     onnx_path = "data/models/"
     full_path = os.path.join(onnx_path, model, model + ".onnx")
     logger.info(f"load from {full_path}")
@@ -121,10 +128,11 @@ def _hidet_model_from_onnx_path(model: str):
 
     print("====================")
     print("TRACE")
-    assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
+    # assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
 
     # XXX: a hack to convert [3, 244, 244] -> [1, 3, 244, 244]
-    if len(inputs_shape[0]) == 3:
+    if model_name == "resnet50" and len(inputs_shape[0]) == 3:
+        print('ad')
         inputs_shape[0] = [1] + inputs_shape[0]
     # data = hidet.randn([1, 3, 224, 224], device='cuda')
     data = hidet.randn(inputs_shape[0], device='cuda')

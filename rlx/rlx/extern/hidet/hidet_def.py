@@ -34,6 +34,10 @@ from hidet.graph.ops.matmul.batch_matmul import BatchMatmulOp
 
 from hidet.graph.ops.reduce.reduce import ReduceSumOp, ReduceMeanOp
 
+from hidet.graph.ops.normalize.norm import NormalizeOp
+
+from hidet.graph.ops.fusion.fused_operator import FusedOperator
+
 # pass
 # from hidet.graph.transforms.fold_const import fold_const_pass
 # from hidet.graph.transforms.subgraph_rewrite import subgraph_rewrite_pass
@@ -240,6 +244,8 @@ OP_MAP = {
     # reduce
     ReduceSumOp: "reduce_sum",
     ReduceMeanOp: "reduce_mean",
+    NormalizeOp: "normalize",
+    FusedOperator: "fused_operator",
 }
 
 NODE_TYPE = ["Var", "Const"] + [v for _, v in OP_MAP.items()]
@@ -428,5 +434,20 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
         return ops.mean(inputs[0],
                         dims=dfg_op.attr.attrs["dims"],
                         keep_dim=dfg_op.attr.attrs["keepdims"])
+
+    elif node_type == "normalize":
+        assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
+        return hidet.graph.ops.normalize.norm.normalize(
+            inputs[0],
+            axis=dfg_op.attr.attrs["dims"],
+            epsilon=dfg_op.attr.attrs["epsilon"],
+            accumulate_dtype=dfg_op.attr.attrs["accumulate_dtype"],
+        )
+    elif node_type == "fused_operator":
+        return ops.fused_operator(
+            *inputs,
+            fused_graph=dfg_op.attr.attrs["fused_graph"],
+            anchor=dfg_op.attr.attrs["anchor"],
+        )
     else:
         raise RuntimeError(f"Unsupported node type: {node_type}")
