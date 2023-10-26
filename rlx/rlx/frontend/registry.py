@@ -14,7 +14,7 @@ def register_types(str_types: list[str]):
     assert "Var" in str_types, "node type must have 'Var'"
     assert "Const" in str_types, "node type must have 'Const'"
 
-    TYPES = Enum("typeS", str_types)
+    TYPES = Enum("rlx_type", str_types)
     ConstType = TYPES["Const"]
     VarType = TYPES["Var"]
 

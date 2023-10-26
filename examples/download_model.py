@@ -6,22 +6,22 @@ ONNX_PATH = './data/models/'
 
 MODELS = [
     # vision
-    "mobilenet_v2",
-    "inception_v3",
-    "resnext50_32x4d",
+    # "mobilenet_v2",
+    # "inception_v3",
+    # "resnext50_32x4d",
     # "resnext101_32x8d",
-    "resnet18",
+    # "resnet18",
     # "resnet34",
-    "resnet50",
-    "resnet101",
-    #"resnet152",
+    # "resnet50",
+    # "resnet101",
+    # "resnet152",
 
     # nlp
-    "bert-base-uncased",
+    "bert-base-uncased",  # layernorm is not implemented from onnx path
     # "bert-large-uncased",
     "bert-base-cased",
     # "bert-large-cased",
-    "gpt2",
+    "gpt2",  # layernorm is not implemented from onnx path
 ]
 
 

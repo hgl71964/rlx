@@ -264,10 +264,11 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
         assert isinstance(
             inp, hidet.Tensor), f"expected hidet.Tensor, got {type(inp)}"
     node_type = dfg_op.get_type().name
+
     # arithmeticOp
     if node_type == "add":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        # this returns a Tensor
+        print(inputs[0].shape, inputs[1].shape)
         return ops.add(inputs[0], inputs[1])
     elif node_type == "sub":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
@@ -410,6 +411,7 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
             dfg_op.attr.attrs["stride"],
             dfg_op.attr.attrs["dilations"],
             dfg_op.attr.attrs["groups"],
+            dfg_op.attr.attrs["padding"],
         )
     elif node_type == "matmul":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"

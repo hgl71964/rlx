@@ -82,8 +82,8 @@ def bench_hidet_graph(graph: hidet.FlowGraph, v=True) -> float:
 
 
 def get_hidet_model(model: str):
-    if model[:4] == "bert" or model == "gpt2":
-        return _hidet_model_from_pytorch(model)
+    # if model[:4] == "bert" or model == "gpt2":
+    #     return _hidet_model_from_pytorch(model)
 
     return _hidet_model_from_onnx_path(model)
 
@@ -143,20 +143,36 @@ def _hidet_model_from_pytorch(model: str, batch_size=1, seq_length=1):
     torch_model = torch.hub.load(repo_name, 'model', model)
     torch_model = torch_model.cuda().eval()
 
+    # see: transformer.bert.modelling_bert.BertModel.forward (to satisfy all args)
     input_ids = torch.zeros((batch_size, seq_length),
                             dtype=torch.long,
                             device='cuda')
+    input_embeds = torch.randn((batch_size, seq_length, 768),
+                               dtype=torch.float,
+                               device='cuda')
+    attention_mask = torch.ones((batch_size, seq_length, 768),
+                                dtype=torch.long,
+                                device='cuda')
+    head_mask = torch.ones((seq_length, 768), dtype=torch.long, device='cuda')
+    use_cache = False
+    output_hidden_states = False
+    output_attentions = False
+
     args = {
-        'input_ids': input_ids,
-        "inputs_embeds": None,
+        # 'input_ids': input_ids,
+        'input_ids': None,
+        "inputs_embeds": input_embeds,
+        'attention_mask': attention_mask,
+        'head_mask': head_mask,
+        'use_cache': use_cache,
+        'output_hidden_states': output_hidden_states,
+        'output_attentions': output_attentions,
     }
 
-    # fx from transfomers
-    # traced_model = symbolic_trace(model, input_names=["input_ids", "attention_mask", "token_type_ids"])
-
-    # NOTE: hidet has not supported Ops
+    # NOTE: hidet has not supported Ops; fx from transfomers
     traced_model = symbolic_trace(torch_model, input_names=["input_ids"])
     hidet_module = hidet.graph.frontend.from_torch(traced_model, None)
+    # hidet_module = hidet.graph.frontend.from_torch(torch_model, args)
 
     data = hidet.randn([batch_size, seq_length], device='cuda')
     symbol_data = hidet.symbol_like(data)
