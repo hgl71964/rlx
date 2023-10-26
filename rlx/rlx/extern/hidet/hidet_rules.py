@@ -6,6 +6,9 @@ from rlx.frontend import RewriteRule, node_pattern, const_pattern, symbol_patter
 from rlx.extern.hidet.hidet_def import *
 from rlx.extern.hidet.hidet_conversion import *
 
+from hidet.utils import same_list, initialize
+from hidet.graph.ops.utils.tensor_utils import normalize_dim, normalize_slice
+
 logger = get_logger(__name__)
 
 _hidet_id = 10000
@@ -129,7 +132,7 @@ class ar1(RewriteRule):
 class ar1_v2(RewriteRule):
 
     def __init__(self, node_types):
-        self.name = "a + x => x + a"
+        self.name = "x + a => a + x"
         self.a = const_pattern()
         self.x = symbol_pattern()
         self.node_types = node_types
@@ -720,8 +723,9 @@ class cr1(RewriteRule):
             attr=NodeAttribute(
                 "Conv2d", {
                     "stride": attrs["stride"],
-                    "dilations": (1, 1),
+                    "dilations": attrs["dilations"],
                     "groups": attrs["groups"],
+                    "padding": attrs["padding"],
                 }),
             node_type=self.node_types["conv2d"],
             inputs=[x, out],
@@ -754,58 +758,60 @@ class cr2(RewriteRule):
         op2: DFG_Op = y2.trace
 
         if op1.attr.attrs['groups'] == op2.attr.attrs['groups'] == 1:
-            if same_list(op1.attr.attrs['stride'], op2.attr.attrs['stride']):
-                if same_list(w1.attr.shape[1:], w2.attr.shape[1:]):
-                    concat_dfgOp = DFG_Op(
-                        get_id(),
-                        attr=NodeAttribute("Concat", {"axis": 0}),
-                        node_type=self.node_types["concat"],
-                        inputs=[w1, w2],
-                    )
-                    out = build_outputs(concat_dfgOp)
+            if (same_list(op1.attr.attrs['stride'], op2.attr.attrs['stride'])
+                    and same_list(op1.attr.attrs['dilations'],
+                                  op2.attr.attrs['dilations'])
+                    and same_list(op1.attr.attrs['padding'],
+                                  op2.attr.attrs['padding'])
+                    and same_list(w1.attr.shape[1:], w2.attr.shape[1:])):
+                concat_dfgOp = DFG_Op(
+                    get_id(),
+                    attr=NodeAttribute("Concat", {"axis": 0}),
+                    node_type=self.node_types["concat"],
+                    inputs=[w1, w2],
+                )
+                w = build_outputs(concat_dfgOp)
 
-                    conv2d_dfgOp = DFG_Op(
+                conv2d_dfgOp = DFG_Op(
+                    get_id(),
+                    attr=NodeAttribute(
+                        "Conv2d", {
+                            "stride": op1.attr.attrs["stride"],
+                            "padding": op1.attr.attrs["padding"],
+                            "dilations": op1.attr.attrs["dilations"],
+                            "groups": 1,
+                        }),
+                    node_type=self.node_types["conv2d"],
+                    inputs=[x, w],
+                )
+                y = build_outputs(conv2d_dfgOp)
+
+                axis = 1
+                parts = [w1.attr.shape[0], w2.attr.shape[0]]
+                axis = normalize_dim(axis, len(y.attr.shape))
+                outputs = []
+                for i in range(len(parts)):
+                    start = sum(parts[:i])
+                    end = start + parts[i]
+                    # hidet.graph.ops.definitions.transform
+                    starts, ends, axes, strides = normalize_slice(
+                        y.attr.shape, [start], [end], [axis], [1])
+                    strided_slice_dfgOp = DFG_Op(
                         get_id(),
                         attr=NodeAttribute(
-                            "Conv2d", {
-                                "stride": op1.attr[1]["stride"],
-                                "dilations": (1, 1),
-                                "groups": 1,
+                            "strided_slice", {
+                                "starts": starts,
+                                "ends": ends,
+                                "axes": axes,
+                                "strides": strides,
                             }),
-                        node_type=self.node_types["conv2d"],
-                        inputs=[x, out],
+                        node_type=self.node_types["strided_slice"],
+                        inputs=[y],
                     )
-                    y = build_outputs(conv2d_dfgOp)
-
-                    axis = 1
-                    shape1 = w1.attr.shape[0]
-                    shape2 = w2.attr.shape[0]
-                    parts = [shape1, shape2]
-                    axis = normalize_dim(axis, len(y.attr.shape))
-
-                    outputs = []
-                    for i in range(len(parts)):
-                        start = sum(parts[:i])
-                        end = start + parts[i]
-                        # hidet.graph.ops.definitions.transform
-                        starts, ends, axes, strides = StridedSliceOp.normalize(
-                            y.attr.shape, [start], [end], [axis], [1])
-                        strided_slice_dfgOp = DFG_Op(
-                            get_id(),
-                            attr=NodeAttribute(
-                                "strided_slice", {
-                                    "starts": starts,
-                                    "ends": ends,
-                                    "axes": axes,
-                                    "strides": strides,
-                                }),
-                            node_type=self.node_types["strided_slice"],
-                            inputs=[y],
-                        )
-                        out = build_outputs(strided_slice_dfgOp)
-
-                        outputs.append(out)
-                    return outputs
+                    out = build_outputs(strided_slice_dfgOp)
+                    outputs.append(out)
+                    print("ok")
+                return outputs
 
         return None
 
@@ -831,9 +837,6 @@ class cr3(RewriteRule):
         conv = node_pattern(node_types["conv2d"], [self.tx, concat], 1)
         split = node_pattern(node_types["split"], [conv], 3)
         return split
-
-    def register_deps(self):
-        pass
 
 
 def define_rewrite_rules(node_types):

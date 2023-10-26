@@ -52,11 +52,6 @@ from hidet.graph.transforms import (
     eliminate_barrier_pass,
 )
 
-# utils
-from hidet.utils import benchmark_func
-from hidet.utils import same_list, initialize
-from hidet.graph.ops.utils.tensor_utils import normalize_dim
-
 logger = get_logger(__name__)
 
 NodeAttribute = namedtuple("NodeAttribute", ["name", "attrs"])

@@ -17,11 +17,13 @@ MODELS = [
     # "resnet152",
 
     # nlp
-    "bert-base-uncased",  # layernorm is not implemented from onnx path
+    # "bert-base-uncased",  # layernorm is not implemented from onnx path
     # "bert-large-uncased",
-    "bert-base-cased",
+    # "bert-base-cased",
     # "bert-large-cased",
-    "gpt2",  # layernorm is not implemented from onnx path
+    # "gpt2",  # layernorm is not implemented from onnx path
+
+    # "transformer_wmt14_en-fr",  # does not work
 ]
 
 
@@ -111,6 +113,22 @@ def main():
                 output_names=['output'],
                 # dynamic_axes={'data': {0: 'batch_size'}, 'output': {0: 'batch_size'}},
             )
+        elif model == "transformer_wmt14_en-fr":
+            torch_model = torch.hub.load('pytorch/fairseq',
+                                         'transformer.wmt14.en-fr',
+                                         tokenizer='moses',
+                                         bpe='subword_nmt')
+            torch_model = torch_model.cuda().eval()
+            torch_data = torch.randn([1, 3, 224, 224]).cuda()
+            torch.onnx.export(
+                model=torch_model,
+                args=torch_data,
+                f=os.path.join(full_path, model + ".onnx"),
+                input_names=['data'],
+                output_names=['output'],
+                # dynamic_axes={'data': {0: 'batch_size'}, 'output': {0: 'batch_size'}},
+            )
+
         elif model[:4] == "bert" or model == "gpt2":
             batch_size = 1
             seq_length = 128
