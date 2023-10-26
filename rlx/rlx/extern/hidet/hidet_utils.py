@@ -88,6 +88,9 @@ def get_hidet_model(model: str):
     # if model[:4] == "bert" or model == "gpt2":
     #     return _hidet_model_from_pytorch(model)
 
+    if model == "gpt-2":
+        return _hidet_model_from_hidet(model)
+
     return _hidet_model_from_onnx_path(model)
 
 
@@ -130,6 +133,13 @@ def _hidet_model_from_onnx_path(model: str):
     symbol_output = hidet_onnx_module(symbol_data)
     graph = hidet.trace_from(symbol_output)
     return graph
+
+
+def _hidet_model_from_hidet(model):
+    onnx_path = "data/models/"
+    model_name = "model_124M_seq40_fp32.hf"
+    hf_path = os.path.join(onnx_path, model, model_name)
+    return hidet.load_graph(hf_path)
 
 
 def _hidet_model_from_pytorch(model: str, batch_size=1, seq_length=1):
