@@ -104,11 +104,11 @@ def main(_):
 
         # RUN
         # run the default passes
-        # opt_graph = hidet.graph.optimize(hidet_graph)
+        opt_graph = hidet.graph.optimize(hidet_graph)
 
         # OR run customized passes; and not running instruments
-        for opt_pass in my_passes:
-            opt_graph = opt_pass(hidet_graph)
+        # for opt_pass in my_passes:
+        #     opt_graph = opt_pass(hidet_graph)
 
         # could use a graph instruments
         # print("----")

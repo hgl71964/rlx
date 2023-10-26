@@ -24,7 +24,7 @@ def reward_func(
     my_passes = [
         # fold_const_pass(),
         conv_channel_last_pass(),
-        subgraph_rewrite_pass(),
+        # subgraph_rewrite_pass(),
         automatic_mix_precision_pass(),
         selective_quantize_pass(),
         resolve_variant_pass(),
