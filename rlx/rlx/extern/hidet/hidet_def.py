@@ -268,7 +268,6 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
     # arithmeticOp
     if node_type == "add":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
-        print(inputs[0].shape, inputs[1].shape)
         return ops.add(inputs[0], inputs[1])
     elif node_type == "sub":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
