@@ -46,9 +46,10 @@ def reward_func(
         stats["last_latency"] = latency
         return latency
 
-    # print(
-    #     f"init latency: {stats['init_latency']:.2f}; last latency: {stats['last_latency']:.2f}; latency: {latency:.2f}"
-    # )
+    if verbose:
+        print(
+            f"init latency: {stats['init_latency']:.2f}; last latency: {stats['last_latency']:.2f}; latency: {latency:.2f}"
+        )
     reward = (stats["last_latency"] - latency) / stats["init_latency"]
     stats["last_latency"] = latency
     return reward
