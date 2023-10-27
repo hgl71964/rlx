@@ -59,14 +59,18 @@ def verify_graph(g1, g2):
     assert isinstance(g1, hidet.FlowGraph), f"g1 is {type(g1)}"
     assert isinstance(g2, hidet.FlowGraph), f"g2 is {type(g2)}"
 
-    data = g1.dummy_inputs()
-    cuda_graph = g1.cuda_graph()
-    out1 = cuda_graph.run(data)
-    del cuda_graph
+    # data = g1.dummy_inputs()
+    # cuda_graph = g1.cuda_graph()
+    # out1 = cuda_graph.run(data)
+    # del cuda_graph
 
-    cuda_graph = g2.cuda_graph()
-    out2 = cuda_graph.run(data)
-    del cuda_graph
+    # cuda_graph = g2.cuda_graph()
+    # out2 = cuda_graph.run(data)
+    # del cuda_graph
+
+    data = g1.dummy_inputs()
+    out1 = g1.forward(data)
+    out2 = g2.forward(data)
 
     if not isinstance(out1, list):
         out1 = [out1]
