@@ -106,12 +106,12 @@ class DFG_Edge(Edge):
 
     @staticmethod
     def get_nums_embedding():
-        return 4
+        return 5
 
     def get_embedding(self):
-        ret = self.attr.shape
-        assert len(ret) <= 4, f"invalid shape: {ret}"
-        diff = 4 - len(ret)
+        ret = list(self.attr.shape)
+        assert len(ret) <= 5, f"invalid shape: {ret}"
+        diff = 5 - len(ret)
         ret = [0] * diff + ret
         ret = [i / 100 for i in ret]  # normalise by 100?
         return ret
@@ -275,6 +275,9 @@ def hidet_reverse_loopup(dfg_op: DFG_Op, inputs: list[hidet.Tensor]):
     if node_type == "add":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
         return ops.add(inputs[0], inputs[1])
+    if node_type == "neg":
+        assert len(inputs) == 1, f"len(inputs) == {len(inputs)}"
+        return ops.negative(inputs[0])
     elif node_type == "sub":
         assert len(inputs) == 2, f"len(inputs) == {len(inputs)}"
         return ops.subtract(inputs[0], inputs[1])

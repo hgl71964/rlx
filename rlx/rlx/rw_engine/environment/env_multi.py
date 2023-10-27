@@ -568,7 +568,7 @@ class Env(gym.Env):
             for i, r in enumerate(rule_mask):
                 if r != 0 and i != len(rule_mask) - 1:
                     logger.warning(
-                        f"{self.rewrite_rules[i].name}: loc_mask: {loc_mask[i].sum()}"
+                        f"{self.rewrite_rules[i].name}({i}): loc_mask: {loc_mask[i].sum()}"
                     )
         return graph_data, pattern_map, rule_mask, loc_mask, rlx_idx_to_graph_edge_idx
 
