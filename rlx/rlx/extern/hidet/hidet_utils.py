@@ -135,7 +135,6 @@ def _hidet_model_from_onnx_path(model: str):
 
     # XXX: a hack to convert [3, 244, 244] -> [1, 3, 244, 244]
     if model_name == "resnet50" and len(inputs_shape[0]) == 3:
-        print('ad')
         inputs_shape[0] = [1] + inputs_shape[0]
     # data = hidet.randn([1, 3, 224, 224], device='cuda')
     data = hidet.randn(inputs_shape[0], device='cuda')

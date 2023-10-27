@@ -106,10 +106,15 @@ class DFG_Edge(Edge):
 
     @staticmethod
     def get_nums_embedding():
-        return 0
+        return 4
 
     def get_embedding(self):
-        return []
+        ret = self.attr.shape
+        assert len(ret) <= 4, f"invalid shape: {ret}"
+        diff = 4 - len(ret)
+        ret = [0] * diff + ret
+        ret = [i / 100 for i in ret]  # normalise by 100?
+        return ret
 
 
 class DFG_Op(Node):
