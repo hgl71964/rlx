@@ -70,9 +70,11 @@ def main(_):
     # print(hidet_graph)
 
     # benchmark before run
-    print("----- Benchmark -----")
+    print("----- Init Benchmark -----")
     bench_hidet_graph(hidet_graph)
-    print("----- Benchmark -----")
+    latency = hidet_graph.latency()
+    print(f"graph latency: {latency:.2f}ms")
+    print("----- Init Benchmark -----")
     print()
 
     # round trip
@@ -87,7 +89,7 @@ def main(_):
     my_passes = [
         # fold_const_pass(),
         conv_channel_last_pass(),
-        subgraph_rewrite_pass(),
+        # subgraph_rewrite_pass(),
         automatic_mix_precision_pass(),
         selective_quantize_pass(),
         resolve_variant_pass(),
@@ -101,14 +103,10 @@ def main(_):
         # if use_fp16:
         #     ctx.set_precision('float16')
         #     ctx.set_mma('mma')
-
-        # RUN
-        # run the default passes
-        opt_graph = hidet.graph.optimize(hidet_graph)
-
-        # OR run customized passes; and not running instruments
-        # for opt_pass in my_passes:
-        #     opt_graph = opt_pass(hidet_graph)
+        # run customized passes; and not running instruments
+        opt_graph = hidet_graph
+        for opt_pass in my_passes:
+            opt_graph = opt_pass(opt_graph)
 
         # could use a graph instruments
         # print("----")
@@ -116,13 +114,30 @@ def main(_):
         # print("----")
 
     if v:
-        dfg = convert_to_dataflow_graph(hidet_graph)
+        dfg = convert_to_dataflow_graph(opt_graph)
         converted_hidet_graph = convert_to_hidet_graph(dfg.get_edges())
-        verify_graph(hidet_graph, converted_hidet_graph)
+        verify_graph(opt_graph, converted_hidet_graph)
 
     print()
     print("----- Opt graph runtime -----")
     bench_hidet_graph(opt_graph)
+    latency = opt_graph.latency()
+    print(f"opt graph latency: {latency:.2f}ms")
+    print()
+
+    with hidet.graph.PassContext() as ctx:
+        # run the default passes
+        opt_graph = hidet.graph.optimize(hidet_graph)
+    if v:
+        dfg = convert_to_dataflow_graph(opt_graph)
+        converted_hidet_graph = convert_to_hidet_graph(dfg.get_edges())
+        verify_graph(opt_graph, converted_hidet_graph)
+
+    print()
+    print("----- Full Opt graph runtime -----")
+    bench_hidet_graph(opt_graph)
+    latency = opt_graph.latency()
+    print(f"Full Opt graph graph latency: {latency:.2f}ms")
     print()
 
 

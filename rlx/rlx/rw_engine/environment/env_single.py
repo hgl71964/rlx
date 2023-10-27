@@ -184,7 +184,8 @@ class Env(gym.Env):
                     break
             if ok:
                 new_subgraph_outputs = self._substitute_one(rw, matched, bans)
-                all_new_subgraph_outputs.extend(new_subgraph_outputs)
+                if new_subgraph_outputs is not None:
+                    all_new_subgraph_outputs.extend(new_subgraph_outputs)
         ############################################
         ## rebuild continuous index and self.edges##
         ############################################
@@ -257,20 +258,22 @@ class Env(gym.Env):
             matched_mapping[pat] = obj
             old_subgraph_objs.add(obj)
 
-        ban_objs = set()  # old_subgraph_objs except inputs
-        for obj in old_subgraph_objs:
-            if obj not in old_subgraph_inputs:
-                ban_objs.add(obj)
-                bans.add(obj)
-
         # get new subgraph from users
         new_subgraph_outputs = rw.target_pattern(matched_mapping)
+        if new_subgraph_outputs is None:
+            return None
         assert isinstance(
             new_subgraph_outputs,
             list), f"expect list, got {type(new_subgraph_outputs)}"
         assert len(old_subgraph_outputs) == len(
             new_subgraph_outputs
         ), f"subgraph outputs must be 1-to-1, but {len(old_subgraph_outputs)} != {len(new_subgraph_outputs)}"
+
+        ban_objs = set()  # old_subgraph_objs except inputs
+        for obj in old_subgraph_objs:
+            if obj not in old_subgraph_inputs:
+                ban_objs.add(obj)
+                bans.add(obj)
 
         # change inputs' uses
         for old in old_subgraph_inputs:
